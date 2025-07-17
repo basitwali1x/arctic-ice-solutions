@@ -31,10 +31,19 @@ def clean_excel_data(df: pd.DataFrame) -> pd.DataFrame:
     
     return df_clean
 
-def extract_customers_from_excel(df: pd.DataFrame) -> List[Dict[str, Any]]:
+def extract_customers_from_excel(df: pd.DataFrame, location_id: str = "loc_1", location_name: str = "Leesville") -> List[Dict[str, Any]]:
     """Extract unique customers from Excel data"""
     customers = []
     unique_customers = df['Name'].unique()
+    
+    if location_id == "loc_3":  # Lufkin, TX
+        area_code = "936"
+        state = "Texas"
+        zip_base = 75901
+    else:  # Default to Louisiana
+        area_code = "337"
+        state = "Louisiana"
+        zip_base = 70601
     
     for i, customer_name in enumerate(unique_customers):
         if pd.isna(customer_name) or customer_name == 'nan':
@@ -46,12 +55,12 @@ def extract_customers_from_excel(df: pd.DataFrame) -> List[Dict[str, Any]]:
         last_order = customer_data['Date'].max()
         
         customers.append({
-            "id": f"excel_customer_{i+1}",
+            "id": f"{location_name.lower()}_customer_{i+1}",
             "name": customer_name,
-            "email": f"{customer_name.lower().replace(' ', '').replace('#', '').replace('-', '')}@email.com",
-            "phone": f"(337) 555-{1000 + i:04d}",
-            "address": f"{100 + i} Customer St, Louisiana",
-            "location_id": "loc_1",  # Default location - Leesville HQ
+            "email": f"{customer_name.lower().replace(' ', '').replace('#', '').replace('-', '').replace('.', '').replace(',', '')}@email.com",
+            "phone": f"({area_code}) 555-{1000 + i:04d}",
+            "address": f"{100 + i} Customer St, {location_name}, {state}",
+            "location_id": location_id,
             "credit_limit": 5000.0,
             "current_balance": 0.0,
             "total_orders": int(total_orders),
@@ -62,7 +71,7 @@ def extract_customers_from_excel(df: pd.DataFrame) -> List[Dict[str, Any]]:
     
     return customers
 
-def extract_orders_from_excel(df: pd.DataFrame) -> List[Dict[str, Any]]:
+def extract_orders_from_excel(df: pd.DataFrame, location_id: str = "loc_1", location_name: str = "Leesville") -> List[Dict[str, Any]]:
     """Extract orders from Excel data"""
     orders = []
     
@@ -82,7 +91,7 @@ def extract_orders_from_excel(df: pd.DataFrame) -> List[Dict[str, Any]]:
             product_type = "8lb_bag"
             
         orders.append({
-            "id": f"excel_order_{i+1}",
+            "id": f"{location_name.lower()}_order_{i+1}",
             "customer_name": row['Name'],
             "date": row['Date'].isoformat(),
             "invoice_number": str(row['Num']) if pd.notna(row['Num']) else f"INV-{i+1}",
@@ -92,8 +101,8 @@ def extract_orders_from_excel(df: pd.DataFrame) -> List[Dict[str, Any]]:
             "unit_price": float(price),
             "total_amount": float(row['Amount']),
             "status": "completed",
-            "payment_method": "cash",  # Default
-            "location_id": "loc_1"  # Default location - Leesville HQ
+            "payment_method": "cash",
+            "location_id": location_id
         })
     
     return orders
@@ -125,7 +134,7 @@ def calculate_financial_metrics(df: pd.DataFrame) -> Dict[str, Any]:
         }
     }
 
-def process_excel_files(file_paths: List[str]) -> Dict[str, Any]:
+def process_excel_files(file_paths: List[str], location_id: str = "loc_1", location_name: str = "Leesville") -> Dict[str, Any]:
     """Process multiple Excel files and return consolidated data"""
     all_data = []
     
@@ -133,9 +142,9 @@ def process_excel_files(file_paths: List[str]) -> Dict[str, Any]:
         try:
             logger.info(f"Processing Excel file: {file_path}")
             if file_path.endswith('.xlsm'):
-                df = pd.read_excel(file_path, engine='openpyxl', sheet_name='Sheet1')
+                df = pd.read_excel(file_path, engine='openpyxl', sheet_name=0)
             else:
-                df = pd.read_excel(file_path, sheet_name='Sheet1')
+                df = pd.read_excel(file_path, sheet_name=0)
             df_clean = clean_excel_data(df)
             all_data.append(df_clean)
             logger.info(f"Processed {len(df_clean)} records from {file_path}")
@@ -148,8 +157,8 @@ def process_excel_files(file_paths: List[str]) -> Dict[str, Any]:
     
     combined_df = pd.concat(all_data, ignore_index=True)
     
-    customers = extract_customers_from_excel(combined_df)
-    orders = extract_orders_from_excel(combined_df)
+    customers = extract_customers_from_excel(combined_df, location_id, location_name)
+    orders = extract_orders_from_excel(combined_df, location_id, location_name)
     financial_metrics = calculate_financial_metrics(combined_df)
     
     return {

@@ -402,12 +402,133 @@ def initialize_sample_data():
             "estimated_hours": 3.0,
             "approved_by": "John Manager",
             "approved_date": (datetime.now() - timedelta(hours=1)).isoformat()
+        },
+        {
+            "id": "wo_4",
+            "vehicle_id": "veh_4",
+            "vehicle_name": "TX-ICE-02 (20ft Reefer)",
+            "technician_name": "James Martinez",
+            "issue_description": "Routine maintenance - oil change and filter replacement",
+            "priority": "low",
+            "status": "pending",
+            "work_type": "mechanical",
+            "submitted_date": datetime.now().isoformat(),
+            "estimated_cost": 180.0,
+            "estimated_hours": 1.5
+        },
+        {
+            "id": "wo_5",
+            "vehicle_id": "veh_7",
+            "vehicle_name": "TX-ICE-03 (16ft Reefer)",
+            "technician_name": "Carlos Rodriguez",
+            "issue_description": "Refrigeration unit temperature sensor malfunction",
+            "priority": "high",
+            "status": "approved",
+            "work_type": "refrigeration",
+            "submitted_date": (datetime.now() - timedelta(hours=6)).isoformat(),
+            "estimated_cost": 520.0,
+            "estimated_hours": 3.5,
+            "approved_by": "Lufkin Manager",
+            "approved_date": (datetime.now() - timedelta(hours=4)).isoformat()
         }
     ]
     
     for wo in sample_work_orders:
         work_orders_db[wo["id"]] = wo
     
+    sample_customers = [
+        {
+            "id": "lufkin_customer_1",
+            "name": "East Texas Ice Supply",
+            "contact_person": "Robert Johnson",
+            "email": "robert@easttexasice.com",
+            "phone": "(936) 555-1001",
+            "address": "1234 Commerce St, Lufkin, TX 75901",
+            "location_id": "loc_3",
+            "credit_limit": 8000.0,
+            "current_balance": 0.0,
+            "payment_terms": "Net 30",
+            "status": "active"
+        },
+        {
+            "id": "lufkin_customer_2", 
+            "name": "Piney Woods Convenience",
+            "contact_person": "Maria Rodriguez",
+            "email": "maria@pineywoodsconv.com",
+            "phone": "(936) 555-1002",
+            "address": "567 Highway 69, Lufkin, TX 75904",
+            "location_id": "loc_3",
+            "credit_limit": 5000.0,
+            "current_balance": 0.0,
+            "payment_terms": "Net 15",
+            "status": "active"
+        },
+        {
+            "id": "lufkin_customer_3",
+            "name": "Angelina County Events",
+            "contact_person": "David Wilson",
+            "email": "david@angelinaevents.com", 
+            "phone": "(936) 555-1003",
+            "address": "890 Event Center Dr, Lufkin, TX 75902",
+            "location_id": "loc_3",
+            "credit_limit": 10000.0,
+            "current_balance": 0.0,
+            "payment_terms": "Net 30",
+            "status": "active"
+        }
+    ]
+    
+    for customer in sample_customers:
+        customers_db[customer["id"]] = customer
+    
+    sample_orders = [
+        {
+            "id": "lufkin_order_1",
+            "customer_id": "lufkin_customer_1",
+            "product_id": "prod_1",
+            "quantity": 200,
+            "unit_price": 3.50,
+            "total_amount": 700.00,
+            "order_date": (datetime.now() - timedelta(days=3)).isoformat(),
+            "delivery_date": str(date.today() - timedelta(days=2)),
+            "status": "delivered",
+            "route_id": None,
+            "payment_method": "credit",
+            "notes": "Regular weekly delivery"
+        },
+        {
+            "id": "lufkin_order_2",
+            "customer_id": "lufkin_customer_2",
+            "product_id": "prod_2", 
+            "quantity": 50,
+            "unit_price": 7.00,
+            "total_amount": 350.00,
+            "order_date": (datetime.now() - timedelta(days=1)).isoformat(),
+            "delivery_date": str(date.today()),
+            "status": "in_transit",
+            "route_id": None,
+            "payment_method": "cash",
+            "notes": "Weekend event supply"
+        },
+        {
+            "id": "lufkin_order_3",
+            "customer_id": "lufkin_customer_3",
+            "product_id": "prod_3",
+            "quantity": 25,
+            "unit_price": 15.00,
+            "total_amount": 375.00,
+            "order_date": datetime.now().isoformat(),
+            "delivery_date": str(date.today() + timedelta(days=1)),
+            "status": "pending",
+            "route_id": None,
+            "payment_method": "credit",
+            "notes": "Special event - block ice needed"
+        }
+    ]
+    
+    for order in sample_orders:
+        orders_db[order["id"]] = order
+
     sample_expenses = [
         {
             "id": "exp_1",
@@ -438,6 +559,36 @@ def initialize_sample_data():
             "location_id": "loc_1",
             "submitted_by": "Accounting",
             "submitted_at": datetime.now().isoformat()
+        },
+        {
+            "id": "exp_4",
+            "date": str(date.today()),
+            "category": "fuel",
+            "description": "Diesel fuel for Lufkin delivery routes",
+            "amount": 380.50,
+            "location_id": "loc_3",
+            "submitted_by": "Lufkin Fleet Manager",
+            "submitted_at": datetime.now().isoformat()
+        },
+        {
+            "id": "exp_5",
+            "date": str(date.today() - timedelta(days=2)),
+            "category": "utilities",
+            "description": "Electricity bill - Lufkin distribution center",
+            "amount": 890.00,
+            "location_id": "loc_3",
+            "submitted_by": "Lufkin Operations",
+            "submitted_at": (datetime.now() - timedelta(days=2)).isoformat()
+        },
+        {
+            "id": "exp_6",
+            "date": str(date.today() - timedelta(days=3)),
+            "category": "supplies",
+            "description": "Ice bags and packaging supplies",
+            "amount": 245.75,
+            "location_id": "loc_3",
+            "submitted_by": "Lufkin Warehouse",
+            "submitted_at": (datetime.now() - timedelta(days=3)).isoformat()
         }
     ]
     

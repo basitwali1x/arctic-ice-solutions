@@ -2,6 +2,8 @@
 
 A comprehensive web application for managing ice manufacturing and distribution operations across multiple locations.
 
+<!-- Verification comment added by Devin for testing PR workflow -->
+
 ## Features
 
 ### 🏢 Multi-Location Support

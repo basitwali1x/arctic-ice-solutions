@@ -7,7 +7,12 @@ logger = logging.getLogger(__name__)
 
 def clean_excel_data(df: pd.DataFrame) -> pd.DataFrame:
     """Clean and standardize Excel data"""
-    df_clean = df.dropna(subset=['Type', 'Date', 'Name', 'Amount'], how='all')
+    required_cols = ['Type', 'Date', 'Name', 'Amount']
+    missing_cols = [col for col in required_cols if col not in df.columns]
+    if missing_cols:
+        return pd.DataFrame()
+    
+    df_clean = df.dropna(subset=['Type', 'Date', 'Name', 'Amount'], how='any')
     
     df_clean = df_clean[df_clean['Type'].isin(['Invoice', 'Sales Receipt'])]
     
@@ -127,7 +132,10 @@ def process_excel_files(file_paths: List[str]) -> Dict[str, Any]:
     for file_path in file_paths:
         try:
             logger.info(f"Processing Excel file: {file_path}")
-            df = pd.read_excel(file_path)
+            if file_path.endswith('.xlsm'):
+                df = pd.read_excel(file_path, sheet_name='Sheet1')
+            else:
+                df = pd.read_excel(file_path)
             df_clean = clean_excel_data(df)
             all_data.append(df_clean)
             logger.info(f"Processed {len(df_clean)} records from {file_path}")

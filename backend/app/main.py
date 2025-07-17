@@ -685,10 +685,16 @@ async def import_excel_data(files: List[UploadFile] = File(...)):
     temp_files = []
     try:
         for file in files:
-            if not file.filename.endswith(('.xlsx', '.xls')):
+            if not file.filename.endswith(('.xlsx', '.xls', '.xlsm')):
                 raise HTTPException(status_code=400, detail=f"Invalid file type: {file.filename}")
             
-            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
+            file_ext = '.xlsx'
+            if file.filename.endswith('.xlsm'):
+                file_ext = '.xlsm'
+            elif file.filename.endswith('.xls'):
+                file_ext = '.xls'
+            
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=file_ext)
             content = await file.read()
             temp_file.write(content)
             temp_file.close()

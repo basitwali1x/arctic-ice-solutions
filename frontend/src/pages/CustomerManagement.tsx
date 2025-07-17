@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Users, Search, Plus, RefreshCw, MapPin, Phone, Mail } from 'lucide-react';
 import { Customer, Location } from '../types/api';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://app-jswjngwy.fly.dev';
 
 export function CustomerManagement() {
   const [customers, setCustomers] = useState<Customer[]>([]);

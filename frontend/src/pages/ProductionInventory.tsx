@@ -6,7 +6,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { Package, TrendingUp, AlertTriangle, Plus, RefreshCw } from 'lucide-react';
 import { Product, ProductionDashboard } from '../types/api';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://app-jswjngwy.fly.dev';
 
 export function ProductionInventory() {
   const [products, setProducts] = useState<Product[]>([]);

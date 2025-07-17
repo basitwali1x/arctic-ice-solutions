@@ -6,7 +6,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { Truck, MapPin, Plus, RefreshCw, Settings, Navigation } from 'lucide-react';
 import { Vehicle, Location, FleetDashboard } from '../types/api';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://app-jswjngwy.fly.dev';
 
 export function FleetManagement() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);

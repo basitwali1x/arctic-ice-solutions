@@ -51,7 +51,7 @@ def extract_customers_from_excel(df: pd.DataFrame) -> List[Dict[str, Any]]:
             "email": f"{customer_name.lower().replace(' ', '').replace('#', '').replace('-', '')}@email.com",
             "phone": f"(337) 555-{1000 + i:04d}",
             "address": f"{100 + i} Customer St, Louisiana",
-            "location_id": "leesville_hq",  # Default location
+            "location_id": "loc_1",  # Default location - Leesville HQ
             "credit_limit": 5000.0,
             "current_balance": 0.0,
             "total_orders": int(total_orders),
@@ -93,7 +93,7 @@ def extract_orders_from_excel(df: pd.DataFrame) -> List[Dict[str, Any]]:
             "total_amount": float(row['Amount']),
             "status": "completed",
             "payment_method": "cash",  # Default
-            "location_id": "leesville_hq"  # Default location
+            "location_id": "loc_1"  # Default location - Leesville HQ
         })
     
     return orders

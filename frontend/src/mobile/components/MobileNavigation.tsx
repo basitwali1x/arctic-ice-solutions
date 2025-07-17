@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, Wrench, User } from 'lucide-react';
+import { Home, Wrench, User, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export function MobileNavigation() {
@@ -9,6 +9,7 @@ export function MobileNavigation() {
   const navItems = [
     { path: '/mobile/dashboard', icon: Home, label: 'Dashboard' },
     { path: '/mobile/work-orders', icon: Wrench, label: 'Work Orders' },
+    { path: '/mobile/driver', icon: Truck, label: 'Driver' },
     { path: '/mobile/profile', icon: User, label: 'Profile' },
   ];
 

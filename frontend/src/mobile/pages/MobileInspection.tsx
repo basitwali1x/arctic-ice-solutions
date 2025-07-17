@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -67,7 +67,7 @@ export function MobileInspection() {
     ]
   });
 
-  const [signatureCanvas, setSignatureCanvas] = useState<HTMLCanvasElement | null>(null);
+  const signatureCanvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
 
   const updateInspectionItem = (itemId: string, status: 'pass' | 'fail' | 'na', notes?: string) => {
@@ -112,15 +112,17 @@ export function MobileInspection() {
     }
   };
 
-  const initializeSignature = (canvas: HTMLCanvasElement) => {
-    setSignatureCanvas(canvas);
-    const context = canvas.getContext('2d');
-    if (context) {
-      context.strokeStyle = '#000';
-      context.lineWidth = 2;
-      context.lineCap = 'round';
+  useEffect(() => {
+    const canvas = signatureCanvasRef.current;
+    if (canvas) {
+      const context = canvas.getContext('2d');
+      if (context) {
+        context.strokeStyle = '#000';
+        context.lineWidth = 2;
+        context.lineCap = 'round';
+      }
     }
-  };
+  }, []);
 
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
     setIsDrawing(true);
@@ -149,10 +151,11 @@ export function MobileInspection() {
   };
 
   const clearSignature = () => {
-    if (signatureCanvas) {
-      const context = signatureCanvas.getContext('2d');
+    const canvas = signatureCanvasRef.current;
+    if (canvas) {
+      const context = canvas.getContext('2d');
       if (context) {
-        context.clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
+        context.clearRect(0, 0, canvas.width, canvas.height);
       }
     }
   };
@@ -168,7 +171,7 @@ export function MobileInspection() {
 
     const overallStatus = failedItems.length > 0 ? 'fail' : 'pass';
     
-    const signatureData = signatureCanvas?.toDataURL();
+    const signatureData = signatureCanvasRef.current?.toDataURL();
     
     const finalInspection = {
       ...inspection,
@@ -322,7 +325,7 @@ export function MobileInspection() {
         <CardContent>
           <div className="space-y-4">
             <canvas
-              ref={initializeSignature}
+              ref={signatureCanvasRef}
               width={300}
               height={150}
               className="border border-gray-300 rounded w-full"

@@ -7,7 +7,12 @@ logger = logging.getLogger(__name__)
 
 def clean_excel_data(df: pd.DataFrame) -> pd.DataFrame:
     """Clean and standardize Excel data"""
-    df_clean = df.dropna(subset=['Type', 'Date', 'Name', 'Amount'], how='all')
+    required_cols = ['Type', 'Date', 'Name', 'Amount']
+    missing_cols = [col for col in required_cols if col not in df.columns]
+    if missing_cols:
+        return pd.DataFrame()
+    
+    df_clean = df.dropna(subset=['Type', 'Date', 'Name', 'Amount'], how='any')
     
     df_clean = df_clean[df_clean['Type'].isin(['Invoice', 'Sales Receipt'])]
     

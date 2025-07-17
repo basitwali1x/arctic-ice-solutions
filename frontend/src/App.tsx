@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
@@ -10,6 +10,8 @@ import { Financial } from './pages/Financial';
 import { Settings } from './pages/Settings';
 import { Maintenance } from './pages/Maintenance';
 import { ProductionManager } from './pages/ProductionManager';
+import MobileApp from './mobile/MobileApp';
+import { useIsMobile } from './hooks/use-mobile';
 
 function App() {
   const [currentUser] = useState({
@@ -17,6 +19,19 @@ function App() {
     role: 'manager',
     location: 'Leesville HQ'
   });
+  
+  const isMobile = useIsMobile();
+  const [showMobileApp, setShowMobileApp] = useState(false);
+
+  useEffect(() => {
+    if (isMobile && window.location.pathname.startsWith('/mobile')) {
+      setShowMobileApp(true);
+    }
+  }, [isMobile]);
+
+  if (showMobileApp || window.location.pathname.startsWith('/mobile')) {
+    return <MobileApp />;
+  }
 
   return (
     <Router>
@@ -35,6 +50,7 @@ function App() {
               <Route path="/production-manager" element={<ProductionManager />} />
               <Route path="/financial" element={<Financial />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/mobile/*" element={<MobileApp />} />
             </Routes>
           </main>
         </div>

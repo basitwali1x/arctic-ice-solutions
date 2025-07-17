@@ -192,7 +192,12 @@ export function Settings() {
                 <p className="font-medium">Mobile App Integration</p>
                 <p className="text-sm text-gray-600">Driver and customer apps</p>
               </div>
-              <Badge className="bg-yellow-100 text-yellow-800">Coming Soon</Badge>
+              <div className="flex items-center space-x-2">
+                <Badge className="bg-green-100 text-green-800">Active</Badge>
+                <Button variant="outline" size="sm" onClick={() => window.open('/mobile', '_blank')}>
+                  Open Mobile App
+                </Button>
+              </div>
             </div>
           </div>
         </CardContent>

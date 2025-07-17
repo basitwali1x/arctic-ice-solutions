@@ -199,7 +199,7 @@ export function Financial() {
             ref={fileInputRef}
             type="file"
             multiple
-            accept=".xlsx,.xls"
+            accept=".xlsx,.xls,.xlsm"
             onChange={handleFileUpload}
             style={{ display: 'none' }}
           />

@@ -31,7 +31,7 @@ def clean_excel_data(df: pd.DataFrame) -> pd.DataFrame:
     
     return df_clean
 
-def extract_customers_from_excel(df: pd.DataFrame, location_id: str = "loc_1", location_name: str = "Leesville") -> List[Dict[str, Any]]:
+def extract_customers_from_excel(df: pd.DataFrame, location_id: str = "loc_3", location_name: str = "Lufkin") -> List[Dict[str, Any]]:
     """Extract unique customers from Excel data"""
     customers = []
     unique_customers = df['Name'].unique()
@@ -71,7 +71,7 @@ def extract_customers_from_excel(df: pd.DataFrame, location_id: str = "loc_1", l
     
     return customers
 
-def extract_orders_from_excel(df: pd.DataFrame, location_id: str = "loc_1", location_name: str = "Leesville") -> List[Dict[str, Any]]:
+def extract_orders_from_excel(df: pd.DataFrame, location_id: str = "loc_3", location_name: str = "Lufkin") -> List[Dict[str, Any]]:
     """Extract orders from Excel data"""
     orders = []
     
@@ -134,7 +134,7 @@ def calculate_financial_metrics(df: pd.DataFrame) -> Dict[str, Any]:
         }
     }
 
-def process_excel_files(file_paths: List[str], location_id: str = "loc_1", location_name: str = "Leesville") -> Dict[str, Any]:
+def process_excel_files(file_paths: List[str], location_id: str = "loc_3", location_name: str = "Lufkin") -> Dict[str, Any]:
     """Process multiple Excel files and return consolidated data"""
     all_data = []
     

@@ -5,8 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Package, TrendingUp, AlertTriangle, Plus, RefreshCw } from 'lucide-react';
 import { Product, ProductionDashboard } from '../types/api';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://app-jswjngwy.fly.dev';
+import { apiRequest } from '../utils/api';
 
 export function ProductionInventory() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -17,17 +16,29 @@ export function ProductionInventory() {
     const fetchData = async () => {
       try {
         const [productsRes, productionRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/api/products`),
-          fetch(`${API_BASE_URL}/api/dashboard/production`)
+          apiRequest('/api/products'),
+          apiRequest('/api/dashboard/production')
         ]);
 
-        const productsData = await productsRes.json();
-        const productionDataRes = await productionRes.json();
+        if (productsRes?.ok) {
+          const productsData = await productsRes.json();
+          setProducts(Array.isArray(productsData) ? productsData : []);
+        } else {
+          console.error('Failed to fetch products:', productsRes?.status);
+          setProducts([]);
+        }
 
-        setProducts(productsData);
-        setProductionData(productionDataRes);
+        if (productionRes?.ok) {
+          const productionDataRes = await productionRes.json();
+          setProductionData(productionDataRes);
+        } else {
+          console.error('Failed to fetch production data:', productionRes?.status);
+          setProductionData(null);
+        }
       } catch (error) {
         console.error('Failed to fetch data:', error);
+        setProducts([]);
+        setProductionData(null);
       } finally {
         setLoading(false);
       }

@@ -517,6 +517,110 @@ def initialize_sample_data():
     
     sample_customers = [
         {
+            "id": "leesville_customer_1",
+            "name": "Leesville Grocery Chain",
+            "contact_person": "James Thompson",
+            "email": "james@leesgrocery.com",
+            "phone": "(337) 555-2001",
+            "address": "1500 S 5th St, Leesville, LA 71446",
+            "location_id": "loc_1",
+            "credit_limit": 15000.0,
+            "current_balance": 0.0,
+            "payment_terms": "Net 30",
+            "status": "active"
+        },
+        {
+            "id": "leesville_customer_2",
+            "name": "Vernon Parish Events",
+            "contact_person": "Sarah Mitchell",
+            "email": "sarah@vernonevents.com",
+            "phone": "(337) 555-2002",
+            "address": "789 Parish Rd, Leesville, LA 71446",
+            "location_id": "loc_1",
+            "credit_limit": 8000.0,
+            "current_balance": 0.0,
+            "payment_terms": "Net 15",
+            "status": "active"
+        },
+        {
+            "id": "leesville_customer_3",
+            "name": "Fort Polk Commissary",
+            "contact_person": "Colonel Mike Davis",
+            "email": "mike.davis@fortpolk.army.mil",
+            "phone": "(337) 555-2003",
+            "address": "Fort Polk, Leesville, LA 71459",
+            "location_id": "loc_1",
+            "credit_limit": 25000.0,
+            "current_balance": 0.0,
+            "payment_terms": "Net 30",
+            "status": "active"
+        },
+        {
+            "id": "leesville_customer_4",
+            "name": "Leesville School District",
+            "contact_person": "Dr. Patricia Williams",
+            "email": "patricia@leevilleschools.edu",
+            "phone": "(337) 555-2004",
+            "address": "1200 Education Dr, Leesville, LA 71446",
+            "location_id": "loc_1",
+            "credit_limit": 12000.0,
+            "current_balance": 0.0,
+            "payment_terms": "Net 30",
+            "status": "active"
+        },
+        {
+            "id": "lakecharles_customer_1",
+            "name": "Calcasieu Marina",
+            "contact_person": "Captain Robert LeBlanc",
+            "email": "robert@calcasieumarina.com",
+            "phone": "(337) 555-3001",
+            "address": "2500 Marina Dr, Lake Charles, LA 70601",
+            "location_id": "loc_2",
+            "credit_limit": 18000.0,
+            "current_balance": 0.0,
+            "payment_terms": "Net 30",
+            "status": "active"
+        },
+        {
+            "id": "lakecharles_customer_2",
+            "name": "Southwest Louisiana Fair",
+            "contact_person": "Michelle Boudreaux",
+            "email": "michelle@swlafair.com",
+            "phone": "(337) 555-3002",
+            "address": "900 Fair Grounds Rd, Lake Charles, LA 70615",
+            "location_id": "loc_2",
+            "credit_limit": 10000.0,
+            "current_balance": 0.0,
+            "payment_terms": "Net 15",
+            "status": "active"
+        },
+        {
+            "id": "lakecharles_customer_3",
+            "name": "Gulf Coast Seafood Processing",
+            "contact_person": "Tony Tran",
+            "email": "tony@gulfcoastseafood.com",
+            "phone": "(337) 555-3003",
+            "address": "3200 Industrial Blvd, Lake Charles, LA 70607",
+            "location_id": "loc_2",
+            "credit_limit": 22000.0,
+            "current_balance": 0.0,
+            "payment_terms": "Net 30",
+            "status": "active"
+        },
+        {
+            "id": "lakecharles_customer_4",
+            "name": "McNeese State University",
+            "contact_person": "Dr. Jennifer Adams",
+            "email": "jennifer@mcneese.edu",
+            "phone": "(337) 555-3004",
+            "address": "4205 Ryan St, Lake Charles, LA 70609",
+            "location_id": "loc_2",
+            "credit_limit": 15000.0,
+            "current_balance": 0.0,
+            "payment_terms": "Net 30",
+            "status": "active"
+        },
+        {
             "id": "lufkin_customer_1",
             "name": "East Texas Ice Supply",
             "contact_person": "Robert Johnson",
@@ -554,6 +658,71 @@ def initialize_sample_data():
             "current_balance": 0.0,
             "payment_terms": "Net 30",
             "status": "active"
+        },
+        {
+            "id": "lufkin_customer_4",
+            "name": "Stephen F. Austin University",
+            "contact_person": "Dr. Mark Stevens",
+            "email": "mark@sfasu.edu",
+            "phone": "(936) 555-1004",
+            "address": "1936 North St, Nacogdoches, TX 75962",
+            "location_id": "loc_3",
+            "credit_limit": 12000.0,
+            "current_balance": 0.0,
+            "payment_terms": "Net 30",
+            "status": "active"
+        },
+        {
+            "id": "jasper_customer_1",
+            "name": "Jasper Memorial Hospital",
+            "contact_person": "Dr. Lisa Chen",
+            "email": "lisa@jasperhospital.com",
+            "phone": "(409) 555-4001",
+            "address": "1275 Marvin Hancock Dr, Jasper, TX 75951",
+            "location_id": "loc_4",
+            "credit_limit": 20000.0,
+            "current_balance": 0.0,
+            "payment_terms": "Net 30",
+            "status": "active"
+        },
+        {
+            "id": "jasper_customer_2",
+            "name": "Pine Ridge Lodge",
+            "contact_person": "Tom Anderson",
+            "email": "tom@pineridgelodge.com",
+            "phone": "(409) 555-4002",
+            "address": "890 Lodge Rd, Jasper, TX 75951",
+            "location_id": "loc_4",
+            "credit_limit": 8000.0,
+            "current_balance": 0.0,
+            "payment_terms": "Net 15",
+            "status": "active"
+        },
+        {
+            "id": "jasper_customer_3",
+            "name": "East Texas Lumber Mill",
+            "contact_person": "Frank Miller",
+            "email": "frank@etlumber.com",
+            "phone": "(409) 555-4003",
+            "address": "2500 Mill Rd, Jasper, TX 75951",
+            "location_id": "loc_4",
+            "credit_limit": 15000.0,
+            "current_balance": 0.0,
+            "payment_terms": "Net 30",
+            "status": "active"
+        },
+        {
+            "id": "jasper_customer_4",
+            "name": "Jasper County Fair",
+            "contact_person": "Betty Sue Walker",
+            "email": "betty@jasperfair.com",
+            "phone": "(409) 555-4004",
+            "address": "1100 Fair Park Rd, Jasper, TX 75951",
+            "location_id": "loc_4",
+            "credit_limit": 6000.0,
+            "current_balance": 0.0,
+            "payment_terms": "Net 15",
+            "status": "active"
         }
     ]
     
@@ -561,6 +730,118 @@ def initialize_sample_data():
         customers_db[customer["id"]] = customer
     
     sample_orders = [
+        {
+            "id": "leesville_order_1",
+            "customer_id": "leesville_customer_1",
+            "product_id": "prod_1",
+            "quantity": 500,
+            "unit_price": 3.50,
+            "total_amount": 1750.00,
+            "order_date": datetime.now().isoformat(),
+            "delivery_date": str(date.today()),
+            "status": "delivered",
+            "route_id": None,
+            "payment_method": "credit",
+            "notes": "Weekly grocery chain delivery"
+        },
+        {
+            "id": "leesville_order_2",
+            "customer_id": "leesville_customer_2",
+            "product_id": "prod_2",
+            "quantity": 100,
+            "unit_price": 7.00,
+            "total_amount": 700.00,
+            "order_date": (datetime.now() - timedelta(days=1)).isoformat(),
+            "delivery_date": str(date.today() - timedelta(days=1)),
+            "status": "delivered",
+            "route_id": None,
+            "payment_method": "cash",
+            "notes": "Parish event catering"
+        },
+        {
+            "id": "leesville_order_3",
+            "customer_id": "leesville_customer_3",
+            "product_id": "prod_1",
+            "quantity": 800,
+            "unit_price": 3.25,
+            "total_amount": 2600.00,
+            "order_date": datetime.now().isoformat(),
+            "delivery_date": str(date.today()),
+            "status": "in_transit",
+            "route_id": None,
+            "payment_method": "credit",
+            "notes": "Fort Polk commissary bulk order"
+        },
+        {
+            "id": "leesville_order_4",
+            "customer_id": "leesville_customer_4",
+            "product_id": "prod_2",
+            "quantity": 150,
+            "unit_price": 6.50,
+            "total_amount": 975.00,
+            "order_date": (datetime.now() - timedelta(days=2)).isoformat(),
+            "delivery_date": str(date.today() - timedelta(days=1)),
+            "status": "delivered",
+            "route_id": None,
+            "payment_method": "credit",
+            "notes": "School district cafeteria supply"
+        },
+        {
+            "id": "lakecharles_order_1",
+            "customer_id": "lakecharles_customer_1",
+            "product_id": "prod_1",
+            "quantity": 300,
+            "unit_price": 3.75,
+            "total_amount": 1125.00,
+            "order_date": datetime.now().isoformat(),
+            "delivery_date": str(date.today()),
+            "status": "pending",
+            "route_id": None,
+            "payment_method": "credit",
+            "notes": "Marina fish storage"
+        },
+        {
+            "id": "lakecharles_order_2",
+            "customer_id": "lakecharles_customer_2",
+            "product_id": "prod_2",
+            "quantity": 75,
+            "unit_price": 7.25,
+            "total_amount": 543.75,
+            "order_date": (datetime.now() - timedelta(days=1)).isoformat(),
+            "delivery_date": str(date.today()),
+            "status": "in_transit",
+            "route_id": None,
+            "payment_method": "cash",
+            "notes": "Fair concession stands"
+        },
+        {
+            "id": "lakecharles_order_3",
+            "customer_id": "lakecharles_customer_3",
+            "product_id": "prod_3",
+            "quantity": 200,
+            "unit_price": 15.50,
+            "total_amount": 3100.00,
+            "order_date": (datetime.now() - timedelta(days=3)).isoformat(),
+            "delivery_date": str(date.today() - timedelta(days=2)),
+            "status": "delivered",
+            "route_id": None,
+            "payment_method": "credit",
+            "notes": "Seafood processing facility"
+        },
+        {
+            "id": "lakecharles_order_4",
+            "customer_id": "lakecharles_customer_4",
+            "product_id": "prod_1",
+            "quantity": 250,
+            "unit_price": 3.50,
+            "total_amount": 875.00,
+            "order_date": datetime.now().isoformat(),
+            "delivery_date": str(date.today()),
+            "status": "delivered",
+            "route_id": None,
+            "payment_method": "credit",
+            "notes": "University dining services"
+        },
         {
             "id": "lufkin_order_1",
             "customer_id": "lufkin_customer_1",
@@ -602,6 +883,76 @@ def initialize_sample_data():
             "route_id": None,
             "payment_method": "credit",
             "notes": "Special event - block ice needed"
+        },
+        {
+            "id": "lufkin_order_4",
+            "customer_id": "lufkin_customer_4",
+            "product_id": "prod_1",
+            "quantity": 180,
+            "unit_price": 3.25,
+            "total_amount": 585.00,
+            "order_date": datetime.now().isoformat(),
+            "delivery_date": str(date.today()),
+            "status": "delivered",
+            "route_id": None,
+            "payment_method": "credit",
+            "notes": "University campus dining"
+        },
+        {
+            "id": "jasper_order_1",
+            "customer_id": "jasper_customer_1",
+            "product_id": "prod_1",
+            "quantity": 400,
+            "unit_price": 3.75,
+            "total_amount": 1500.00,
+            "order_date": (datetime.now() - timedelta(days=2)).isoformat(),
+            "delivery_date": str(date.today() - timedelta(days=1)),
+            "status": "delivered",
+            "route_id": None,
+            "payment_method": "credit",
+            "notes": "Hospital cafeteria and patient care"
+        },
+        {
+            "id": "jasper_order_2",
+            "customer_id": "jasper_customer_2",
+            "product_id": "prod_2",
+            "quantity": 60,
+            "unit_price": 7.50,
+            "total_amount": 450.00,
+            "order_date": datetime.now().isoformat(),
+            "delivery_date": str(date.today()),
+            "status": "pending",
+            "route_id": None,
+            "payment_method": "cash",
+            "notes": "Lodge guest services"
+        },
+        {
+            "id": "jasper_order_3",
+            "customer_id": "jasper_customer_3",
+            "product_id": "prod_1",
+            "quantity": 350,
+            "unit_price": 3.25,
+            "total_amount": 1137.50,
+            "order_date": (datetime.now() - timedelta(days=1)).isoformat(),
+            "delivery_date": str(date.today()),
+            "status": "in_transit",
+            "route_id": None,
+            "payment_method": "credit",
+            "notes": "Lumber mill worker break areas"
+        },
+        {
+            "id": "jasper_order_4",
+            "customer_id": "jasper_customer_4",
+            "product_id": "prod_2",
+            "quantity": 80,
+            "unit_price": 7.00,
+            "total_amount": 560.00,
+            "order_date": datetime.now().isoformat(),
+            "delivery_date": str(date.today()),
+            "status": "delivered",
+            "route_id": None,
+            "payment_method": "cash",
+            "notes": "County fair vendor booths"
         }
     ]
     
@@ -857,7 +1208,7 @@ async def get_dashboard_overview(current_user: UserInDB = Depends(get_current_us
         filtered_customers = filter_by_location(list(customers_db.values()), current_user)
         filtered_orders = filter_by_location(list(orders_db.values()), current_user)
         total_customers = len(filtered_customers)
-        total_orders_today = len([o for o in filtered_orders if o["order_date"].date() == date.today()])
+        total_orders_today = len([o for o in filtered_orders if datetime.fromisoformat(o["order_date"].replace('Z', '+00:00')).date() == date.today()])
         total_revenue = 125000.0
     
     filtered_vehicles = filter_by_location(list(vehicles_db.values()), current_user)

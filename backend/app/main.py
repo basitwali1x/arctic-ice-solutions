@@ -1,6 +1,8 @@
 from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime, date, timedelta
@@ -15,6 +17,8 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 
 app = FastAPI(title="Arctic Ice Solutions API", version="1.0.0")
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-for-local-development-only")
 ALGORITHM = "HS256"
@@ -308,7 +312,6 @@ def optimize_route_ai(customers: List[dict], orders: List[dict], vehicle: dict, 
     
     print(f"DEBUG AI: Final route has {len(route_stops)} stops")
     return route_stops
-    receipt_url: Optional[str] = None
 
 locations_db = {}
 users_db = {}
@@ -1835,3 +1838,10 @@ async def update_route_status(route_id: str, status: str, current_user: UserInDB
     routes_db[route_id]["status"] = status
     save_data_to_disk()
     return {"success": True, "message": f"Route status updated to {status}"}
+
+@app.get("/{full_path:path}")
+async def serve_spa(full_path: str):
+    """Serve the React SPA for all non-API routes"""
+    if full_path.startswith("api/") or full_path.startswith("static/"):
+        raise HTTPException(status_code=404, detail="Not found")
+    return FileResponse("static/index.html")

@@ -1,5 +1,6 @@
-from fastapi import FastAPI, HTTPException, Depends, UploadFile, File
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime, date, timedelta
@@ -10,8 +11,17 @@ import os
 import json
 from pathlib import Path
 from .excel_import import process_excel_files
+from jose import JWTError, jwt
+from passlib.context import CryptContext
 
 app = FastAPI(title="Arctic Ice Solutions API", version="1.0.0")
+
+SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-for-local-development-only")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 1440
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+security = HTTPBearer()
 
 # Disable CORS. Do not remove this for full-stack development.
 app.add_middleware(
@@ -102,6 +112,20 @@ class User(BaseModel):
     role: UserRole
     location_id: str
     is_active: bool = True
+
+class UserInDB(User):
+    hashed_password: str
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    username: Optional[str] = None
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
 
 class Customer(BaseModel):
     id: str
@@ -292,6 +316,61 @@ def load_data_from_disk():
         imported_financial_data = {}
 
 load_data_from_disk()
+
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
+
+def get_password_hash(password):
+    return pwd_context.hash(password)
+
+def get_user(username: str):
+    for user_data in users_db.values():
+        if user_data["username"] == username:
+            return UserInDB(**user_data)
+    return None
+
+def authenticate_user(username: str, password: str):
+    user = get_user(username)
+    if not user:
+        return False
+    if not verify_password(password, user.hashed_password):
+        return False
+    return user
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=15)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        token = credentials.credentials
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise credentials_exception
+        token_data = TokenData(username=username)
+    except JWTError:
+        raise credentials_exception
+    user = get_user(username=token_data.username)
+    if user is None:
+        raise credentials_exception
+    return user
+
+def filter_by_location(data: List[dict], user: UserInDB, location_key: str = "location_id") -> List[dict]:
+    if user.role == UserRole.MANAGER:
+        return data
+    return [item for item in data if item.get(location_key) == user.location_id]
 
 def initialize_sample_data():
     locations = [
@@ -595,112 +674,210 @@ def initialize_sample_data():
     for exp in sample_expenses:
         expenses_db[exp["id"]] = exp
 
+    demo_password = os.getenv("DEMO_USER_PASSWORD", "dev-password-change-in-production")
+    
+    sample_users = [
+        {
+            "id": "user_1",
+            "username": "manager",
+            "email": "manager@arcticeice.com",
+            "full_name": "John Manager",
+            "role": "manager",
+            "location_id": "loc_1",
+            "is_active": True,
+            "hashed_password": get_password_hash(demo_password)
+        },
+        {
+            "id": "user_2", 
+            "username": "dispatcher",
+            "email": "dispatcher@arcticeice.com",
+            "full_name": "Sarah Dispatcher",
+            "role": "dispatcher",
+            "location_id": "loc_2",
+            "is_active": True,
+            "hashed_password": get_password_hash(demo_password)
+        },
+        {
+            "id": "user_3",
+            "username": "accountant",
+            "email": "accountant@arcticeice.com", 
+            "full_name": "Mike Accountant",
+            "role": "accountant",
+            "location_id": "loc_3",
+            "is_active": True,
+            "hashed_password": get_password_hash(demo_password)
+        },
+        {
+            "id": "user_4",
+            "username": "driver",
+            "email": "driver@arcticeice.com",
+            "full_name": "Carlos Driver",
+            "role": "driver", 
+            "location_id": "loc_4",
+            "is_active": True,
+            "hashed_password": get_password_hash(demo_password)
+        }
+    ]
+    
+    for user in sample_users:
+        users_db[user["id"]] = user
+
 initialize_sample_data()
+
+@app.post("/api/auth/login", response_model=Token)
+async def login(login_request: LoginRequest):
+    user = authenticate_user(login_request.username, login_request.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@app.post("/api/auth/logout")
+async def logout(current_user: UserInDB = Depends(get_current_user)):
+    return {"message": "Successfully logged out"}
+
+@app.get("/api/auth/me", response_model=User)
+async def get_current_user_info(current_user: UserInDB = Depends(get_current_user)):
+    return User(**current_user.dict())
 
 @app.get("/healthz")
 async def healthz():
     return {"status": "ok"}
 
 @app.get("/api/locations", response_model=List[Location])
-async def get_locations():
-    return list(locations_db.values())
+async def get_locations(current_user: UserInDB = Depends(get_current_user)):
+    locations = list(locations_db.values())
+    if current_user.role == UserRole.MANAGER:
+        return locations
+    return [loc for loc in locations if loc["id"] == current_user.location_id]
 
 @app.get("/api/locations/{location_id}", response_model=Location)
-async def get_location(location_id: str):
+async def get_location(location_id: str, current_user: UserInDB = Depends(get_current_user)):
     if location_id not in locations_db:
         raise HTTPException(status_code=404, detail="Location not found")
+    if current_user.role != UserRole.MANAGER and location_id != current_user.location_id:
+        raise HTTPException(status_code=403, detail="Access denied to this location")
     return locations_db[location_id]
 
 @app.get("/api/products", response_model=List[Product])
-async def get_products():
+async def get_products(current_user: UserInDB = Depends(get_current_user)):
     return list(products_db.values())
 
 @app.get("/api/products/{product_id}", response_model=Product)
-async def get_product(product_id: str):
+async def get_product(product_id: str, current_user: UserInDB = Depends(get_current_user)):
     if product_id not in products_db:
         raise HTTPException(status_code=404, detail="Product not found")
     return products_db[product_id]
 
 @app.get("/api/vehicles", response_model=List[Vehicle])
-async def get_vehicles(location_id: Optional[str] = None):
+async def get_vehicles(location_id: Optional[str] = None, current_user: UserInDB = Depends(get_current_user)):
     vehicles = list(vehicles_db.values())
     if location_id:
         vehicles = [v for v in vehicles if v["location_id"] == location_id]
-    return vehicles
+    return filter_by_location(vehicles, current_user)
 
 @app.get("/api/vehicles/{vehicle_id}", response_model=Vehicle)
-async def get_vehicle(vehicle_id: str):
+async def get_vehicle(vehicle_id: str, current_user: UserInDB = Depends(get_current_user)):
     if vehicle_id not in vehicles_db:
         raise HTTPException(status_code=404, detail="Vehicle not found")
-    return vehicles_db[vehicle_id]
+    vehicle = vehicles_db[vehicle_id]
+    if current_user.role != UserRole.MANAGER and vehicle["location_id"] != current_user.location_id:
+        raise HTTPException(status_code=403, detail="Access denied to this vehicle")
+    return vehicle
 
 @app.get("/api/customers")
-async def get_customers(location_id: Optional[str] = None):
+async def get_customers(location_id: Optional[str] = None, current_user: UserInDB = Depends(get_current_user)):
     if imported_customers is not None and len(imported_customers) > 0:
         customers = imported_customers
         if location_id:
             customers = [c for c in customers if c.get("location_id") == location_id]
-        return customers
+        return filter_by_location(customers, current_user)
     else:
         customers = list(customers_db.values())
         if location_id:
             customers = [c for c in customers if c["location_id"] == location_id]
-        return customers
+        return filter_by_location(customers, current_user)
 
 @app.post("/api/customers", response_model=Customer)
-async def create_customer(customer: Customer):
+async def create_customer(customer: Customer, current_user: UserInDB = Depends(get_current_user)):
+    if current_user.role != UserRole.MANAGER and customer.location_id != current_user.location_id:
+        raise HTTPException(status_code=403, detail="Cannot create customer for different location")
     customer.id = str(uuid.uuid4())
     customers_db[customer.id] = customer.dict()
     return customer
 
 @app.get("/api/orders")
-async def get_orders(location_id: Optional[str] = None, status: Optional[str] = None):
+async def get_orders(location_id: Optional[str] = None, status: Optional[str] = None, current_user: UserInDB = Depends(get_current_user)):
     if imported_orders is not None and len(imported_orders) > 0:
         orders = imported_orders
         if location_id:
             orders = [o for o in orders if o.get("location_id") == location_id]
         if status:
             orders = [o for o in orders if o.get("status") == status]
-        return orders
+        return filter_by_location(orders, current_user)
     else:
         orders = list(orders_db.values())
         if location_id:
             orders = [o for o in orders if customers_db.get(o["customer_id"], {}).get("location_id") == location_id]
         if status:
             orders = [o for o in orders if o["status"] == status]
+        
+        if current_user.role != UserRole.MANAGER:
+            orders = [o for o in orders if customers_db.get(o["customer_id"], {}).get("location_id") == current_user.location_id]
         return orders
 
 @app.post("/api/orders", response_model=Order)
-async def create_order(order: Order):
+async def create_order(order: Order, current_user: UserInDB = Depends(get_current_user)):
+    customer = customers_db.get(order.customer_id)
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    if current_user.role != UserRole.MANAGER and customer["location_id"] != current_user.location_id:
+        raise HTTPException(status_code=403, detail="Cannot create order for customer in different location")
     order.id = str(uuid.uuid4())
     order.order_date = datetime.now()
     orders_db[order.id] = order.dict()
     return order
 
 @app.get("/api/dashboard/overview")
-async def get_dashboard_overview():
+async def get_dashboard_overview(current_user: UserInDB = Depends(get_current_user)):
     if imported_customers is not None and len(imported_customers) > 0 and imported_orders is not None and len(imported_orders) > 0:
-        total_customers = len(imported_customers)
-        total_orders_today = len([o for o in imported_orders if o.get("date", "").startswith(str(date.today()))])
+        filtered_customers = filter_by_location(imported_customers, current_user)
+        filtered_orders = filter_by_location(imported_orders, current_user)
+        total_customers = len(filtered_customers)
+        total_orders_today = len([o for o in filtered_orders if o.get("date", "").startswith(str(date.today()))])
         total_revenue = imported_financial_data.get("total_revenue", 0) if imported_financial_data else 0
     else:
-        total_customers = len(customers_db)
-        total_orders_today = len([o for o in orders_db.values() if o["order_date"].date() == date.today()])
+        filtered_customers = filter_by_location(list(customers_db.values()), current_user)
+        filtered_orders = filter_by_location(list(orders_db.values()), current_user)
+        total_customers = len(filtered_customers)
+        total_orders_today = len([o for o in filtered_orders if o["order_date"].date() == date.today()])
         total_revenue = 125000.0
+    
+    filtered_vehicles = filter_by_location(list(vehicles_db.values()), current_user)
+    filtered_routes = filter_by_location(list(routes_db.values()), current_user)
     
     return {
         "total_customers": total_customers,
-        "total_vehicles": len(vehicles_db),
+        "total_vehicles": len(filtered_vehicles),
         "total_orders_today": total_orders_today,
         "total_revenue": total_revenue,
-        "locations": len(locations_db),
-        "active_routes": len([r for r in routes_db.values() if r["status"] == "active"])
+        "locations": len(locations_db) if current_user.role == UserRole.MANAGER else 1,
+        "active_routes": len([r for r in filtered_routes if r["status"] == "active"])
     }
 
 @app.get("/api/dashboard/production")
-async def get_production_dashboard():
+async def get_production_dashboard(current_user: UserInDB = Depends(get_current_user)):
+    filtered_production = filter_by_location(list(production_entries_db.values()), current_user)
+    
     return {
-        "daily_production_pallets": 80,
+        "daily_production_pallets": len([p for p in filtered_production if p.get("date") == str(date.today())]) * 10,
         "target_production_pallets": 160,
         "production_efficiency": 85.5,
         "shift_1_pallets": 45,
@@ -713,24 +890,26 @@ async def get_production_dashboard():
     }
 
 @app.get("/api/dashboard/fleet")
-async def get_fleet_dashboard():
+async def get_fleet_dashboard(current_user: UserInDB = Depends(get_current_user)):
     vehicles = list(vehicles_db.values())
+    filtered_vehicles = filter_by_location(vehicles, current_user)
+    
     return {
-        "total_vehicles": len(vehicles),
-        "vehicles_in_use": 6,
-        "vehicles_available": 2,
+        "total_vehicles": len(filtered_vehicles),
+        "vehicles_in_use": min(6, len(filtered_vehicles)),
+        "vehicles_available": max(0, len(filtered_vehicles) - 6),
         "vehicles_maintenance": 0,
         "fleet_utilization": 75.0,
         "vehicles_by_location": {
-            "Leesville": len([v for v in vehicles if v["location_id"] == "loc_1"]),
-            "Lake Charles": len([v for v in vehicles if v["location_id"] == "loc_2"]),
-            "Lufkin": len([v for v in vehicles if v["location_id"] == "loc_3"]),
-            "Jasper": len([v for v in vehicles if v["location_id"] == "loc_4"])
+            "Leesville": len([v for v in filtered_vehicles if v["location_id"] == "loc_1"]),
+            "Lake Charles": len([v for v in filtered_vehicles if v["location_id"] == "loc_2"]),
+            "Lufkin": len([v for v in filtered_vehicles if v["location_id"] == "loc_3"]),
+            "Jasper": len([v for v in filtered_vehicles if v["location_id"] == "loc_4"])
         }
     }
 
 @app.get("/api/dashboard/financial")
-async def get_financial_dashboard():
+async def get_financial_dashboard(current_user: UserInDB = Depends(get_current_user)):
     total_expenses = sum(e["amount"] for e in expenses_db.values())
     
     if imported_financial_data:
@@ -774,7 +953,7 @@ async def get_financial_dashboard():
         }
 
 @app.get("/api/financial/data")
-async def get_financial_data():
+async def get_financial_data(current_user: UserInDB = Depends(get_current_user)):
     if not imported_financial_data:
         return {
             "daily_revenue": [
@@ -826,7 +1005,7 @@ async def get_financial_data():
     }
 
 @app.post("/api/import/excel")
-async def import_excel_data(files: List[UploadFile] = File(...)):
+async def import_excel_data(files: List[UploadFile] = File(...), current_user: UserInDB = Depends(get_current_user)):
     """Import historical sales data from Excel files"""
     global imported_customers, imported_orders, imported_financial_data
     
@@ -877,7 +1056,7 @@ async def import_excel_data(files: List[UploadFile] = File(...)):
                 pass
 
 @app.get("/api/import/status")
-async def get_import_status():
+async def get_import_status(current_user: UserInDB = Depends(get_current_user)):
     """Get current data import status"""
     return {
         "has_data": len(imported_customers) > 0,
@@ -888,14 +1067,25 @@ async def get_import_status():
     }
 
 @app.get("/api/maintenance/work-orders")
-async def get_work_orders(status: Optional[str] = None):
+async def get_work_orders(status: Optional[str] = None, current_user: UserInDB = Depends(get_current_user)):
     orders = list(work_orders_db.values())
     if status:
         orders = [o for o in orders if o["status"] == status]
+    
+    if current_user.role != UserRole.MANAGER:
+        vehicle_ids = [v["id"] for v in vehicles_db.values() if v["location_id"] == current_user.location_id]
+        orders = [o for o in orders if o["vehicle_id"] in vehicle_ids]
+    
     return orders
 
 @app.post("/api/maintenance/work-orders")
-async def create_work_order(work_order: WorkOrder):
+async def create_work_order(work_order: WorkOrder, current_user: UserInDB = Depends(get_current_user)):
+    vehicle = vehicles_db.get(work_order.vehicle_id)
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    if current_user.role != UserRole.MANAGER and vehicle["location_id"] != current_user.location_id:
+        raise HTTPException(status_code=403, detail="Cannot create work order for vehicle in different location")
+    
     work_order.id = str(uuid.uuid4())
     work_order.submitted_date = datetime.now()
     work_orders_db[work_order.id] = work_order.dict()
@@ -903,19 +1093,25 @@ async def create_work_order(work_order: WorkOrder):
     return work_order
 
 @app.post("/api/maintenance/work-orders/{work_order_id}/approve")
-async def approve_work_order(work_order_id: str):
+async def approve_work_order(work_order_id: str, current_user: UserInDB = Depends(get_current_user)):
+    if current_user.role != UserRole.MANAGER:
+        raise HTTPException(status_code=403, detail="Only managers can approve work orders")
+    
     if work_order_id not in work_orders_db:
         raise HTTPException(status_code=404, detail="Work order not found")
     
     work_orders_db[work_order_id]["status"] = "approved"
-    work_orders_db[work_order_id]["approved_by"] = "John Manager"
+    work_orders_db[work_order_id]["approved_by"] = current_user.full_name
     work_orders_db[work_order_id]["approved_date"] = datetime.now().isoformat()
     
     save_data_to_disk()
     return {"success": True, "message": "Work order approved"}
 
 @app.post("/api/maintenance/work-orders/{work_order_id}/reject")
-async def reject_work_order(work_order_id: str):
+async def reject_work_order(work_order_id: str, current_user: UserInDB = Depends(get_current_user)):
+    if current_user.role != UserRole.MANAGER:
+        raise HTTPException(status_code=403, detail="Only managers can reject work orders")
+    
     if work_order_id not in work_orders_db:
         raise HTTPException(status_code=404, detail="Work order not found")
     
@@ -924,37 +1120,44 @@ async def reject_work_order(work_order_id: str):
     return {"success": True, "message": "Work order rejected"}
 
 @app.get("/api/production/entries")
-async def get_production_entries():
+async def get_production_entries(current_user: UserInDB = Depends(get_current_user)):
     entries = list(production_entries_db.values())
+    if current_user.role != UserRole.MANAGER:
+        entries = [e for e in entries if e.get("location_id") == current_user.location_id]
     return sorted(entries, key=lambda x: x["submitted_at"], reverse=True)
 
 @app.post("/api/production/entries")
-async def create_production_entry(entry: ProductionEntry):
+async def create_production_entry(entry: ProductionEntry, current_user: UserInDB = Depends(get_current_user)):
     entry.id = str(uuid.uuid4())
     entry.submitted_at = datetime.now()
-    entry.submitted_by = "Production Manager"
-    production_entries_db[entry.id] = entry.dict()
+    entry.submitted_by = current_user.full_name
+    entry_dict = entry.dict()
+    entry_dict["location_id"] = current_user.location_id
+    production_entries_db[entry.id] = entry_dict
     save_data_to_disk()
     return entry
 
 @app.get("/api/expenses")
-async def get_expenses(location_id: Optional[str] = None):
+async def get_expenses(location_id: Optional[str] = None, current_user: UserInDB = Depends(get_current_user)):
     expenses = list(expenses_db.values())
     if location_id:
         expenses = [e for e in expenses if e["location_id"] == location_id]
+    expenses = filter_by_location(expenses, current_user)
     return sorted(expenses, key=lambda x: x["date"], reverse=True)
 
 @app.post("/api/expenses")
-async def create_expense(expense: Expense):
+async def create_expense(expense: Expense, current_user: UserInDB = Depends(get_current_user)):
+    if current_user.role != UserRole.MANAGER and expense.location_id != current_user.location_id:
+        raise HTTPException(status_code=403, detail="Cannot create expense for different location")
     expense.id = str(uuid.uuid4())
     expense.submitted_at = datetime.now()
-    expense.submitted_by = "Manager"
+    expense.submitted_by = current_user.full_name
     expenses_db[expense.id] = expense.dict()
     save_data_to_disk()
     return expense
 
 @app.get("/api/financial/profit-analysis")
-async def get_profit_analysis():
+async def get_profit_analysis(current_user: UserInDB = Depends(get_current_user)):
     total_expenses = sum(e["amount"] for e in expenses_db.values())
     
     total_revenue = imported_financial_data.get("total_revenue", 125000.0) if imported_financial_data else 125000.0
@@ -977,11 +1180,30 @@ async def get_profit_analysis():
     }
 
 @app.get("/api/notifications")
-async def get_notifications():
+async def get_notifications(current_user: UserInDB = Depends(get_current_user)):
     recent_orders = []
     if imported_orders:
         today = datetime.now().date()
-        recent_orders = [o for o in imported_orders if o.get("date", "").startswith(str(today))]
+        filtered_orders = filter_by_location(imported_orders, current_user)
+        recent_orders = [o for o in filtered_orders if o.get("date", "").startswith(str(today))]
+    else:
+        filtered_orders = filter_by_location(list(orders_db.values()), current_user)
+        today = datetime.now().date()
+        recent_orders = []
+        for o in filtered_orders:
+            order_date = o.get("order_date")
+            if isinstance(order_date, str):
+                try:
+                    order_date = datetime.fromisoformat(order_date.replace('Z', '+00:00')).date()
+                except:
+                    continue
+            elif hasattr(order_date, 'date'):
+                order_date = order_date.date()
+            else:
+                continue
+            
+            if order_date == today:
+                recent_orders.append(o)
     
     notifications = []
     for order in recent_orders[-10:]:

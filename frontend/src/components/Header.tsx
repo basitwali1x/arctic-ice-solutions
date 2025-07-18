@@ -1,15 +1,20 @@
-import { Search, MapPin } from 'lucide-react';
+import { Search, MapPin, LogOut } from 'lucide-react';
 import { NotificationBell } from './NotificationBell';
+import { useAuth } from '../contexts/AuthContext';
 
-interface HeaderProps {
-  currentUser: {
-    name: string;
-    role: string;
-    location: string;
+export function Header() {
+  const { user, logout } = useAuth();
+
+  const getLocationName = (locationId: string) => {
+    const locationMap: { [key: string]: string } = {
+      'loc_1': 'Leesville HQ',
+      'loc_2': 'Lake Charles',
+      'loc_3': 'Lufkin',
+      'loc_4': 'Jasper'
+    };
+    return locationMap[locationId] || locationId;
   };
-}
 
-export function Header({ currentUser }: HeaderProps) {
   return (
     <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
       <div className="flex items-center justify-between">
@@ -19,7 +24,7 @@ export function Header({ currentUser }: HeaderProps) {
           </h2>
           <div className="flex items-center text-sm text-gray-600">
             <MapPin className="h-4 w-4 mr-1" />
-            {currentUser.location}
+            {user?.location_id ? getLocationName(user.location_id) : 'Unknown Location'}
           </div>
         </div>
 
@@ -37,10 +42,18 @@ export function Header({ currentUser }: HeaderProps) {
 
           <div className="flex items-center space-x-2">
             <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-semibold">
-              {currentUser.name.split(' ').map(n => n[0]).join('')}
+              {user?.full_name?.split(' ').map(n => n[0]).join('') || 'U'}
             </div>
-            <span className="text-sm font-medium text-gray-700">{currentUser.name}</span>
+            <span className="text-sm font-medium text-gray-700">{user?.full_name}</span>
           </div>
+
+          <button 
+            onClick={logout}
+            className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
+            title="Logout"
+          >
+            <LogOut className="h-5 w-5" />
+          </button>
         </div>
       </div>
     </header>

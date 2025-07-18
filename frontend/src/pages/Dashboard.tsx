@@ -3,8 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { TrendingUp, Users, Truck, Package, DollarSign, MapPin, Clock } from 'lucide-react';
 import { DashboardOverview, ProductionDashboard, FleetDashboard, FinancialDashboard } from '../types/api';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://app-jswjngwy.fly.dev';
+import { apiRequest } from '../utils/api';
 
 export function Dashboard() {
   const [dashboardData, setDashboardData] = useState<{
@@ -22,16 +21,29 @@ export function Dashboard() {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
+        const [overviewRes, productionRes, fleetRes, financialRes] = await Promise.all([
+          apiRequest('/api/dashboard/overview'),
+          apiRequest('/api/dashboard/production'),
+          apiRequest('/api/dashboard/fleet'),
+          apiRequest('/api/dashboard/financial')
+        ]);
+
         const [overview, production, fleet, financial] = await Promise.all([
-          fetch(`${API_BASE_URL}/api/dashboard/overview`).then(r => r.json()),
-          fetch(`${API_BASE_URL}/api/dashboard/production`).then(r => r.json()),
-          fetch(`${API_BASE_URL}/api/dashboard/fleet`).then(r => r.json()),
-          fetch(`${API_BASE_URL}/api/dashboard/financial`).then(r => r.json())
+          overviewRes?.ok ? overviewRes.json() : null,
+          productionRes?.ok ? productionRes.json() : null,
+          fleetRes?.ok ? fleetRes.json() : null,
+          financialRes?.ok ? financialRes.json() : null
         ]);
 
         setDashboardData({ overview, production, fleet, financial });
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error);
+        setDashboardData({
+          overview: null,
+          production: null,
+          fleet: null,
+          financial: null
+        });
       }
     };
 
@@ -43,11 +55,15 @@ export function Dashboard() {
     { name: 'Shift 2', pallets: dashboardData.production?.shift_2_pallets || 35 },
   ];
 
-  const paymentData = dashboardData.financial ? [
+  const paymentData = dashboardData.financial?.payment_breakdown ? [
     { name: 'Cash', value: dashboardData.financial.payment_breakdown.cash, color: '#0088FE' },
     { name: 'Check', value: dashboardData.financial.payment_breakdown.check, color: '#00C49F' },
     { name: 'Credit', value: dashboardData.financial.payment_breakdown.credit, color: '#FFBB28' }
-  ] : [];
+  ] : [
+    { name: 'Cash', value: 45, color: '#0088FE' },
+    { name: 'Check', value: 30, color: '#00C49F' },
+    { name: 'Credit', value: 25, color: '#FFBB28' }
+  ];
 
   const fleetData = Object.entries(dashboardData.fleet?.vehicles_by_location || {}).map(([location, count]) => ({
     location,
@@ -216,7 +232,7 @@ export function Dashboard() {
                   <MapPin className="h-5 w-5 text-blue-600 mr-2" />
                   <div>
                     <p className="font-medium">Leesville HQ</p>
-                    <p className="text-sm text-gray-600">Production & Headquarters</p>
+                    <p className="text-sm text-gray-600">Production &amp; Headquarters</p>
                   </div>
                 </div>
                 <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">Active</span>

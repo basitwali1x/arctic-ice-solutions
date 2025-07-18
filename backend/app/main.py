@@ -227,6 +227,87 @@ class Expense(BaseModel):
     location_id: str
     submitted_by: str
     submitted_at: datetime
+
+def calculate_distance(addr1: str, addr2: str) -> float:
+    hash1 = hash(addr1) % 1000
+    hash2 = hash(addr2) % 1000
+    return abs(hash1 - hash2) / 10.0
+
+def optimize_route_ai(customers: List[dict], orders: List[dict], vehicle: dict, depot_address: str) -> List[dict]:
+    print(f"DEBUG AI: Starting optimization with {len(orders)} orders, {len(customers)} customers")
+    if not orders:
+        print("DEBUG AI: No orders provided")
+        return []
+    
+    stops = []
+    for order in orders:
+        customer = next((c for c in customers if c["id"] == order["customer_id"]), None)
+        if customer:
+            quantity_pallets = max(1, order["quantity"] // 50)  # At least 1 pallet per order
+            stops.append({
+                "order_id": order["id"],
+                "customer_id": customer["id"],
+                "address": customer["address"],
+                "quantity": quantity_pallets,
+                "original_quantity": order["quantity"],
+                "customer_name": customer["name"]
+            })
+            print(f"DEBUG AI: Added stop for customer {customer['name']} with {order['quantity']} units = {quantity_pallets} pallets")
+        else:
+            print(f"DEBUG AI: No customer found for order {order['id']} with customer_id {order['customer_id']}")
+    
+    print(f"DEBUG AI: Created {len(stops)} stops from orders")
+    if not stops:
+        print("DEBUG AI: No stops created")
+        return []
+    
+    route_stops = []
+    remaining_stops = stops.copy()
+    current_location = depot_address
+    current_capacity = 0
+    vehicle_capacity = vehicle.get("capacity_pallets", 20)
+    print(f"DEBUG AI: Vehicle capacity: {vehicle_capacity} pallets")
+    
+    remaining_stops.sort(key=lambda x: x["quantity"])
+    print(f"DEBUG AI: Sorted stops by pallet quantity: {[s['quantity'] for s in remaining_stops]}")
+    
+    while remaining_stops:
+        best_stop = None
+        best_distance = float('inf')
+        
+        for stop in remaining_stops:
+            if current_capacity + stop["quantity"] <= vehicle_capacity:
+                distance = calculate_distance(current_location, stop["address"])
+                if distance < best_distance:
+                    best_distance = distance
+                    best_stop = stop
+                    print(f"DEBUG AI: Stop {stop['customer_name']} ({stop['quantity']} pallets) fits in remaining capacity")
+            else:
+                print(f"DEBUG AI: Stop {stop['customer_name']} ({stop['quantity']} pallets) would exceed capacity (current: {current_capacity}, vehicle: {vehicle_capacity})")
+        
+        if best_stop is None:
+            print(f"DEBUG AI: No more stops can fit in vehicle (current capacity: {current_capacity}/{vehicle_capacity} pallets)")
+            break
+        
+        print(f"DEBUG AI: Adding stop {best_stop['customer_name']} to route")
+        route_stops.append({
+            "id": str(uuid.uuid4()),
+            "order_id": best_stop["order_id"],
+            "customer_id": best_stop["customer_id"],
+            "stop_number": len(route_stops) + 1,
+            "estimated_arrival": (datetime.now() + timedelta(hours=len(route_stops) * 0.5)).isoformat(),
+            "status": "pending",
+            "customer_name": best_stop["customer_name"],
+            "address": best_stop["address"]
+        })
+        
+        current_location = best_stop["address"]
+        current_capacity += best_stop["quantity"]
+        remaining_stops.remove(best_stop)
+        print(f"DEBUG AI: Added stop {best_stop['customer_name']}, new capacity: {current_capacity}/{vehicle_capacity} pallets")
+    
+    print(f"DEBUG AI: Final route has {len(route_stops)} stops")
+    return route_stops
     receipt_url: Optional[str] = None
 
 locations_db = {}
@@ -373,6 +454,7 @@ def filter_by_location(data: List[dict], user: UserInDB, location_key: str = "lo
     return [item for item in data if item.get(location_key) == user.location_id]
 
 def initialize_sample_data():
+    print("DEBUG: Initializing sample data...")
     locations = [
         Location(
             id="loc_1",
@@ -414,6 +496,7 @@ def initialize_sample_data():
     
     for location in locations:
         locations_db[location.id] = location.dict()
+    print(f"DEBUG: Added {len(locations)} locations")
     
     products = [
         Product(id="prod_1", name="8lb Ice Bag", product_type=ProductType.BAG_8LB, price=3.50, weight_lbs=8.0),
@@ -767,10 +850,38 @@ def initialize_sample_data():
             "total_amount": 2600.00,
             "order_date": datetime.now().isoformat(),
             "delivery_date": str(date.today()),
-            "status": "in_transit",
+            "status": "pending",
             "route_id": None,
             "payment_method": "credit",
             "notes": "Fort Polk commissary bulk order"
+        },
+        {
+            "id": "leesville_order_5",
+            "customer_id": "leesville_customer_1",
+            "product_id": "prod_2",
+            "quantity": 200,
+            "unit_price": 6.75,
+            "total_amount": 1350.00,
+            "order_date": datetime.now().isoformat(),
+            "delivery_date": str(date.today()),
+            "status": "pending",
+            "route_id": None,
+            "payment_method": "credit",
+            "notes": "Additional grocery chain order"
+        },
+        {
+            "id": "leesville_order_6",
+            "customer_id": "leesville_customer_2",
+            "product_id": "prod_1",
+            "quantity": 300,
+            "unit_price": 3.50,
+            "total_amount": 1050.00,
+            "order_date": datetime.now().isoformat(),
+            "delivery_date": str(date.today()),
+            "status": "pending",
+            "route_id": None,
+            "payment_method": "cash",
+            "notes": "Vernon Parish weekend event"
         },
         {
             "id": "leesville_order_4",
@@ -1072,6 +1183,57 @@ def initialize_sample_data():
     
     for user in sample_users:
         users_db[user["id"]] = user
+    print(f"DEBUG: Added {len(sample_users)} users")
+    
+    # Add sample customers to customers_db (not just imported_customers)
+    for customer in sample_customers:
+        customers_db[customer["id"]] = customer
+    print(f"DEBUG: Added {len(sample_customers)} customers to customers_db")
+    
+    for order in sample_orders:
+        orders_db[order["id"]] = order
+    print(f"DEBUG: Added {len(sample_orders)} orders to orders_db")
+    
+    sample_routes = [
+        {
+            "id": "route_1",
+            "name": "Leesville Morning Route",
+            "driver_id": "user_4",
+            "vehicle_id": "veh_1",
+            "location_id": "loc_1",
+            "date": str(date.today()),
+            "estimated_duration_hours": 4.0,
+            "status": "active",
+            "created_at": datetime.now().isoformat(),
+            "stops": [
+                {
+                    "id": "stop_1",
+                    "route_id": "route_1",
+                    "customer_id": "leesville_customer_1",
+                    "order_id": "leesville_order_1",
+                    "stop_number": 1,
+                    "estimated_arrival": (datetime.now() + timedelta(hours=1)).isoformat(),
+                    "status": "completed"
+                },
+                {
+                    "id": "stop_2", 
+                    "route_id": "route_1",
+                    "customer_id": "leesville_customer_2",
+                    "order_id": "leesville_order_2", 
+                    "stop_number": 2,
+                    "estimated_arrival": (datetime.now() + timedelta(hours=2)).isoformat(),
+                    "status": "pending"
+                }
+            ]
+        }
+    ]
+    
+    for route in sample_routes:
+        routes_db[route["id"]] = route
+    print(f"DEBUG: Added {len(sample_routes)} routes")
+    
+    print(f"DEBUG: Final counts - customers_db: {len(customers_db)}, orders_db: {len(orders_db)}, routes_db: {len(routes_db)}")
+    print(f"DEBUG: Final counts - imported_customers: {len(imported_customers)}, imported_orders: {len(imported_orders)}")
 
 initialize_sample_data()
 
@@ -1568,3 +1730,108 @@ async def get_notifications(current_user: UserInDB = Depends(get_current_user)):
         })
     
     return notifications
+
+@app.get("/api/routes")
+async def get_routes(location_id: Optional[str] = None, current_user: UserInDB = Depends(get_current_user)):
+    routes = list(routes_db.values())
+    if location_id:
+        routes = [r for r in routes if r["location_id"] == location_id]
+    return filter_by_location(routes, current_user)
+
+@app.post("/api/routes/optimize")
+async def optimize_routes(location_id: str, current_user: UserInDB = Depends(get_current_user)):
+    if current_user.role not in [UserRole.MANAGER, UserRole.DISPATCHER]:
+        raise HTTPException(status_code=403, detail="Only managers and dispatchers can optimize routes")
+    
+    orders = list(orders_db.values())
+    pending_orders = [o for o in orders if o["status"] == "pending"]
+    print(f"DEBUG: Total orders: {len(orders)}, Pending orders: {len(pending_orders)}")
+    
+    customers = list(customers_db.values())
+    location_customers = [c for c in customers if c["location_id"] == location_id]
+    location_orders = [o for o in pending_orders if any(c["id"] == o["customer_id"] for c in location_customers)]
+    print(f"DEBUG: Location customers: {len(location_customers)}, Location orders: {len(location_orders)}")
+    print(f"DEBUG: Location orders: {[o['id'] for o in location_orders]}")
+    
+    if not location_orders:
+        return {"message": "No pending orders found for optimization", "routes": []}
+    
+    vehicles = list(vehicles_db.values())
+    available_vehicles = [v for v in vehicles if v["location_id"] == location_id and v["is_active"]]
+    print(f"DEBUG: Available vehicles: {len(available_vehicles)}")
+    print(f"DEBUG: Vehicle IDs: {[v['id'] for v in available_vehicles]}")
+    
+    if not available_vehicles:
+        raise HTTPException(status_code=400, detail="No available vehicles for route optimization")
+    
+    location = locations_db.get(location_id)
+    depot_address = location["address"] if location else "123 Ice Plant Rd, Leesville, LA"
+    
+    optimized_routes = []
+    remaining_orders = location_orders.copy()
+    
+    for vehicle in available_vehicles:
+        if not remaining_orders:
+            break
+            
+        print(f"DEBUG: Processing vehicle {vehicle['license_plate']} with capacity {vehicle.get('capacity_pallets', 20)}")
+        print(f"DEBUG: Remaining orders: {len(remaining_orders)}")
+        
+        route_stops = optimize_route_ai(location_customers, remaining_orders, vehicle, depot_address)
+        print(f"DEBUG: Generated {len(route_stops)} stops for vehicle {vehicle['license_plate']}")
+        
+        if route_stops:
+            route_id = str(uuid.uuid4())
+            route = {
+                "id": route_id,
+                "name": f"Route {vehicle['license_plate']}-{date.today().strftime('%m%d')}",
+                "driver_id": None,
+                "vehicle_id": vehicle["id"],
+                "location_id": location_id,
+                "date": str(date.today()),
+                "estimated_duration_hours": len(route_stops) * 0.5,
+                "status": "planned",
+                "created_at": datetime.now().isoformat(),
+                "stops": route_stops
+            }
+            
+            for stop in route_stops:
+                stop["route_id"] = route_id
+            
+            routes_db[route_id] = route
+            optimized_routes.append(route)
+            
+            processed_order_ids = [stop["order_id"] for stop in route_stops]
+            remaining_orders = [o for o in remaining_orders if o["id"] not in processed_order_ids]
+            
+            for order_id in processed_order_ids:
+                if order_id in orders_db:
+                    orders_db[order_id]["status"] = "assigned"
+                    orders_db[order_id]["route_id"] = route_id
+    
+    save_data_to_disk()
+    return {"message": f"Generated {len(optimized_routes)} optimized routes", "routes": optimized_routes}
+
+@app.get("/api/routes/{route_id}")
+async def get_route(route_id: str, current_user: UserInDB = Depends(get_current_user)):
+    if route_id not in routes_db:
+        raise HTTPException(status_code=404, detail="Route not found")
+    
+    route = routes_db[route_id]
+    if current_user.role != UserRole.MANAGER and route["location_id"] != current_user.location_id:
+        raise HTTPException(status_code=403, detail="Access denied to this route")
+    
+    return route
+
+@app.put("/api/routes/{route_id}/status")
+async def update_route_status(route_id: str, status: str, current_user: UserInDB = Depends(get_current_user)):
+    if route_id not in routes_db:
+        raise HTTPException(status_code=404, detail="Route not found")
+    
+    route = routes_db[route_id]
+    if current_user.role != UserRole.MANAGER and route["location_id"] != current_user.location_id:
+        raise HTTPException(status_code=403, detail="Access denied to this route")
+    
+    routes_db[route_id]["status"] = status
+    save_data_to_disk()
+    return {"success": True, "message": f"Route status updated to {status}"}

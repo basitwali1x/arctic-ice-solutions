@@ -141,3 +141,26 @@ export interface FinancialDashboard {
   outstanding_invoices: number;
   tax_liability_ytd: number;
 }
+
+export interface Route {
+  id: string;
+  name: string;
+  driver_id: string;
+  vehicle_id: string;
+  location_id: string;
+  date: string;
+  estimated_duration_hours: number;
+  status: 'planned' | 'active' | 'completed' | 'cancelled';
+  created_at: string;
+  stops: RouteStop[];
+}
+
+export interface RouteStop {
+  id: string;
+  route_id: string;
+  customer_id: string;
+  order_id: string;
+  stop_number: number;
+  estimated_arrival: string;
+  status: 'pending' | 'completed';
+}

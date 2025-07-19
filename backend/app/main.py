@@ -1142,6 +1142,7 @@ def initialize_sample_data():
         expenses_db[exp["id"]] = exp
 
     demo_password = os.getenv("DEMO_USER_PASSWORD", "dev-password-change-in-production")
+    print(f"DEBUG: Using demo password: '{demo_password}' (length: {len(demo_password)})")
     
     sample_users = [
         {
@@ -1244,13 +1245,16 @@ initialize_sample_data()
 
 @app.post("/api/auth/login", response_model=Token)
 async def login(login_request: LoginRequest):
+    print(f"DEBUG: Login attempt for username: {login_request.username}")
     user = authenticate_user(login_request.username, login_request.password)
     if not user:
+        print(f"DEBUG: Authentication failed for username: {login_request.username}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    print(f"DEBUG: Authentication successful for username: {login_request.username}")
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires

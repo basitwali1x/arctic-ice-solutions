@@ -74,17 +74,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const login = async (username: string, password: string): Promise<boolean> => {
+    console.log('DEBUG: AuthContext login attempt started');
+    console.log('DEBUG: Username:', username);
+    console.log('DEBUG: API_BASE_URL:', API_BASE_URL);
+    
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+      const apiUrl = `${API_BASE_URL}/api/auth/login`;
+      console.log('DEBUG: Full API URL:', apiUrl);
+      
+      const requestBody = { username, password };
+      console.log('DEBUG: Request body:', { username, password: '[REDACTED]' });
+
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify(requestBody),
       });
+
+      console.log('DEBUG: Response status:', response.status);
+      console.log('DEBUG: Response ok:', response.ok);
 
       if (response.ok) {
         const data = await response.json();
+        console.log('DEBUG: Login successful, received token');
         const authToken = data.access_token;
         
         localStorage.setItem('token', authToken);
@@ -93,10 +107,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         await fetchCurrentUser(authToken);
         return true;
       } else {
+        const errorData = await response.text();
+        console.log('DEBUG: Login failed, response:', errorData);
+        console.log('DEBUG: Response headers:', Object.fromEntries(response.headers.entries()));
         return false;
       }
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('DEBUG: Login error:', error);
       return false;
     }
   };

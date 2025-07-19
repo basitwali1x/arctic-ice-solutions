@@ -1,10 +1,13 @@
 from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime, date, timedelta
 from enum import Enum
+import os
 import uuid
 import tempfile
 import os
@@ -31,6 +34,8 @@ app.add_middleware(
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
 )
+
+app.mount("/assets", StaticFiles(directory="../frontend/dist/assets"), name="assets")
 
 class UserRole(str, Enum):
     MANAGER = "manager"
@@ -1835,3 +1840,17 @@ async def update_route_status(route_id: str, status: str, current_user: UserInDB
     routes_db[route_id]["status"] = status
     save_data_to_disk()
     return {"success": True, "message": f"Route status updated to {status}"}
+
+@app.get("/{full_path:path}")
+async def serve_spa(full_path: str):
+    """Serve React SPA for all non-API routes"""
+    if full_path.startswith("api/") or full_path.startswith("docs") or full_path.startswith("redoc") or full_path.startswith("openapi.json"):
+        raise HTTPException(status_code=404, detail="Not found")
+    
+    if full_path.startswith("assets/"):
+        file_path = f"../frontend/dist/{full_path}"
+        if os.path.exists(file_path):
+            return FileResponse(file_path)
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    return FileResponse("../frontend/dist/index.html")

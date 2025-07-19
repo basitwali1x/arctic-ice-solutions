@@ -47,7 +47,7 @@ export function ProductionManager() {
 
   const fetchProductionData = async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/production/entries`);
+      const response = await fetch(`${API_BASE_URL}/api/production/entries`);
       const data = await response.json();
       setProductionEntries(data);
     } catch (error) {

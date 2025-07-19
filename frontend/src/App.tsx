@@ -12,118 +12,55 @@ import { Financial } from './pages/Financial';
 import { Settings } from './pages/Settings';
 import { Maintenance } from './pages/Maintenance';
 import { ProductionManager } from './pages/ProductionManager';
+import MobileApp from './mobile/MobileApp';
+import { useIsMobile } from './hooks/use-mobile';
 
 function App() {
+  const isMobile = useIsMobile();
+
   return (
     <AuthProvider>
       <Router>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={
-            <ProtectedRoute>
-              <div className="flex h-screen bg-gray-100">
-                <Sidebar />
-                <div className="flex-1 flex flex-col overflow-hidden">
-                  <Header />
-                  <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
-                    <Dashboard />
-                  </main>
-                </div>
-              </div>
-            </ProtectedRoute>
-          } />
-          <Route path="/production" element={
-            <ProtectedRoute>
-              <div className="flex h-screen bg-gray-100">
-                <Sidebar />
-                <div className="flex-1 flex flex-col overflow-hidden">
-                  <Header />
-                  <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
-                    <ProductionInventory />
-                  </main>
-                </div>
-              </div>
-            </ProtectedRoute>
-          } />
-          <Route path="/fleet" element={
-            <ProtectedRoute>
-              <div className="flex h-screen bg-gray-100">
-                <Sidebar />
-                <div className="flex-1 flex flex-col overflow-hidden">
-                  <Header />
-                  <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
-                    <FleetManagement />
-                  </main>
-                </div>
-              </div>
-            </ProtectedRoute>
-          } />
-          <Route path="/customers" element={
-            <ProtectedRoute>
-              <div className="flex h-screen bg-gray-100">
-                <Sidebar />
-                <div className="flex-1 flex flex-col overflow-hidden">
-                  <Header />
-                  <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
-                    <CustomerManagement />
-                  </main>
-                </div>
-              </div>
-            </ProtectedRoute>
-          } />
-          <Route path="/maintenance" element={
-            <ProtectedRoute>
-              <div className="flex h-screen bg-gray-100">
-                <Sidebar />
-                <div className="flex-1 flex flex-col overflow-hidden">
-                  <Header />
-                  <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
-                    <Maintenance />
-                  </main>
-                </div>
-              </div>
-            </ProtectedRoute>
-          } />
-          <Route path="/production-manager" element={
-            <ProtectedRoute>
-              <div className="flex h-screen bg-gray-100">
-                <Sidebar />
-                <div className="flex-1 flex flex-col overflow-hidden">
-                  <Header />
-                  <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
-                    <ProductionManager />
-                  </main>
-                </div>
-              </div>
-            </ProtectedRoute>
-          } />
-          <Route path="/financial" element={
-            <ProtectedRoute>
-              <div className="flex h-screen bg-gray-100">
-                <Sidebar />
-                <div className="flex-1 flex flex-col overflow-hidden">
-                  <Header />
-                  <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
-                    <Financial />
-                  </main>
-                </div>
-              </div>
-            </ProtectedRoute>
-          } />
-          <Route path="/settings" element={
-            <ProtectedRoute>
-              <div className="flex h-screen bg-gray-100">
-                <Sidebar />
-                <div className="flex-1 flex flex-col overflow-hidden">
-                  <Header />
-                  <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
-                    <Settings />
-                  </main>
-                </div>
-              </div>
-            </ProtectedRoute>
-          } />
+          <Route
+            path="/mobile/*"
+            element={
+              <ProtectedRoute>
+                <MobileApp />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/*"
+            element={
+              <ProtectedRoute>
+                {isMobile ? (
+                  <Navigate to="/mobile" replace />
+                ) : (
+                  <div className="flex h-screen bg-gray-100">
+                    <Sidebar />
+                    <div className="flex-1 flex flex-col overflow-hidden">
+                      <Header />
+                      <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
+                        <Routes>
+                          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                          <Route path="/dashboard" element={<Dashboard />} />
+                          <Route path="/production-inventory" element={<ProductionInventory />} />
+                          <Route path="/fleet" element={<FleetManagement />} />
+                          <Route path="/customers" element={<CustomerManagement />} />
+                          <Route path="/financial" element={<Financial />} />
+                          <Route path="/maintenance" element={<Maintenance />} />
+                          <Route path="/production" element={<ProductionManager />} />
+                          <Route path="/settings" element={<Settings />} />
+                        </Routes>
+                      </main>
+                    </div>
+                  </div>
+                )}
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </Router>
     </AuthProvider>

@@ -35,7 +35,7 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
-app.mount("/assets", StaticFiles(directory="../frontend/dist/assets"), name="assets")
+# app.mount("/assets", StaticFiles(directory="../frontend/dist/assets"), name="assets")
 
 class UserRole(str, Enum):
     MANAGER = "manager"

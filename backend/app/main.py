@@ -1276,7 +1276,7 @@ async def healthz():
 @app.get("/api/locations", response_model=List[Location])
 async def get_locations(current_user: UserInDB = Depends(get_current_user)):
     locations = list(locations_db.values())
-    if current_user.role == UserRole.MANAGER:
+    if current_user.role in [UserRole.MANAGER, UserRole.ACCOUNTANT]:
         return locations
     return [loc for loc in locations if loc["id"] == current_user.location_id]
 
@@ -1284,7 +1284,7 @@ async def get_locations(current_user: UserInDB = Depends(get_current_user)):
 async def get_location(location_id: str, current_user: UserInDB = Depends(get_current_user)):
     if location_id not in locations_db:
         raise HTTPException(status_code=404, detail="Location not found")
-    if current_user.role != UserRole.MANAGER and location_id != current_user.location_id:
+    if current_user.role not in [UserRole.MANAGER, UserRole.ACCOUNTANT] and location_id != current_user.location_id:
         raise HTTPException(status_code=403, detail="Access denied to this location")
     return locations_db[location_id]
 
@@ -1310,7 +1310,7 @@ async def get_vehicle(vehicle_id: str, current_user: UserInDB = Depends(get_curr
     if vehicle_id not in vehicles_db:
         raise HTTPException(status_code=404, detail="Vehicle not found")
     vehicle = vehicles_db[vehicle_id]
-    if current_user.role != UserRole.MANAGER and vehicle["location_id"] != current_user.location_id:
+    if current_user.role not in [UserRole.MANAGER, UserRole.ACCOUNTANT] and vehicle["location_id"] != current_user.location_id:
         raise HTTPException(status_code=403, detail="Access denied to this vehicle")
     return vehicle
 
@@ -1351,7 +1351,7 @@ async def get_orders(location_id: Optional[str] = None, status: Optional[str] = 
         if status:
             orders = [o for o in orders if o["status"] == status]
         
-        if current_user.role != UserRole.MANAGER:
+        if current_user.role not in [UserRole.MANAGER, UserRole.ACCOUNTANT]:
             orders = [o for o in orders if customers_db.get(o["customer_id"], {}).get("location_id") == current_user.location_id]
         return orders
 
@@ -1390,7 +1390,7 @@ async def get_dashboard_overview(current_user: UserInDB = Depends(get_current_us
         "total_vehicles": len(filtered_vehicles),
         "total_orders_today": total_orders_today,
         "total_revenue": total_revenue,
-        "locations": len(locations_db) if current_user.role == UserRole.MANAGER else 1,
+        "locations": len(locations_db) if current_user.role in [UserRole.MANAGER, UserRole.ACCOUNTANT] else 1,
         "active_routes": len([r for r in filtered_routes if r["status"] == "active"])
     }
 

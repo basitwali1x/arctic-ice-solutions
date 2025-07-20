@@ -9,14 +9,14 @@ export function MobileNavigation() {
   const { user } = useAuth();
 
   const allNavItems = [
-    { path: '/mobile/dashboard', icon: Home, label: 'Dashboard', roles: ['manager', 'dispatcher', 'driver', 'technician'] },
-    { path: '/mobile/work-orders', icon: Wrench, label: 'Work Orders', roles: ['manager', 'technician'] },
-    { path: '/mobile/routes', icon: Route, label: 'Routes', roles: ['manager', 'dispatcher', 'driver'] },
-    { path: '/mobile/driver', icon: Truck, label: 'Driver', roles: ['manager', 'driver'] },
-    { path: '/mobile/inspection', icon: ClipboardCheck, label: 'Inspection', roles: ['manager', 'driver', 'technician'] },
+    { path: '/mobile/dashboard', icon: Home, label: 'Dashboard', roles: ['manager', 'dispatcher', 'driver', 'technician', 'accountant'] },
+    { path: '/mobile/work-orders', icon: Wrench, label: 'Work Orders', roles: ['manager', 'technician', 'accountant'] },
+    { path: '/mobile/routes', icon: Route, label: 'Routes', roles: ['manager', 'dispatcher', 'driver', 'accountant'] },
+    { path: '/mobile/driver', icon: Truck, label: 'Driver', roles: ['manager', 'driver', 'accountant'] },
+    { path: '/mobile/inspection', icon: ClipboardCheck, label: 'Inspection', roles: ['manager', 'driver', 'technician', 'accountant'] },
     { path: '/mobile/production', icon: Factory, label: 'Production', roles: ['manager', 'accountant'] },
     { path: '/mobile/inventory', icon: Package, label: 'Inventory', roles: ['manager', 'accountant'] },
-    { path: '/mobile/profile', icon: User, label: 'Profile', roles: ['manager', 'dispatcher', 'driver', 'technician'] },
+    { path: '/mobile/profile', icon: User, label: 'Profile', roles: ['manager', 'dispatcher', 'driver', 'technician', 'accountant'] },
   ];
 
   const getVisibleNavItems = () => {

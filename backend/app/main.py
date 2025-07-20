@@ -454,7 +454,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     return user
 
 def filter_by_location(data: List[dict], user: UserInDB, location_key: str = "location_id") -> List[dict]:
-    if user.role == UserRole.MANAGER:
+    if user.role in [UserRole.MANAGER, UserRole.ACCOUNTANT]:
         return data
     return [item for item in data if item.get(location_key) == user.location_id]
 
@@ -1594,7 +1594,7 @@ async def get_work_orders(status: Optional[str] = None, current_user: UserInDB =
     if status:
         orders = [o for o in orders if o["status"] == status]
     
-    if current_user.role != UserRole.MANAGER:
+    if current_user.role not in [UserRole.MANAGER, UserRole.ACCOUNTANT]:
         vehicle_ids = [v["id"] for v in vehicles_db.values() if v["location_id"] == current_user.location_id]
         orders = [o for o in orders if o["vehicle_id"] in vehicle_ids]
     
@@ -1644,7 +1644,7 @@ async def reject_work_order(work_order_id: str, current_user: UserInDB = Depends
 @app.get("/api/production/entries")
 async def get_production_entries(current_user: UserInDB = Depends(get_current_user)):
     entries = list(production_entries_db.values())
-    if current_user.role != UserRole.MANAGER:
+    if current_user.role not in [UserRole.MANAGER, UserRole.ACCOUNTANT]:
         entries = [e for e in entries if e.get("location_id") == current_user.location_id]
     return sorted(entries, key=lambda x: x["submitted_at"], reverse=True)
 

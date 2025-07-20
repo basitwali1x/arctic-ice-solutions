@@ -61,19 +61,19 @@ function MobileApp() {
         <Route path="/" element={<Navigate to="/mobile/dashboard" replace />} />
         <Route path="/dashboard" element={<MobileDashboard />} />
         
-        {(userRole === 'technician' || userRole === 'manager') && (
+        {(userRole === 'technician' || userRole === 'manager' || userRole === 'accountant') && (
           <Route path="/work-orders" element={<MobileWorkOrders />} />
         )}
         
-        {(userRole === 'driver' || userRole === 'dispatcher' || userRole === 'manager') && (
+        {(userRole === 'driver' || userRole === 'dispatcher' || userRole === 'manager' || userRole === 'accountant') && (
           <Route path="/routes" element={<MobileRoutes />} />
         )}
         
-        {(userRole === 'driver' || userRole === 'manager') && (
+        {(userRole === 'driver' || userRole === 'manager' || userRole === 'accountant') && (
           <Route path="/driver" element={<MobileDriver />} />
         )}
         
-        {(userRole === 'driver' || userRole === 'technician' || userRole === 'manager') && (
+        {(userRole === 'driver' || userRole === 'technician' || userRole === 'manager' || userRole === 'accountant') && (
           <Route path="/inspection" element={<MobileInspection />} />
         )}
         

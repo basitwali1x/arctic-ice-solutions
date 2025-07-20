@@ -51,6 +51,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const fetchCurrentUser = async (authToken: string) => {
     try {
+      console.log('Fetching current user with token:', authToken);
       const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
         headers: {
           'Authorization': `Bearer ${authToken}`,
@@ -59,8 +60,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (response.ok) {
         const userData = await response.json();
+        console.log('Setting user data:', userData);
         setUser(userData);
       } else {
+        console.error('Failed to fetch user:', response.status);
         localStorage.removeItem('token');
         setToken(null);
       }

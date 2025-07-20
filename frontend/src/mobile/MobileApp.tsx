@@ -8,6 +8,8 @@ import { MobileRoutes } from './pages/MobileRoutes';
 import { MobileDriver } from './pages/MobileDriver';
 import { MobileInspection } from './pages/MobileInspection';
 import { MobileSettings } from './pages/MobileSettings';
+import { MobileProduction } from './pages/MobileProduction';
+import { MobileInventory } from './pages/MobileInventory';
 import { MobileNavigation } from './components/MobileNavigation';
 import { MobileHeader } from './components/MobileHeader';
 import { MobileLocationAuth } from './components/MobileLocationAuth';
@@ -73,6 +75,14 @@ function MobileApp() {
         
         {(userRole === 'driver' || userRole === 'technician' || userRole === 'manager') && (
           <Route path="/inspection" element={<MobileInspection />} />
+        )}
+        
+        {(userRole === 'manager' || userRole === 'accountant') && (
+          <Route path="/production" element={<MobileProduction />} />
+        )}
+        
+        {(userRole === 'manager' || userRole === 'accountant') && (
+          <Route path="/inventory" element={<MobileInventory />} />
         )}
         
         <Route path="/settings" element={<MobileSettings />} />

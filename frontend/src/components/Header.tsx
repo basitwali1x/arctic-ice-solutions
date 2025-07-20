@@ -40,7 +40,7 @@ export function Header() {
           
           <NotificationBell />
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 rounded-lg p-2 transition-colors duration-200" onClick={logout} title="Click to logout">
             <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-semibold">
               {user?.full_name?.split(' ').map(n => n[0]).join('') || 'U'}
             </div>
@@ -49,7 +49,7 @@ export function Header() {
 
           <button 
             onClick={logout}
-            className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
+            className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200 border border-transparent hover:border-red-200"
             title="Logout"
           >
             <LogOut className="h-5 w-5" />

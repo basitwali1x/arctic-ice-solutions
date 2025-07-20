@@ -23,7 +23,13 @@ SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-for-local-development-only"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 1440
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(
+    schemes=["bcrypt"], 
+    deprecated="auto",
+    bcrypt__default_rounds=12,
+    bcrypt__min_rounds=10,
+    bcrypt__max_rounds=16
+)
 security = HTTPBearer()
 
 # Disable CORS. Do not remove this for full-stack development.
@@ -404,7 +410,24 @@ def load_data_from_disk():
 load_data_from_disk()
 
 def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
+    print(f"DEBUG: verify_password called")
+    print(f"DEBUG: Plain password: '{plain_password}' (length: {len(plain_password)})")
+    print(f"DEBUG: Hashed password starts with: {hashed_password[:20]}...")
+    try:
+        result = pwd_context.verify(plain_password, hashed_password)
+        print(f"DEBUG: pwd_context.verify returned: {result}")
+        return result
+    except Exception as e:
+        print(f"DEBUG: Exception in verify_password: {e}")
+        print(f"DEBUG: Exception type: {type(e).__name__}")
+        try:
+            import bcrypt
+            result = bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+            print(f"DEBUG: Direct bcrypt verification result: {result}")
+            return result
+        except Exception as bcrypt_e:
+            print(f"DEBUG: Direct bcrypt also failed: {bcrypt_e}")
+            return False
 
 def get_password_hash(password):
     return pwd_context.hash(password)
@@ -416,11 +439,26 @@ def get_user(username: str):
     return None
 
 def authenticate_user(username: str, password: str):
+    print(f"DEBUG: authenticate_user called with username: {username}")
     user = get_user(username)
     if not user:
+        print(f"DEBUG: User not found for username: {username}")
         return False
-    if not verify_password(password, user.hashed_password):
+    print(f"DEBUG: User found: {user.username}, role: {user.role}")
+    print(f"DEBUG: Stored hash length: {len(user.hashed_password)}")
+    print(f"DEBUG: Input password length: {len(password)}")
+    
+    try:
+        password_valid = verify_password(password, user.hashed_password)
+        print(f"DEBUG: Password verification result: {password_valid}")
+    except Exception as e:
+        print(f"DEBUG: Exception during password verification: {e}")
         return False
+    
+    if not password_valid:
+        print(f"DEBUG: Password verification failed for user: {username}")
+        return False
+    print(f"DEBUG: Authentication successful for user: {username}")
     return user
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
@@ -1189,6 +1227,7 @@ def initialize_sample_data():
     
     for user in sample_users:
         users_db[user["id"]] = user
+        print(f"DEBUG: Added user {user['username']} with hash: {user['hashed_password'][:20]}...")
     print(f"DEBUG: Added {len(sample_users)} users")
     
     # Add sample customers to customers_db (not just imported_customers)

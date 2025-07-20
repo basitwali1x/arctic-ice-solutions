@@ -119,21 +119,34 @@ export function MobileDriver() {
   const startGPSTracking = () => {
     setIsTracking(true);
     if (navigator.geolocation) {
-      navigator.geolocation.watchPosition(
+      const watchId = navigator.geolocation.watchPosition(
         (position) => {
-          setCurrentLocation({
+          const newLocation = {
             lat: position.coords.latitude,
             lng: position.coords.longitude
-          });
+          };
+          setCurrentLocation(newLocation);
+          
+          checkGeofencing(newLocation);
         },
         (error) => console.error('GPS Tracking Error:', error),
         { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
       );
+      
+      (window as any).gpsWatchId = watchId;
     }
   };
 
   const stopGPSTracking = () => {
     setIsTracking(false);
+    if ((window as any).gpsWatchId) {
+      navigator.geolocation.clearWatch((window as any).gpsWatchId);
+      (window as any).gpsWatchId = null;
+    }
+  };
+
+  const checkGeofencing = (location: { lat: number; lng: number }) => {
+    console.log('Driver location:', location);
   };
 
   const handleDeliveryComplete = (stop: RouteStop) => {
@@ -402,7 +415,14 @@ Thank you for your business!
                 />
               </div>
               <div className="flex space-x-2">
-                <Button onClick={() => handleDeliveryComplete(selectedStop)} className="flex-1">
+                <Button 
+                  onClick={() => {
+                    if (selectedStop) {
+                      handleDeliveryComplete(selectedStop);
+                    }
+                  }} 
+                  className="flex-1"
+                >
                   Complete Delivery
                 </Button>
                 <Button variant="outline" onClick={() => setSelectedStop(null)}>

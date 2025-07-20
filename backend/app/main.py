@@ -1329,7 +1329,7 @@ async def get_customers(location_id: Optional[str] = None, current_user: UserInD
 
 @app.post("/api/customers", response_model=Customer)
 async def create_customer(customer: Customer, current_user: UserInDB = Depends(get_current_user)):
-    if current_user.role != UserRole.MANAGER and customer.location_id != current_user.location_id:
+    if current_user.role not in [UserRole.MANAGER, UserRole.ACCOUNTANT] and customer.location_id != current_user.location_id:
         raise HTTPException(status_code=403, detail="Cannot create customer for different location")
     customer.id = str(uuid.uuid4())
     customers_db[customer.id] = customer.dict()
@@ -1360,7 +1360,7 @@ async def create_order(order: Order, current_user: UserInDB = Depends(get_curren
     customer = customers_db.get(order.customer_id)
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
-    if current_user.role != UserRole.MANAGER and customer["location_id"] != current_user.location_id:
+    if current_user.role not in [UserRole.MANAGER, UserRole.ACCOUNTANT] and customer["location_id"] != current_user.location_id:
         raise HTTPException(status_code=403, detail="Cannot create order for customer in different location")
     order.id = str(uuid.uuid4())
     order.order_date = datetime.now()
@@ -1605,7 +1605,7 @@ async def create_work_order(work_order: WorkOrder, current_user: UserInDB = Depe
     vehicle = vehicles_db.get(work_order.vehicle_id)
     if not vehicle:
         raise HTTPException(status_code=404, detail="Vehicle not found")
-    if current_user.role != UserRole.MANAGER and vehicle["location_id"] != current_user.location_id:
+    if current_user.role not in [UserRole.MANAGER, UserRole.ACCOUNTANT] and vehicle["location_id"] != current_user.location_id:
         raise HTTPException(status_code=403, detail="Cannot create work order for vehicle in different location")
     
     work_order.id = str(uuid.uuid4())
@@ -1669,7 +1669,7 @@ async def get_expenses(location_id: Optional[str] = None, current_user: UserInDB
 
 @app.post("/api/expenses")
 async def create_expense(expense: Expense, current_user: UserInDB = Depends(get_current_user)):
-    if current_user.role != UserRole.MANAGER and expense.location_id != current_user.location_id:
+    if current_user.role not in [UserRole.MANAGER, UserRole.ACCOUNTANT] and expense.location_id != current_user.location_id:
         raise HTTPException(status_code=403, detail="Cannot create expense for different location")
     expense.id = str(uuid.uuid4())
     expense.submitted_at = datetime.now()

@@ -22,7 +22,10 @@ export function MobileProduction() {
 
   const fetchProductionData = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/dashboard/production`);
+      const token = localStorage.getItem('token');
+      const headers: HeadersInit = token ? { 'Authorization': `Bearer ${token}` } : {};
+      
+      const response = await fetch(`${API_BASE_URL}/api/dashboard/production`, { headers });
       if (response.ok) {
         const data = await response.json();
         setProductionData(data);

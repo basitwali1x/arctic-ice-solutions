@@ -32,9 +32,12 @@ export function MobileWorkOrders() {
 
   const fetchData = async () => {
     try {
+      const token = localStorage.getItem('token');
+      const headers: HeadersInit = token ? { 'Authorization': `Bearer ${token}` } : {};
+      
       const [workOrdersResponse, vehiclesResponse] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/maintenance/work-orders`),
-        fetch(`${API_BASE_URL}/api/vehicles`)
+        fetch(`${API_BASE_URL}/api/maintenance/work-orders`, { headers }),
+        fetch(`${API_BASE_URL}/api/vehicles`, { headers })
       ]);
 
       const workOrdersData = await workOrdersResponse.json();
@@ -72,11 +75,15 @@ export function MobileWorkOrders() {
 
       console.log('Submitting work order:', workOrderData);
 
+      const token = localStorage.getItem('token');
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      };
+
       const response = await fetch(`${API_BASE_URL}/api/maintenance/work-orders`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify(workOrderData),
       });
 

@@ -3,17 +3,30 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Users, MapPin, Truck, Package, Save } from 'lucide-react';
+import { Users, MapPin, Truck, Package, Save, LogOut } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 export function Settings() {
+  const { logout } = useAuth();
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
-        <Button>
-          <Save className="h-4 w-4 mr-2" />
-          Save Changes
-        </Button>
+        <div className="flex items-center space-x-2">
+          <Button>
+            <Save className="h-4 w-4 mr-2" />
+            Save Changes
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={logout}
+            className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Sign Out
+          </Button>
+        </div>
       </div>
 
       {/* Company Information */}
@@ -193,6 +206,32 @@ export function Settings() {
                 <p className="text-sm text-gray-600">Driver and customer apps</p>
               </div>
               <Badge className="bg-yellow-100 text-yellow-800">Coming Soon</Badge>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Account Management */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Account Management</CardTitle>
+          <CardDescription>Manage your account and session</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div>
+                <p className="font-medium">Sign Out</p>
+                <p className="text-sm text-gray-600">End your current session and return to login</p>
+              </div>
+              <Button 
+                variant="outline" 
+                onClick={logout}
+                className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign Out
+              </Button>
             </div>
           </div>
         </CardContent>

@@ -32,6 +32,15 @@ export default defineConfig({
       }
     })
   ],
+  server: {
+    proxy: {
+      '/api': {
+        target: 'https://app-ezgjqmrh.fly.dev',
+        changeOrigin: true,
+        secure: true,
+      }
+    }
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

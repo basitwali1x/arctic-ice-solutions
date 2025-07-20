@@ -4,6 +4,7 @@ import { Bell, Menu, X } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Card, CardContent } from '../../components/ui/card';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface MobileHeaderProps {
   currentUser: {
@@ -14,6 +15,7 @@ interface MobileHeaderProps {
 }
 
 export function MobileHeader({ currentUser }: MobileHeaderProps) {
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [showMenu, setShowMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -72,23 +74,35 @@ export function MobileHeader({ currentUser }: MobileHeaderProps) {
               <Button variant="ghost" className="w-full justify-start" onClick={() => { navigate('/mobile/dashboard'); setShowMenu(false); }}>
                 Dashboard
               </Button>
-              <Button variant="ghost" className="w-full justify-start" onClick={() => { navigate('/mobile/work-orders'); setShowMenu(false); }}>
-                Work Orders
-              </Button>
-              <Button variant="ghost" className="w-full justify-start" onClick={() => { navigate('/mobile/routes'); setShowMenu(false); }}>
-                Routes and Deliveries
-              </Button>
-              <Button variant="ghost" className="w-full justify-start" onClick={() => { navigate('/mobile/driver'); setShowMenu(false); }}>
-                Driver Dashboard
-              </Button>
-              <Button variant="ghost" className="w-full justify-start" onClick={() => { navigate('/mobile/inspection'); setShowMenu(false); }}>
-                Pre-Trip Inspection
-              </Button>
+              {(user?.role === 'technician' || user?.role === 'manager') && (
+                <Button variant="ghost" className="w-full justify-start" onClick={() => { navigate('/mobile/work-orders'); setShowMenu(false); }}>
+                  Work Orders
+                </Button>
+              )}
+              {(user?.role === 'driver' || user?.role === 'dispatcher' || user?.role === 'manager') && (
+                <Button variant="ghost" className="w-full justify-start" onClick={() => { navigate('/mobile/routes'); setShowMenu(false); }}>
+                  Routes and Deliveries
+                </Button>
+              )}
+              {(user?.role === 'driver' || user?.role === 'manager') && (
+                <Button variant="ghost" className="w-full justify-start" onClick={() => { navigate('/mobile/driver'); setShowMenu(false); }}>
+                  Driver Dashboard
+                </Button>
+              )}
+              {(user?.role === 'driver' || user?.role === 'technician' || user?.role === 'manager') && (
+                <Button variant="ghost" className="w-full justify-start" onClick={() => { navigate('/mobile/inspection'); setShowMenu(false); }}>
+                  Pre-Trip Inspection
+                </Button>
+              )}
               <Button variant="ghost" className="w-full justify-start" onClick={() => { navigate('/mobile/profile'); setShowMenu(false); }}>
                 Profile
               </Button>
               <Button variant="ghost" className="w-full justify-start" onClick={() => { navigate('/mobile/settings'); setShowMenu(false); }}>
                 Settings
+              </Button>
+              <hr className="my-2" />
+              <Button variant="ghost" className="w-full justify-start text-red-600" onClick={() => { logout(); setShowMenu(false); }}>
+                Sign Out
               </Button>
             </div>
           </div>

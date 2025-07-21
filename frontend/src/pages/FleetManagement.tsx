@@ -3,10 +3,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Truck, MapPin, Plus, RefreshCw, Settings, Navigation } from 'lucide-react';
+import { Truck, MapPin, Plus, RefreshCw, Settings, Navigation, AlertCircle } from 'lucide-react';
 import { Vehicle, Location, FleetDashboard, Route } from '../types/api';
+import { apiRequest } from '../utils/api';
+import { useErrorToast } from '../hooks/useErrorToast';
+import { useToast } from '../hooks/use-toast';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 export function FleetManagement() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -14,6 +16,9 @@ export function FleetManagement() {
   const [fleetData, setFleetData] = useState<FleetDashboard | null>(null);
   const [routes, setRoutes] = useState<Route[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { showError } = useErrorToast();
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchData();
@@ -21,55 +26,33 @@ export function FleetManagement() {
 
   const fetchData = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const requestOptions: RequestInit = token 
-        ? { headers: { 'Authorization': `Bearer ${token}` } }
-        : {};
+      setLoading(true);
+      setError(null);
       
       const [vehiclesRes, locationsRes, fleetRes, routesRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/vehicles`, requestOptions),
-        fetch(`${API_BASE_URL}/api/locations`, requestOptions),
-        fetch(`${API_BASE_URL}/api/dashboard/fleet`, requestOptions),
-        fetch(`${API_BASE_URL}/api/routes`, requestOptions)
+        apiRequest('/api/vehicles'),
+        apiRequest('/api/locations'),
+        apiRequest('/api/dashboard/fleet'),
+        apiRequest('/api/routes')
       ]);
 
-      if (vehiclesRes.ok) {
-        const vehiclesData = await vehiclesRes.json();
-        setVehicles(Array.isArray(vehiclesData) ? vehiclesData : []);
-      } else {
-        console.error('Failed to fetch vehicles:', vehiclesRes.status);
-        setVehicles([]);
-      }
+      const vehiclesData = await vehiclesRes?.json();
+      const locationsData = await locationsRes?.json();
+      const fleetDataRes = await fleetRes?.json();
+      const routesData = await routesRes?.json();
 
-      if (locationsRes.ok) {
-        const locationsData = await locationsRes.json();
-        setLocations(Array.isArray(locationsData) ? locationsData : []);
-      } else {
-        console.error('Failed to fetch locations:', locationsRes.status);
-        setLocations([]);
-      }
-
-      if (fleetRes.ok) {
-        const fleetDataRes = await fleetRes.json();
-        setFleetData(fleetDataRes);
-      } else {
-        console.error('Failed to fetch fleet data:', fleetRes.status);
-        setFleetData(null);
-      }
-
-      if (routesRes.ok) {
-        const routesData = await routesRes.json();
-        setRoutes(Array.isArray(routesData) ? routesData : []);
-      } else {
-        console.error('Failed to fetch routes:', routesRes.status);
-        setRoutes([]);
-      }
+      setVehicles(Array.isArray(vehiclesData) ? vehiclesData : []);
+      setLocations(Array.isArray(locationsData) ? locationsData : []);
+      setFleetData(fleetDataRes || null);
+      setRoutes(Array.isArray(routesData) ? routesData : []);
     } catch (error) {
       console.error('Failed to fetch data:', error);
+      setError('Failed to load fleet data');
       setVehicles([]);
       setLocations([]);
       setFleetData(null);
       setRoutes([]);
+      showError(error, 'Failed to load fleet data');
     } finally {
       setLoading(false);
     }
@@ -97,30 +80,46 @@ export function FleetManagement() {
 
   const handleOptimizeRoutes = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE_URL}/api/routes/optimize?location_id=loc_1`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+      const response = await apiRequest('/api/routes/optimize?location_id=loc_1', {
+        method: 'POST'
       });
       
-      if (response.ok) {
+      if (response?.ok) {
         const result = await response.json();
-        alert(`${result.message}`);
+        toast({
+          title: 'Success',
+          description: result.message || 'Routes optimized successfully',
+        });
         fetchData();
-      } else {
-        alert('Failed to optimize routes');
       }
     } catch (error) {
       console.error('Error optimizing routes:', error);
-      alert('Error optimizing routes');
+      showError(error, 'Failed to optimize routes');
     }
   };
 
   if (loading) {
     return <div className="flex items-center justify-center h-64">Loading...</div>;
+  }
+
+  if (error) {
+    return (
+      <Card className="border-red-200 bg-red-50">
+        <CardHeader>
+          <CardTitle className="flex items-center text-red-800">
+            <AlertCircle className="h-5 w-5 mr-2" />
+            Fleet Data Unavailable
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-red-700 mb-4">{error}</p>
+          <Button onClick={fetchData} variant="outline">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Try Again
+          </Button>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (

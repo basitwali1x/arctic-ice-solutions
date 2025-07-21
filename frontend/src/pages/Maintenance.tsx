@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Wrench, CheckCircle, XCircle, Clock, AlertTriangle } from 'lucide-react';
-import { API_BASE_URL } from '@/lib/constants';
+import { Wrench, CheckCircle, XCircle, Clock, AlertTriangle, RefreshCw } from 'lucide-react';
+import { apiRequest } from '../utils/api';
+import { useErrorToast } from '../hooks/useErrorToast';
 
 interface WorkOrder {
   id: string;
@@ -19,45 +20,81 @@ interface WorkOrder {
   work_type: 'mechanical' | 'refrigeration' | 'electrical' | 'body';
 }
 
+
 export function Maintenance() {
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { showError } = useErrorToast();
 
-  useEffect(() => {
-    fetchWorkOrders();
-  }, []);
-
-  const fetchWorkOrders = async () => {
+  const fetchData = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/maintenance/work-orders`);
-      const data = await response.json();
-      setWorkOrders(data);
+      setLoading(true);
+      setError(null);
+      
+      const workOrdersRes = await apiRequest('/api/work-orders');
+      const workOrdersData = await workOrdersRes?.json();
+      setWorkOrders(Array.isArray(workOrdersData) ? workOrdersData : []);
     } catch (error) {
-      console.error('Error fetching work orders:', error);
+      console.error('Failed to fetch maintenance data:', error);
+      setError('Failed to load maintenance data');
+      setWorkOrders([]);
+      showError(error, 'Failed to load maintenance data');
     } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-64">Loading...</div>;
+  }
+
+  if (error) {
+    return (
+      <Card className="border-red-200 bg-red-50">
+        <CardHeader>
+          <CardTitle className="flex items-center text-red-800">
+            <AlertTriangle className="h-5 w-5 mr-2" />
+            Maintenance Data Unavailable
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-red-700 mb-4">{error}</p>
+          <Button onClick={fetchData} variant="outline">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Try Again
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+
   const handleApprove = async (workOrderId: string) => {
     try {
-      await fetch(`${API_BASE_URL}/api/maintenance/work-orders/${workOrderId}/approve`, {
+      await apiRequest(`/api/work-orders/${workOrderId}/approve`, {
         method: 'POST',
       });
-      fetchWorkOrders();
+      fetchData();
     } catch (error) {
       console.error('Error approving work order:', error);
+      showError(error, 'Failed to approve work order');
     }
   };
 
   const handleReject = async (workOrderId: string) => {
     try {
-      await fetch(`${API_BASE_URL}/api/maintenance/work-orders/${workOrderId}/reject`, {
+      await apiRequest(`/api/work-orders/${workOrderId}/reject`, {
         method: 'POST',
       });
-      fetchWorkOrders();
+      fetchData();
     } catch (error) {
       console.error('Error rejecting work order:', error);
+      showError(error, 'Failed to reject work order');
     }
   };
 

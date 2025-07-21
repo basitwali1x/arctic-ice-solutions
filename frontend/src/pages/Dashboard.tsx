@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { TrendingUp, Users, Truck, Package, DollarSign, MapPin, Clock } from 'lucide-react';
+import { TrendingUp, Users, Truck, Package, DollarSign, MapPin, Clock, AlertCircle, RefreshCw } from 'lucide-react';
 import { DashboardOverview, ProductionDashboard, FleetDashboard, FinancialDashboard } from '../types/api';
 import { apiRequest } from '../utils/api';
+import { useErrorToast } from '../hooks/useErrorToast';
 
 export function Dashboard() {
   const [dashboardData, setDashboardData] = useState<{
@@ -17,36 +19,46 @@ export function Dashboard() {
     fleet: null,
     financial: null
   });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { showError } = useErrorToast();
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const [overviewRes, productionRes, fleetRes, financialRes] = await Promise.all([
+        apiRequest('/api/dashboard/overview'),
+        apiRequest('/api/dashboard/production'),
+        apiRequest('/api/dashboard/fleet'),
+        apiRequest('/api/dashboard/financial')
+      ]);
+
+      const [overview, production, fleet, financial] = await Promise.all([
+        overviewRes?.ok ? overviewRes.json() : null,
+        productionRes?.ok ? productionRes.json() : null,
+        fleetRes?.ok ? fleetRes.json() : null,
+        financialRes?.ok ? financialRes.json() : null
+      ]);
+
+      setDashboardData({ overview, production, fleet, financial });
+    } catch (error) {
+      console.error('Failed to fetch dashboard data:', error);
+      setError('Failed to load dashboard data');
+      showError(error, 'Failed to load dashboard data');
+      setDashboardData({
+        overview: null,
+        production: null,
+        fleet: null,
+        financial: null
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        const [overviewRes, productionRes, fleetRes, financialRes] = await Promise.all([
-          apiRequest('/api/dashboard/overview'),
-          apiRequest('/api/dashboard/production'),
-          apiRequest('/api/dashboard/fleet'),
-          apiRequest('/api/dashboard/financial')
-        ]);
-
-        const [overview, production, fleet, financial] = await Promise.all([
-          overviewRes?.ok ? overviewRes.json() : null,
-          productionRes?.ok ? productionRes.json() : null,
-          fleetRes?.ok ? fleetRes.json() : null,
-          financialRes?.ok ? financialRes.json() : null
-        ]);
-
-        setDashboardData({ overview, production, fleet, financial });
-      } catch (error) {
-        console.error('Failed to fetch dashboard data:', error);
-        setDashboardData({
-          overview: null,
-          production: null,
-          fleet: null,
-          financial: null
-        });
-      }
-    };
-
     fetchDashboardData();
   }, []);
 
@@ -69,6 +81,30 @@ export function Dashboard() {
     location,
     vehicles: count
   }));
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-64">Loading dashboard...</div>;
+  }
+
+  if (error) {
+    return (
+      <Card className="border-red-200 bg-red-50">
+        <CardHeader>
+          <CardTitle className="flex items-center text-red-800">
+            <AlertCircle className="h-5 w-5 mr-2" />
+            Dashboard Unavailable
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-red-700 mb-4">{error}</p>
+          <Button onClick={fetchDashboardData} variant="outline">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Retry
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-6">

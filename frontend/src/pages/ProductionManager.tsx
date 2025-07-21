@@ -4,8 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Factory, Package, Clock } from 'lucide-react';
-import { API_BASE_URL } from '@/lib/constants';
+import { Factory, Package, Clock, AlertCircle, RefreshCw } from 'lucide-react';
+import { apiRequest } from '../utils/api';
+import { useErrorToast } from '../hooks/useErrorToast';
 
 interface ProductionEntry {
   id: string;
@@ -33,6 +34,8 @@ export function ProductionManager() {
     shift_2_target: 80
   });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { showError } = useErrorToast();
   
   const [formData, setFormData] = useState({
     shift: 1,
@@ -41,21 +44,28 @@ export function ProductionManager() {
     pallets_block_ice: ''
   });
 
-  useEffect(() => {
-    fetchProductionData();
-  }, []);
-
   const fetchProductionData = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/production/entries`);
-      const data = await response.json();
-      setProductionEntries(data);
+      setLoading(true);
+      setError(null);
+      
+      const response = await apiRequest('/api/production/entries');
+      const data = await response?.json();
+      
+      setProductionEntries(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching production data:', error);
+      setError('Failed to load production data');
+      setProductionEntries([]);
+      showError(error, 'Failed to load production data');
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchProductionData();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,11 +75,8 @@ export function ProductionManager() {
     const pallets_block_ice = parseInt(formData.pallets_block_ice) || 0;
     
     try {
-      const response = await fetch(`${API_BASE_URL}/api/production/entries`, {
+      const response = await apiRequest('/api/production/entries', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({
           shift: formData.shift,
           pallets_8lb,
@@ -79,7 +86,7 @@ export function ProductionManager() {
         }),
       });
 
-      if (response.ok) {
+      if (response?.ok) {
         setFormData({
           shift: 1,
           pallets_8lb: '',
@@ -90,6 +97,7 @@ export function ProductionManager() {
       }
     } catch (error) {
       console.error('Error submitting production data:', error);
+      showError(error, 'Failed to submit production data');
     }
   };
 
@@ -107,6 +115,26 @@ export function ProductionManager() {
 
   if (loading) {
     return <div className="p-6">Loading production data...</div>;
+  }
+
+  if (error) {
+    return (
+      <Card className="border-red-200 bg-red-50">
+        <CardHeader>
+          <CardTitle className="flex items-center text-red-800">
+            <AlertCircle className="h-5 w-5 mr-2" />
+            Production Data Unavailable
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-red-700 mb-4">{error}</p>
+          <Button onClick={fetchProductionData} variant="outline">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Try Again
+          </Button>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (

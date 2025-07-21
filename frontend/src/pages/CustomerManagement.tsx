@@ -3,58 +3,89 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Users, Search, Plus, RefreshCw, MapPin, Phone, Mail } from 'lucide-react';
+import { Users, Search, Plus, RefreshCw, MapPin, Phone, Mail, AlertCircle } from 'lucide-react';
 import { Customer, Location } from '../types/api';
+import { apiRequest } from '../utils/api';
+import { useErrorToast } from '../hooks/useErrorToast';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 export function CustomerManagement() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const { showError } = useErrorToast();
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const [customersRes, locationsRes] = await Promise.all([
+        apiRequest('/api/customers'),
+        apiRequest('/api/locations')
+      ]);
+
+      const customersData = await customersRes?.json();
+      const locationsData = await locationsRes?.json();
+
+      setCustomers(Array.isArray(customersData) ? customersData : []);
+      setLocations(Array.isArray(locationsData) ? locationsData : []);
+    } catch (error) {
+      console.error('Failed to fetch data:', error);
+      setError('Failed to load customer data');
+      setCustomers([]);
+      setLocations([]);
+      showError(error, 'Failed to load customer data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [customersRes, locationsRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/api/customers`),
-          fetch(`${API_BASE_URL}/api/locations`)
-        ]);
-
-        const customersData = await customersRes.json();
-        const locationsData = await locationsRes.json();
-
-        setCustomers(customersData);
-        setLocations(locationsData);
-      } catch (error) {
-        console.error('Failed to fetch data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchData();
   }, []);
 
   const getLocationName = (locationId: string) => {
+    if (!Array.isArray(locations)) return 'Unknown Location';
     const location = locations.find(l => l.id === locationId);
     return location ? location.name : 'Unknown Location';
   };
 
-  const filteredCustomers = customers.filter(customer =>
-    customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  const filteredCustomers = Array.isArray(customers) ? customers.filter(customer =>
+    customer.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (customer.contact_person && customer.contact_person.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    customer.phone.includes(searchTerm)
-  );
+    customer.phone?.includes(searchTerm)
+  ) : [];
 
-  const customersByLocation = locations.map(location => ({
+  const customersByLocation = Array.isArray(locations) ? locations.map(location => ({
     location: location.name,
-    count: customers.filter(c => c.location_id === location.id).length
-  }));
+    count: Array.isArray(customers) ? customers.filter(c => c.location_id === location.id).length : 0
+  })) : [];
 
   if (loading) {
     return <div className="flex items-center justify-center h-64">Loading...</div>;
+  }
+
+  if (error) {
+    return (
+      <Card className="border-red-200 bg-red-50">
+        <CardHeader>
+          <CardTitle className="flex items-center text-red-800">
+            <AlertCircle className="h-5 w-5 mr-2" />
+            Error Loading Data
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-red-700 mb-4">{error}</p>
+          <Button onClick={fetchData} variant="outline">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Try Again
+          </Button>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (

@@ -190,6 +190,7 @@ export function CustomerManagement() {
                 placeholder="Search customers by name, contact, or phone..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                autoComplete="off"
                 className="pl-10"
               />
             </div>

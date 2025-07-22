@@ -426,6 +426,7 @@ export function Financial() {
                       id="date"
                       type="date"
                       value={newExpense.date}
+                      autoComplete="off"
                       onChange={(e) => setNewExpense({...newExpense, date: e.target.value})}
                       required
                     />
@@ -453,6 +454,7 @@ export function Financial() {
                     id="description"
                     value={newExpense.description}
                     onChange={(e) => setNewExpense({...newExpense, description: e.target.value})}
+                    autoComplete="off"
                     placeholder="Enter expense description"
                     required
                   />
@@ -463,6 +465,7 @@ export function Financial() {
                     id="amount"
                     type="number"
                     step="0.01"
+                    autoComplete="off"
                     value={newExpense.amount}
                     onChange={(e) => setNewExpense({...newExpense, amount: e.target.value})}
                     placeholder="0.00"

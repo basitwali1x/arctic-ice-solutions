@@ -242,6 +242,7 @@ export function ProductionManager() {
                   id="pallets_8lb"
                   type="number"
                   value={formData.pallets_8lb}
+                  autoComplete="off"
                   onChange={(e) => setFormData({...formData, pallets_8lb: e.target.value})}
                   placeholder="Enter number of 8lb pallets"
                   min="0"
@@ -254,6 +255,7 @@ export function ProductionManager() {
                   id="pallets_20lb"
                   type="number"
                   value={formData.pallets_20lb}
+                  autoComplete="off"
                   onChange={(e) => setFormData({...formData, pallets_20lb: e.target.value})}
                   placeholder="Enter number of 20lb pallets"
                   min="0"
@@ -266,6 +268,7 @@ export function ProductionManager() {
                   id="pallets_block_ice"
                   type="number"
                   value={formData.pallets_block_ice}
+                  autoComplete="off"
                   onChange={(e) => setFormData({...formData, pallets_block_ice: e.target.value})}
                   placeholder="Enter number of block ice pallets"
                   min="0"

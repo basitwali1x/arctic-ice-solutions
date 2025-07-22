@@ -269,6 +269,7 @@ export function MobileCustomer({
                     value={newOrder.deliveryAddress}
                     onChange={(e) => setNewOrder(prev => ({ ...prev, deliveryAddress: e.target.value }))}
                     placeholder="Enter delivery address"
+                    autoComplete="street-address"
                   />
                 </div>
                 
@@ -278,6 +279,7 @@ export function MobileCustomer({
                     type="date"
                     value={newOrder.requestedDeliveryDate}
                     onChange={(e) => setNewOrder(prev => ({ ...prev, requestedDeliveryDate: e.target.value }))}
+                    autoComplete="off"
                   />
                 </div>
 
@@ -294,6 +296,7 @@ export function MobileCustomer({
                           type="number"
                           min="0"
                           value={item.quantity}
+                          autoComplete="off"
                           onChange={(e) => updateOrderItem(item.productId, parseInt(e.target.value) || 0)}
                           className="w-20"
                         />
@@ -311,6 +314,7 @@ export function MobileCustomer({
                     value={newOrder.specialInstructions}
                     onChange={(e) => setNewOrder(prev => ({ ...prev, specialInstructions: e.target.value }))}
                     placeholder="Any special delivery instructions"
+                    autoComplete="off"
                   />
                 </div>
 
@@ -490,6 +494,7 @@ export function MobileCustomer({
                     value={newFeedback.subject}
                     onChange={(e) => setNewFeedback(prev => ({ ...prev, subject: e.target.value }))}
                     placeholder="Brief subject line"
+                    autoComplete="off"
                   />
                 </div>
 

@@ -169,6 +169,7 @@ export function MobileWorkOrders() {
               id="technician"
               value={formData.technician_name}
               onChange={(e) => setFormData({...formData, technician_name: e.target.value})}
+              autoComplete="name"
               placeholder="Your name"
               required
             />
@@ -225,6 +226,7 @@ export function MobileWorkOrders() {
                 id="cost"
                 type="number"
                 step="0.01"
+                autoComplete="off"
                 value={formData.estimated_cost}
                 onChange={(e) => setFormData({...formData, estimated_cost: e.target.value})}
                 placeholder="0.00"
@@ -237,6 +239,7 @@ export function MobileWorkOrders() {
                 id="hours"
                 type="number"
                 step="0.5"
+                autoComplete="off"
                 value={formData.estimated_hours}
                 onChange={(e) => setFormData({...formData, estimated_hours: e.target.value})}
                 placeholder="0.0"

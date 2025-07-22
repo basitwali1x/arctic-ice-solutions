@@ -39,19 +39,19 @@ export function Settings() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="company-name">Company Name</Label>
-              <Input id="company-name" defaultValue="Arctic Ice Solutions" />
+              <Input id="company-name" defaultValue="Arctic Ice Solutions" autoComplete="organization" />
             </div>
             <div>
               <Label htmlFor="company-phone">Phone Number</Label>
-              <Input id="company-phone" defaultValue="(337) 555-0123" />
+              <Input id="company-phone" defaultValue="(337) 555-0123" autoComplete="tel" />
             </div>
             <div>
               <Label htmlFor="company-email">Email Address</Label>
-              <Input id="company-email" defaultValue="info@arcticeicesolutions.com" />
+              <Input id="company-email" defaultValue="info@arcticeicesolutions.com" autoComplete="email" />
             </div>
             <div>
               <Label htmlFor="company-website">Website</Label>
-              <Input id="company-website" defaultValue="www.arcticeicesolutions.com" />
+              <Input id="company-website" defaultValue="www.arcticeicesolutions.com" autoComplete="url" />
             </div>
           </div>
         </CardContent>
@@ -181,7 +181,7 @@ export function Settings() {
                 <p className="font-medium">Production Target</p>
                 <p className="text-sm text-gray-600">Daily pallet production goal</p>
               </div>
-              <Input className="w-32" defaultValue="160" />
+              <Input className="w-32" defaultValue="160" autoComplete="off" />
             </div>
 
             <div className="flex items-center justify-between">

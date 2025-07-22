@@ -1335,6 +1335,110 @@ async def create_customer(customer: Customer, current_user: UserInDB = Depends(g
     customers_db[customer.id] = customer.dict()
     return customer
 
+@app.get("/api/customers/{customer_id}/orders")
+async def get_customer_orders(customer_id: str, current_user: UserInDB = Depends(get_current_user)):
+    sample_orders = [
+        {
+            "id": f"order-{customer_id}-001",
+            "customerId": customer_id,
+            "orderDate": "2025-01-20",
+            "requestedDeliveryDate": "2025-01-21",
+            "status": "delivered",
+            "items": [
+                {
+                    "productId": "prod-001",
+                    "productName": "8lb Ice Bags",
+                    "quantity": 100,
+                    "unitPrice": 2.50,
+                    "totalPrice": 250.00
+                }
+            ],
+            "subtotal": 250.00,
+            "tax": 22.50,
+            "deliveryFee": 25.00,
+            "totalAmount": 297.50,
+            "deliveryAddress": "Customer Address",
+            "paymentMethod": "credit",
+            "paymentStatus": "paid",
+            "invoiceNumber": f"INV-{customer_id}-001"
+        }
+    ]
+    return sample_orders
+
+@app.post("/api/customers/{customer_id}/orders")
+async def create_customer_order(customer_id: str, order_data: dict, current_user: UserInDB = Depends(get_current_user)):
+    import time
+    new_order = {
+        "id": f"order-{customer_id}-{int(time.time())}",
+        "customerId": customer_id,
+        **order_data,
+        "status": "pending",
+        "paymentStatus": "pending"
+    }
+    return new_order
+
+@app.get("/api/customers/{customer_id}/feedback")
+async def get_customer_feedback(customer_id: str, current_user: UserInDB = Depends(get_current_user)):
+    sample_feedback = [
+        {
+            "id": f"feedback-{customer_id}-001",
+            "customerId": customer_id,
+            "type": "delivery",
+            "rating": 5,
+            "subject": "Excellent Service",
+            "message": "Driver was professional and on time.",
+            "submittedAt": "2025-01-20T14:30:00Z",
+            "status": "new"
+        }
+    ]
+    return sample_feedback
+
+@app.post("/api/customers/{customer_id}/feedback")
+async def create_customer_feedback(customer_id: str, feedback_data: dict, current_user: UserInDB = Depends(get_current_user)):
+    import time
+    new_feedback = {
+        "id": f"feedback-{customer_id}-{int(time.time())}",
+        "customerId": customer_id,
+        **feedback_data,
+        "submittedAt": datetime.now().isoformat(),
+        "status": "new"
+    }
+    return new_feedback
+
+@app.get("/api/invoices")
+async def get_invoices(customer_id: Optional[str] = None, current_user: UserInDB = Depends(get_current_user)):
+    sample_invoices = [
+        {
+            "id": f"inv-{customer_id or 'all'}-001",
+            "customerId": customer_id or "cust-001",
+            "invoiceNumber": f"INV-2025-001",
+            "issueDate": "2025-01-20",
+            "dueDate": "2025-02-19",
+            "subtotal": 250.00,
+            "tax": 22.50,
+            "totalAmount": 297.50,
+            "paidAmount": 0.00,
+            "balanceDue": 297.50,
+            "status": "sent",
+            "paymentTerms": "Net 30"
+        }
+    ]
+    
+    if customer_id:
+        return [inv for inv in sample_invoices if inv["customerId"] == customer_id]
+    return sample_invoices
+
+@app.post("/api/payments")
+async def process_payment(payment_data: dict, current_user: UserInDB = Depends(get_current_user)):
+    import time
+    new_payment = {
+        "id": f"payment-{int(time.time())}",
+        **payment_data,
+        "paymentDate": datetime.now().isoformat(),
+        "status": "completed"
+    }
+    return new_payment
+
 @app.get("/api/orders")
 async def get_orders(location_id: Optional[str] = None, status: Optional[str] = None, current_user: UserInDB = Depends(get_current_user)):
     if imported_orders is not None and len(imported_orders) > 0:

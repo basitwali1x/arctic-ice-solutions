@@ -89,6 +89,11 @@ export function MobileHeader({ currentUser }: MobileHeaderProps) {
                   Driver Dashboard
                 </Button>
               )}
+              {(user?.role === 'customer' || user?.role === 'manager') && (
+                <Button variant="ghost" className="w-full justify-start" onClick={() => { navigate('/mobile/customer'); setShowMenu(false); }}>
+                  Customer Portal
+                </Button>
+              )}
               {(user?.role === 'driver' || user?.role === 'technician' || user?.role === 'manager') && (
                 <Button variant="ghost" className="w-full justify-start" onClick={() => { navigate('/mobile/inspection'); setShowMenu(false); }}>
                   Pre-Trip Inspection

@@ -6,6 +6,7 @@ import { MobileWorkOrders } from './pages/MobileWorkOrders';
 import { MobileProfile } from './pages/MobileProfile';
 import { MobileRoutes } from './pages/MobileRoutes';
 import { MobileDriver } from './pages/MobileDriver';
+import { MobileCustomer } from './pages/MobileCustomer';
 import { MobileInspection } from './pages/MobileInspection';
 import { MobileSettings } from './pages/MobileSettings';
 import { MobileNavigation } from './components/MobileNavigation';
@@ -69,6 +70,10 @@ function MobileApp() {
         
         {(userRole === 'driver' || userRole === 'manager') && (
           <Route path="/driver" element={<MobileDriver />} />
+        )}
+        
+        {(userRole === 'customer' || userRole === 'manager') && (
+          <Route path="/customer" element={<MobileCustomer />} />
         )}
         
         {(userRole === 'driver' || userRole === 'technician' || userRole === 'manager') && (

@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { 
+import {
   LayoutDashboard, 
   Package, 
   Truck, 
@@ -9,7 +9,8 @@ import {
   Snowflake,
   Wrench,
   Factory,
-  TrendingUp
+  TrendingUp,
+  UserCheck
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -26,6 +27,7 @@ export function Sidebar() {
     { path: '/production-manager', icon: Factory, label: 'Production Manager' },
     { path: '/financial', icon: DollarSign, label: 'Financial' },
     { path: '/pricing', icon: TrendingUp, label: 'Pricing Management' },
+    { path: '/employees', icon: UserCheck, label: 'Employee Management' },
     { path: '/settings', icon: Settings, label: 'Settings' },
   ];
 
@@ -46,6 +48,10 @@ export function Sidebar() {
       return menuItems.filter(item => 
         ['dashboard', 'financial', 'pricing'].includes(item.path.substring(1))
       );
+    }
+    
+    if (role === 'manager') {
+      return menuItems;
     }
     
     if (role === 'driver') {

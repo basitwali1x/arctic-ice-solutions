@@ -164,6 +164,15 @@ export interface RouteStop {
   stop_number: number;
   estimated_arrival: string;
   status: 'pending' | 'completed';
+  customer_name?: string;
+  address?: string;
+  bags?: number;
+  receiptPhoto?: string;
+  gps_location?: { lat: number; lng: number };
+  fraud_checks_passed?: boolean;
+  payment_method?: 'cash' | 'check' | 'credit';
+  payment_amount?: number;
+  delivery_time?: string;
 }
 
 export interface CustomerUser {

@@ -13,6 +13,7 @@ import { CustomerManagement } from './pages/CustomerManagement';
 import { Financial } from './pages/Financial';
 import { Settings } from './pages/Settings';
 import AdminPricingDashboard from './pages/AdminPricingDashboard';
+import EmployeeManagement from './pages/EmployeeManagement';
 import { Maintenance } from './pages/Maintenance';
 import { ProductionManager } from './pages/ProductionManager';
 import MobileApp from './mobile/MobileApp';
@@ -60,6 +61,7 @@ function App() {
                               <Route path="/maintenance" element={<Maintenance />} />
                               <Route path="/production" element={<ProductionManager />} />
                               <Route path="/pricing" element={<AdminPricingDashboard />} />
+                              <Route path="/employees" element={<EmployeeManagement />} />
                               <Route path="/settings" element={<Settings />} />
                             </Routes>
                           </ErrorBoundary>

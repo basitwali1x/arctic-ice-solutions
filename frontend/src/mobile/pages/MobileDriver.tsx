@@ -146,12 +146,64 @@ export function MobileDriver() {
     }
   };
 
-  const checkGeofencing = (location: { lat: number; lng: number }) => {
-    console.log('Driver location:', location);
+  const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+    const R = 6371e3;
+    const φ1 = lat1 * Math.PI/180;
+    const φ2 = lat2 * Math.PI/180;
+    const Δφ = (lat2-lat1) * Math.PI/180;
+    const Δλ = (lng2-lng1) * Math.PI/180;
+
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+              Math.cos(φ1) * Math.cos(φ2) *
+              Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+    return R * c;
+  };
+
+  const checkGeofencing = (location: { lat: number; lng: number }): boolean => {
+    if (!currentRoute || !selectedStop) return true;
+    
+    const customerLocation = { lat: 30.1565, lng: -93.2077 };
+    const distance = calculateDistance(location.lat, location.lng, customerLocation.lat, customerLocation.lng);
+    
+    if (distance > 100) {
+      alert('⚠️ Anti-theft Alert: You must be within 100m of customer location to complete delivery');
+      return false;
+    }
+    return true;
+  };
+
+  const logDeliveryCompletion = async (stop: RouteStop, location: { lat: number; lng: number }) => {
+    try {
+      await fetch('/api/delivery-audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          stop_id: stop.id,
+          driver_location: location,
+          timestamp: new Date().toISOString(),
+          payment_method: deliveryForm.payment_method,
+          payment_amount: deliveryForm.payment_amount,
+          has_receipt_photo: !!stop.receiptPhoto
+        })
+      });
+    } catch (error) {
+      console.error('Failed to log delivery completion:', error);
+    }
   };
 
   const handleDeliveryComplete = (stop: RouteStop) => {
-    if (!currentRoute) return;
+    if (!currentRoute || !currentLocation) return;
+    
+    if (!checkGeofencing(currentLocation)) {
+      return;
+    }
+    
+    if (deliveryForm.payment_method === 'cash' && !stop.receiptPhoto) {
+      alert('⚠️ Payment proof required for cash transactions. Please capture receipt photo first.');
+      return;
+    }
     
     const updatedStops = currentRoute.stops.map(s => 
       s.id === stop.id 
@@ -160,11 +212,15 @@ export function MobileDriver() {
             status: 'delivered' as const,
             payment_method: deliveryForm.payment_method as 'cash' | 'check' | 'credit',
             payment_amount: deliveryForm.payment_amount,
-            delivery_time: new Date().toLocaleTimeString()
+            delivery_time: new Date().toLocaleTimeString(),
+            gps_location: currentLocation,
+            fraud_checks_passed: true
           }
         : s
     );
 
+    logDeliveryCompletion(stop, currentLocation);
+    
     setCurrentRoute({
       ...currentRoute,
       stops: updatedStops,

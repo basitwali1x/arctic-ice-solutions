@@ -16,8 +16,11 @@ from pathlib import Path
 from .excel_import import process_excel_files
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from .api.auth import router as auth_router
 
 app = FastAPI(title="Arctic Ice Solutions API", version="1.0.0")
+
+app.include_router(auth_router, prefix="/api/auth", tags=["authentication"])
 
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-for-local-development-only")
 ALGORITHM = "HS256"

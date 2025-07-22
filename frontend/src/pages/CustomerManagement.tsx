@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Users, Search, Plus, RefreshCw, MapPin, Phone, Mail, AlertCircle } from 'lucide-react';
+import { Users, Search, Plus, RefreshCw, MapPin, Phone, Mail, AlertCircle, Star, MessageSquare, DollarSign, FileText } from 'lucide-react';
 import { Customer, Location } from '../types/api';
 import { apiRequest } from '../utils/api';
 import { useErrorToast } from '../hooks/useErrorToast';
@@ -15,6 +15,8 @@ export function CustomerManagement() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [showCustomerDetails, setShowCustomerDetails] = useState(false);
   const { showError } = useErrorToast();
 
   const fetchData = async () => {
@@ -236,7 +238,16 @@ export function CustomerManagement() {
                     <Badge variant={(customer.status === 'active' || customer.is_active) ? "default" : "secondary"}>
                       {(customer.status === 'active' || customer.is_active) ? "Active" : "Inactive"}
                     </Badge>
-                    <Button variant="outline" size="sm">Edit</Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        setSelectedCustomer(customer);
+                        setShowCustomerDetails(true);
+                      }}
+                    >
+                      View Details
+                    </Button>
                   </div>
                 </div>
               ))
@@ -244,6 +255,176 @@ export function CustomerManagement() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Customer Details Modal */}
+      {showCustomerDetails && selectedCustomer && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h3 className="text-xl font-semibold">{selectedCustomer.name}</h3>
+                  <p className="text-gray-600">{selectedCustomer.contact_person}</p>
+                </div>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setShowCustomerDetails(false);
+                    setSelectedCustomer(null);
+                  }}
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              {/* Customer Info */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Users className="w-5 h-5 mr-2" />
+                    Customer Information
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-600">Phone</label>
+                      <p className="flex items-center">
+                        <Phone className="w-4 h-4 mr-2 text-gray-400" />
+                        {selectedCustomer.phone}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-600">Email</label>
+                      <p className="flex items-center">
+                        <Mail className="w-4 h-4 mr-2 text-gray-400" />
+                        {selectedCustomer.email || 'Not provided'}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-600">Address</label>
+                      <p className="flex items-center">
+                        <MapPin className="w-4 h-4 mr-2 text-gray-400" />
+                        {selectedCustomer.address}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-600">Location</label>
+                      <p>{getLocationName(selectedCustomer.location_id)}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-3 gap-4 pt-4 border-t">
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-blue-600">${(selectedCustomer.credit_limit || 5000).toLocaleString()}</p>
+                      <p className="text-sm text-gray-600">Credit Limit</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-green-600">{selectedCustomer.payment_terms || 30} days</p>
+                      <p className="text-sm text-gray-600">Payment Terms</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-purple-600">${(selectedCustomer.total_spent || 0).toLocaleString()}</p>
+                      <p className="text-sm text-gray-600">Total Spent</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Recent Orders */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <FileText className="w-5 h-5 mr-2" />
+                    Recent Orders
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {[1, 2, 3].map((order) => (
+                      <div key={order} className="flex justify-between items-center p-3 border rounded-lg">
+                        <div>
+                          <p className="font-medium">Order #ORD-2025-00{order}</p>
+                          <p className="text-sm text-gray-600">January {20 + order}, 2025</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-medium">${(1200 + order * 100).toFixed(2)}</p>
+                          <Badge variant="default">Delivered</Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Customer Feedback */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <MessageSquare className="w-5 h-5 mr-2" />
+                    Customer Feedback
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {[
+                      { rating: 5, subject: 'Excellent Service', message: 'Always on time and professional drivers.' },
+                      { rating: 4, subject: 'Good Quality', message: 'Ice quality is consistently good.' }
+                    ].map((feedback, index) => (
+                      <div key={index} className="p-3 border rounded-lg">
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="flex items-center space-x-1">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Star
+                                key={star}
+                                className={`w-4 h-4 ${star <= feedback.rating ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
+                              />
+                            ))}
+                          </div>
+                          <span className="text-xs text-gray-500">2 days ago</span>
+                        </div>
+                        <h4 className="font-medium">{feedback.subject}</h4>
+                        <p className="text-sm text-gray-600">{feedback.message}</p>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Payment History */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <DollarSign className="w-5 h-5 mr-2" />
+                    Payment History
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {[
+                      { date: 'Jan 20, 2025', amount: 1200, method: 'Credit Card', status: 'Completed' },
+                      { date: 'Jan 15, 2025', amount: 850, method: 'Check', status: 'Completed' },
+                      { date: 'Jan 10, 2025', amount: 1500, method: 'Account', status: 'Pending' }
+                    ].map((payment, index) => (
+                      <div key={index} className="flex justify-between items-center p-3 border rounded-lg">
+                        <div>
+                          <p className="font-medium">${payment.amount.toFixed(2)}</p>
+                          <p className="text-sm text-gray-600">{payment.date} • {payment.method}</p>
+                        </div>
+                        <Badge variant={payment.status === 'Completed' ? 'default' : 'secondary'}>
+                          {payment.status}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

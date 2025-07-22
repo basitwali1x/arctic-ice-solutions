@@ -164,3 +164,178 @@ export interface RouteStop {
   estimated_arrival: string;
   status: 'pending' | 'completed';
 }
+
+export interface CustomerUser {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  company: string;
+  address: string;
+  creditTerms: 'Net 15' | 'Net 30' | 'COD';
+  accountBalance: number;
+  creditLimit: number;
+  isActive: boolean;
+  registeredDate: string;
+}
+
+export interface OrderItem {
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+}
+
+export interface CustomerOrder {
+  id: string;
+  customerId: string;
+  orderDate: string;
+  requestedDeliveryDate: string;
+  actualDeliveryDate?: string;
+  status: 'pending' | 'confirmed' | 'in-production' | 'out-for-delivery' | 'delivered' | 'cancelled';
+  items: OrderItem[];
+  subtotal: number;
+  tax: number;
+  deliveryFee: number;
+  totalAmount: number;
+  deliveryAddress: string;
+  specialInstructions?: string;
+  paymentMethod?: 'cash' | 'check' | 'credit' | 'account';
+  paymentStatus: 'pending' | 'paid' | 'overdue';
+  invoiceNumber?: string;
+  trackingInfo?: {
+    driverName: string;
+    vehicleId: string;
+    estimatedArrival: string;
+    currentLocation?: {
+      lat: number;
+      lng: number;
+      timestamp: string;
+    };
+  };
+}
+
+export interface CustomerFeedback {
+  id: string;
+  customerId: string;
+  orderId?: string;
+  type: 'delivery' | 'product' | 'service' | 'complaint' | 'suggestion';
+  rating: 1 | 2 | 3 | 4 | 5;
+  subject: string;
+  message: string;
+  submittedAt: string;
+  status: 'new' | 'reviewed' | 'responded' | 'resolved';
+  response?: string;
+  respondedAt?: string;
+  respondedBy?: string;
+}
+
+export interface Invoice {
+  id: string;
+  orderId: string;
+  customerId: string;
+  invoiceNumber: string;
+  issueDate: string;
+  dueDate: string;
+  subtotal: number;
+  tax: number;
+  totalAmount: number;
+  paidAmount: number;
+  balanceDue: number;
+  status: 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
+  paymentTerms: string;
+  items: OrderItem[];
+}
+
+export interface PaymentRecord {
+  id: string;
+  customerId: string;
+  orderId: string;
+  invoiceId: string;
+  amount: number;
+  paymentMethod: 'cash' | 'check' | 'credit' | 'bank-transfer';
+  paymentDate: string;
+  checkNumber?: string;
+  transactionId?: string;
+  status: 'pending' | 'completed' | 'failed' | 'cancelled';
+  notes?: string;
+}
+
+export interface EnhancedRouteStop {
+  id: string;
+  customerId: string;
+  customerName: string;
+  address: string;
+  coordinates: {
+    lat: number;
+    lng: number;
+  };
+  orderNumber: string;
+  products: {
+    bags8lb: number;
+    bags20lb: number;
+    blockIce: number;
+  };
+  deliveryWindow: {
+    start: string;
+    end: string;
+  };
+  status: 'pending' | 'en-route' | 'arrived' | 'delivered' | 'failed';
+  arrivalTime?: string;
+  deliveryTime?: string;
+  signature?: string;
+  notes?: string;
+  photos?: string[];
+  actualDelivery?: {
+    bags8lb: number;
+    bags20lb: number;
+    blockIce: number;
+    totalAmount: number;
+    paymentMethod: 'cash' | 'check' | 'credit' | 'debit' | 'account';
+    paymentReceived: boolean;
+    checkNumber?: string;
+    cardLast4?: string;
+    signature: string;
+    invoiceNumber: string;
+    timestamp: string;
+  };
+}
+
+export interface DeliveryInvoice {
+  id: string;
+  invoiceNumber: string;
+  customerId: string;
+  customerName: string;
+  customerAddress: string;
+  driverId: string;
+  driverName: string;
+  deliveryDate: string;
+  items: {
+    productName: string;
+    quantity: number;
+    unitPrice: number;
+    totalPrice: number;
+  }[];
+  subtotal: number;
+  tax: number;
+  totalAmount: number;
+  paymentMethod: string;
+  paymentReceived: boolean;
+  signature: string;
+  timestamp: string;
+}
+
+export interface PaymentTransaction {
+  id: string;
+  invoiceId: string;
+  customerId: string;
+  amount: number;
+  paymentMethod: 'cash' | 'check' | 'credit' | 'debit' | 'account';
+  status: 'pending' | 'completed' | 'failed';
+  timestamp: string;
+  checkNumber?: string;
+  cardLast4?: string;
+  authCode?: string;
+  driverId: string;
+}

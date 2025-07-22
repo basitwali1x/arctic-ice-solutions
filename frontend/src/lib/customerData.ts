@@ -12,7 +12,8 @@ export const customerUsers: CustomerUser[] = [
     accountBalance: 2450.00,
     creditLimit: 15000.00,
     isActive: true,
-    registeredDate: '2023-01-15'
+    registeredDate: '2023-01-15',
+    tier: 'gold'
   },
   {
     id: 'cust-002',
@@ -25,7 +26,8 @@ export const customerUsers: CustomerUser[] = [
     accountBalance: 1200.00,
     creditLimit: 8000.00,
     isActive: true,
-    registeredDate: '2023-03-22'
+    registeredDate: '2023-03-22',
+    tier: 'retail'
   },
   {
     id: 'cust-003',
@@ -38,7 +40,8 @@ export const customerUsers: CustomerUser[] = [
     accountBalance: 0.00,
     creditLimit: 5000.00,
     isActive: true,
-    registeredDate: '2023-05-10'
+    registeredDate: '2023-05-10',
+    tier: 'special_event'
   }
 ];
 

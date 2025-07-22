@@ -99,6 +99,11 @@ class ExpenseCategory(str, Enum):
     LABOR = "labor"
     OTHER = "other"
 
+class CustomerTier(str, Enum):
+    GOLD = "gold"
+    RETAIL = "retail"
+    SPECIAL_EVENT = "special_event"
+
 class Location(BaseModel):
     id: str
     name: str
@@ -146,6 +151,7 @@ class Customer(BaseModel):
     credit_limit: float = 0.0
     payment_terms: int = 30
     is_active: bool = True
+    tier: CustomerTier = CustomerTier.RETAIL
 
 class Product(BaseModel):
     id: str
@@ -154,6 +160,14 @@ class Product(BaseModel):
     price: float
     weight_lbs: float
     is_active: bool = True
+
+class PricingRule(BaseModel):
+    id: str
+    tier: CustomerTier
+    discount_percentage: float
+    is_active: bool = True
+    created_at: datetime
+    updated_at: datetime
 
 class Vehicle(BaseModel):
     id: str
@@ -237,6 +251,16 @@ def calculate_distance(addr1: str, addr2: str) -> float:
     hash1 = hash(addr1) % 1000
     hash2 = hash(addr2) % 1000
     return abs(hash1 - hash2) / 10.0
+
+def calculate_dynamic_price(base_price: float, customer_tier: CustomerTier) -> float:
+    pricing_rules = {
+        CustomerTier.GOLD: -0.20,
+        CustomerTier.RETAIL: 0.0,
+        CustomerTier.SPECIAL_EVENT: 0.15
+    }
+    
+    discount = pricing_rules.get(customer_tier, 0.0)
+    return base_price * (1 + discount)
 
 def optimize_route_ai(customers: List[dict], orders: List[dict], vehicle: dict, depot_address: str) -> List[dict]:
     print(f"DEBUG AI: Starting optimization with {len(orders)} orders, {len(customers)} customers")
@@ -1438,6 +1462,37 @@ async def process_payment(payment_data: dict, current_user: UserInDB = Depends(g
         "status": "completed"
     }
     return new_payment
+
+@app.get("/api/pricing/rules")
+async def get_pricing_rules(current_user: UserInDB = Depends(get_current_user)):
+    return [
+        {"id": "rule-1", "tier": "gold", "discount_percentage": -20.0, "is_active": True},
+        {"id": "rule-2", "tier": "retail", "discount_percentage": 0.0, "is_active": True},
+        {"id": "rule-3", "tier": "special_event", "discount_percentage": 15.0, "is_active": True}
+    ]
+
+@app.patch("/api/customers/{customer_id}/tier")
+async def update_customer_tier(customer_id: str, tier_data: dict, current_user: UserInDB = Depends(get_current_user)):
+    if customer_id in customers_db:
+        customers_db[customer_id]["tier"] = tier_data["tier"]
+        return {"success": True, "customer_id": customer_id, "new_tier": tier_data["tier"]}
+    return {"success": False, "error": "Customer not found"}
+
+@app.get("/api/pricing/audit")
+async def get_pricing_audit(current_user: UserInDB = Depends(get_current_user)):
+    return {
+        "total_orders_today": 25,
+        "total_revenue": 12500.00,
+        "pricing_adjustments": [
+            {"customer": "Restaurant A", "tier": "gold", "original": 100.0, "adjusted": 80.0, "savings": 20.0},
+            {"customer": "Event Co", "tier": "special_event", "original": 100.0, "adjusted": 115.0, "surcharge": 15.0}
+        ],
+        "tier_distribution": {
+            "gold": 15,
+            "retail": 45,
+            "special_event": 8
+        }
+    }
 
 @app.get("/api/orders")
 async def get_orders(location_id: Optional[str] = None, status: Optional[str] = None, current_user: UserInDB = Depends(get_current_user)):

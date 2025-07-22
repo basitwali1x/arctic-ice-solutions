@@ -8,7 +8,8 @@ import {
   Settings,
   Snowflake,
   Wrench,
-  Factory
+  Factory,
+  TrendingUp
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -24,6 +25,7 @@ export function Sidebar() {
     { path: '/maintenance', icon: Wrench, label: 'Maintenance' },
     { path: '/production-manager', icon: Factory, label: 'Production Manager' },
     { path: '/financial', icon: DollarSign, label: 'Financial' },
+    { path: '/pricing', icon: TrendingUp, label: 'Pricing Management' },
     { path: '/settings', icon: Settings, label: 'Settings' },
   ];
 
@@ -42,7 +44,7 @@ export function Sidebar() {
     
     if (role === 'accountant') {
       return menuItems.filter(item => 
-        ['dashboard', 'financial'].includes(item.path.substring(1))
+        ['dashboard', 'financial', 'pricing'].includes(item.path.substring(1))
       );
     }
     

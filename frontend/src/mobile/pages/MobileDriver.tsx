@@ -5,7 +5,7 @@ import { Badge } from '../../components/ui/badge';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { MapPin, Navigation, Package, DollarSign, Fuel, Clock, Bluetooth } from 'lucide-react';
+import { MapPin, Navigation, Package, DollarSign, Fuel, Clock, Bluetooth, Camera } from 'lucide-react';
 
 interface RouteStop {
   id: string;
@@ -16,6 +16,7 @@ interface RouteStop {
   payment_method?: 'cash' | 'check' | 'credit';
   payment_amount?: number;
   delivery_time?: string;
+  receiptPhoto?: string;
 }
 
 interface DriverRoute {
@@ -175,6 +176,42 @@ export function MobileDriver() {
     setDeliveryForm({ bags_delivered: 0, payment_method: '', payment_amount: 0, notes: '' });
   };
 
+  const takeReceiptPhoto = async (stop: RouteStop) => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      const video = document.createElement('video');
+      video.srcObject = stream;
+      video.play();
+      
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+      
+      setTimeout(() => {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context?.drawImage(video, 0, 0);
+        
+        const photoData = canvas.toDataURL('image/jpeg');
+        
+        setCurrentRoute(prev => prev ? {
+          ...prev,
+          stops: prev.stops.map(s => 
+            s.id === stop.id 
+              ? { ...s, receiptPhoto: photoData }
+              : s
+          )
+        } : null);
+        
+        stream.getTracks().forEach(track => track.stop());
+        alert('Receipt photo captured successfully!');
+      }, 3000);
+      
+    } catch (error) {
+      console.error('Camera error:', error);
+      alert('Camera not available. Please check permissions.');
+    }
+  };
+
   const printReceipt = async (stop: RouteStop) => {
     if ('bluetooth' in navigator) {
       try {
@@ -280,10 +317,13 @@ Thank you for your business!
                         {stop.bags} bags
                       </span>
                       {stop.payment_amount && (
-                        <span className="text-sm">
-                          <DollarSign className="h-3 w-3 inline mr-1" />
-                          ${stop.payment_amount.toFixed(2)} ({stop.payment_method})
-                        </span>
+                        <div className="text-sm">
+                          <div className="flex items-center">
+                            <DollarSign className="h-3 w-3 inline mr-1" />
+                            ${stop.payment_amount.toFixed(2)} ({stop.payment_method})
+                            <Badge variant="outline" className="ml-2 text-xs">🔒 Locked</Badge>
+                          </div>
+                        </div>
                       )}
                       {stop.delivery_time && (
                         <span className="text-sm">
@@ -300,10 +340,16 @@ Thank you for your business!
                       </Button>
                     )}
                     {stop.status === 'delivered' && (
-                      <Button size="sm" variant="outline" onClick={() => printReceipt(stop)}>
-                        <Bluetooth className="h-3 w-3 mr-1" />
-                        Print
-                      </Button>
+                      <div className="flex flex-col space-y-1">
+                        <Button size="sm" variant="outline" onClick={() => takeReceiptPhoto(stop)}>
+                          <Camera className="h-3 w-3 mr-1" />
+                          Photo
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => printReceipt(stop)}>
+                          <Bluetooth className="h-3 w-3 mr-1" />
+                          Print
+                        </Button>
+                      </div>
                     )}
                   </div>
                 </div>

@@ -66,7 +66,19 @@ export function MobileCustomer({
   }, [customerId]);
 
   const calculateOrderTotal = () => {
-    return newOrder.items.reduce((total: number, item: any) => total + item.totalPrice, 0);
+    const baseSubtotal = newOrder.items.reduce((total: number, item: any) => total + item.totalPrice, 0);
+    
+    const customerTier = currentUser?.tier || 'retail';
+    const pricingMultiplier = {
+      'gold': 0.8,
+      'retail': 1.0,
+      'special_event': 1.15
+    };
+    
+    const adjustedSubtotal = baseSubtotal * (pricingMultiplier[customerTier as keyof typeof pricingMultiplier] || 1.0);
+    const tax = adjustedSubtotal * 0.09;
+    const deliveryFee = 25.00;
+    return adjustedSubtotal + tax + deliveryFee;
   };
 
   const updateOrderItem = (productId: string, quantity: number) => {
@@ -314,13 +326,42 @@ export function MobileCustomer({
                   />
                 </div>
 
-                <div className="border-t pt-3">
-                  <div className="flex justify-between text-lg font-semibold">
-                    <span>Total:</span>
-                    <span>${(calculateOrderTotal() * 1.09 + 25).toFixed(2)}</span>
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h3 className="font-semibold mb-2">Order Summary</h3>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span>Base Subtotal:</span>
+                    <span>${newOrder.items.reduce((total: number, item: any) => total + item.totalPrice, 0).toFixed(2)}</span>
                   </div>
-                  <p className="text-xs text-gray-500">Includes tax and delivery fee</p>
+                  {currentUser?.tier && currentUser.tier !== 'retail' && (
+                    <div className="flex justify-between text-blue-600">
+                      <span>
+                        {currentUser.tier === 'gold' ? 'Gold Discount (20%):' : 'Event Surcharge (15%):'}
+                      </span>
+                      <span>
+                        {currentUser.tier === 'gold' ? '-' : '+'}${Math.abs(newOrder.items.reduce((total: number, item: any) => total + item.totalPrice, 0) * (currentUser.tier === 'gold' ? 0.2 : 0.15)).toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span>Tax (9%):</span>
+                    <span>${((calculateOrderTotal() - 25.00) * 0.09 / 1.09).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Delivery Fee:</span>
+                    <span>$25.00</span>
+                  </div>
+                  <div className="flex justify-between font-semibold border-t pt-1">
+                    <span>Total:</span>
+                    <span>${calculateOrderTotal().toFixed(2)}</span>
+                  </div>
+                  {currentUser?.tier && (
+                    <div className="text-xs text-gray-600 mt-2">
+                      Customer Tier: <Badge variant="outline">{currentUser.tier.replace('_', ' ').toUpperCase()}</Badge>
+                    </div>
+                  )}
                 </div>
+              </div>
 
                 <Button className="w-full" onClick={submitOrder}>
                   Submit Order
@@ -540,6 +581,131 @@ export function MobileCustomer({
                         <p className="text-sm text-gray-600">{item.message}</p>
                         {item.response && (
                           <div className="mt-2 p-2 bg-green-50 rounded">
+                            <p className="text-sm"><strong>Response:</strong> {item.response}</p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {currentView === 'feedback' && (
+          <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Submit Feedback</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Type</label>
+                  <select
+                    value={newFeedback.type}
+                    onChange={(e) => setNewFeedback(prev => ({ ...prev, type: e.target.value as any }))}
+                    className="w-full p-2 border rounded-md"
+                  >
+                    <option value="delivery">Delivery</option>
+                    <option value="product">Product Quality</option>
+                    <option value="service">Customer Service</option>
+                    <option value="complaint">Complaint</option>
+                    <option value="suggestion">Suggestion</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Rating</label>
+                  <div className="flex space-x-1">
+                    {[1, 2, 3, 4, 5].map((rating) => (
+                      <Button
+                        key={rating}
+                        variant={newFeedback.rating >= rating ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setNewFeedback(prev => ({ ...prev, rating: rating as any }))}
+                      >
+                        <Star className="w-4 h-4" />
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Subject</label>
+                  <Input
+                    value={newFeedback.subject}
+                    onChange={(e) => setNewFeedback(prev => ({ ...prev, subject: e.target.value }))}
+                    placeholder="Brief subject line"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Message</label>
+                  <textarea
+                    value={newFeedback.message}
+                    onChange={(e) => setNewFeedback(prev => ({ ...prev, message: e.target.value }))}
+                    placeholder="Your detailed feedback"
+                    className="w-full p-2 border rounded-md h-24"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Related Order (Optional)</label>
+                  <select
+                    value={newFeedback.orderId}
+                    onChange={(e) => setNewFeedback(prev => ({ ...prev, orderId: e.target.value }))}
+                    className="w-full p-2 border rounded-md"
+                  >
+                    <option value="">Select an order</option>
+                    {orders.map((order) => (
+                      <option key={order.id} value={order.id}>
+                        Order #{order.invoiceNumber || order.id} - {order.orderDate}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <Button className="w-full" onClick={submitFeedback}>
+                  <Send className="w-4 h-4 mr-2" />
+                  Submit Feedback
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Previous Feedback</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {feedback.length === 0 ? (
+                  <p className="text-center text-gray-500 py-4">No feedback submitted yet</p>
+                ) : (
+                  <div className="space-y-3">
+                    {feedback.map((item) => (
+                      <div key={item.id} className="border rounded-lg p-3">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <p className="font-medium">{item.subject}</p>
+                            <p className="text-sm text-gray-600">{new Date(item.submittedAt).toLocaleDateString()}</p>
+                          </div>
+                          <div className="flex items-center">
+                            <div className="flex mr-2">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <Star
+                                  key={star}
+                                  className={`w-4 h-4 ${star <= item.rating ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
+                                />
+                              ))}
+                            </div>
+                            <Badge variant={item.status === 'resolved' ? 'default' : 'secondary'}>
+                              {item.status}
+                            </Badge>
+                          </div>
+                        </div>
+                        <p className="text-sm text-gray-700">{item.message}</p>
+                        {item.response && (
+                          <div className="mt-2 p-2 bg-blue-50 rounded">
                             <p className="text-sm"><strong>Response:</strong> {item.response}</p>
                           </div>
                         )}

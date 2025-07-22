@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Users, Search, Plus, RefreshCw, MapPin, Phone, Mail, AlertCircle, Star, MessageSquare, DollarSign, FileText } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Customer, Location } from '../types/api';
 import { apiRequest } from '../utils/api';
 import { useErrorToast } from '../hooks/useErrorToast';
@@ -18,6 +19,21 @@ export function CustomerManagement() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [showCustomerDetails, setShowCustomerDetails] = useState(false);
   const { showError } = useErrorToast();
+
+  const updateCustomerTier = async (customerId: string, newTier: string) => {
+    try {
+      await apiRequest(`/api/customers/${customerId}/tier`, {
+        method: 'PATCH',
+        body: JSON.stringify({ tier: newTier })
+      });
+      
+      setCustomers(customers.map(c => 
+        c.id === customerId ? { ...c, tier: newTier as any } : c
+      ));
+    } catch (error) {
+      showError('Failed to update customer tier');
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -238,6 +254,19 @@ export function CustomerManagement() {
                     <Badge variant={(customer.status === 'active' || customer.is_active) ? "default" : "secondary"}>
                       {(customer.status === 'active' || customer.is_active) ? "Active" : "Inactive"}
                     </Badge>
+                    <Select 
+                      value={customer.tier || 'retail'} 
+                      onValueChange={(value) => updateCustomerTier(customer.id, value)}
+                    >
+                      <SelectTrigger className="w-32">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="gold">Gold (-20%)</SelectItem>
+                        <SelectItem value="retail">Retail (Std)</SelectItem>
+                        <SelectItem value="special_event">Event (+15%)</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <Button 
                       variant="outline" 
                       size="sm"

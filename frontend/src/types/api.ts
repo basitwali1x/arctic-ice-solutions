@@ -47,6 +47,7 @@ export interface Customer {
   total_orders?: number;
   last_order_date?: string;
   current_balance?: number;
+  tier?: 'gold' | 'retail' | 'special_event';
 }
 
 export interface DashboardOverview {
@@ -177,6 +178,7 @@ export interface CustomerUser {
   creditLimit: number;
   isActive: boolean;
   registeredDate: string;
+  tier?: 'gold' | 'retail' | 'special_event';
 }
 
 export interface OrderItem {
@@ -338,4 +340,29 @@ export interface PaymentTransaction {
   cardLast4?: string;
   authCode?: string;
   driverId: string;
+}
+
+export interface PricingRule {
+  id: string;
+  tier: 'gold' | 'retail' | 'special_event';
+  discount_percentage: number;
+  is_active: boolean;
+}
+
+export interface PricingAudit {
+  total_orders_today: number;
+  total_revenue: number;
+  pricing_adjustments: {
+    customer: string;
+    tier: string;
+    original: number;
+    adjusted: number;
+    savings?: number;
+    surcharge?: number;
+  }[];
+  tier_distribution: {
+    gold: number;
+    retail: number;
+    special_event: number;
+  };
 }

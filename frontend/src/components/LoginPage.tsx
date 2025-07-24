@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { useAuth } from '../contexts/AuthContext';
 import { Snowflake } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
@@ -9,6 +9,7 @@ export const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -16,43 +17,15 @@ export const LoginPage: React.FC = () => {
     setError('');
 
     try {
-      const formData = new URLSearchParams();
-      formData.append('username', username);
-      formData.append('password', password);
-
-      const response = await axios.post('/api/auth/token', formData, {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
-        }
-      });
-
-      localStorage.setItem('access_token', response.data.access_token);
-      localStorage.setItem('token_type', response.data.token_type);
-      
-      localStorage.setItem('user', JSON.stringify({
-        name: username === 'manager' ? 'John Manager' : username,
-        role: username,
-        location: 'Leesville HQ'
-      }));
-      
-      navigate('/dashboard');
+      const success = await login(username, password);
+      if (success) {
+        navigate('/dashboard');
+      } else {
+        setError('Invalid username or password');
+      }
     } catch (err: any) {
       console.error('Login error:', err);
-      if (axios.isAxiosError(err)) {
-        if (err.response) {
-          if (err.response.status === 401) {
-            setError('Invalid username or password');
-          } else if (err.response.status === 422) {
-            setError('Please check your username and password format');
-          } else {
-            setError('Server error. Please try again later.');
-          }
-        } else {
-          setError('Network error. Please check your connection.');
-        }
-      } else {
-        setError('An unexpected error occurred.');
-      }
+      setError('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
     }

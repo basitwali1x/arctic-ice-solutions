@@ -14,7 +14,7 @@ export class ApiException extends Error {
 }
 
 export const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('access_token');
   
   const defaultHeaders: HeadersInit = {
     'Content-Type': 'application/json',
@@ -36,7 +36,8 @@ export const apiRequest = async (endpoint: string, options: RequestInit = {}) =>
     const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
     
     if (response.status === 401) {
-      localStorage.removeItem('token');
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('user');
       window.location.reload();
       return;
     }

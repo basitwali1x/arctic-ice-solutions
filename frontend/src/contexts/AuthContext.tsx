@@ -40,57 +40,51 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
   useEffect(() => {
-    const storedToken = localStorage.getItem('token');
-    if (storedToken) {
+    const storedToken = localStorage.getItem('access_token');
+    const storedUser = localStorage.getItem('user');
+    
+    if (storedToken && storedUser) {
       setToken(storedToken);
-      fetchCurrentUser(storedToken);
-    } else {
-      setIsLoading(false);
+      setUser(JSON.parse(storedUser));
     }
+    setIsLoading(false);
   }, []);
 
-  const fetchCurrentUser = async (authToken: string) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
-        headers: {
-          'Authorization': `Bearer ${authToken}`,
-        },
-      });
-
-      if (response.ok) {
-        const userData = await response.json();
-        setUser(userData);
-      } else {
-        localStorage.removeItem('token');
-        setToken(null);
-      }
-    } catch (error) {
-      console.error('Error fetching current user:', error);
-      localStorage.removeItem('token');
-      setToken(null);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const login = async (username: string, password: string): Promise<boolean> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+      const formData = new URLSearchParams();
+      formData.append('username', username);
+      formData.append('password', password);
+
+      const response = await fetch(`${API_BASE_URL}/api/auth/token`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: JSON.stringify({ username, password }),
+        body: formData,
       });
 
       if (response.ok) {
         const data = await response.json();
         const authToken = data.access_token;
         
-        localStorage.setItem('token', authToken);
+        localStorage.setItem('access_token', authToken);
         setToken(authToken);
         
-        await fetchCurrentUser(authToken);
+        const userData = {
+          id: username,
+          username: username,
+          email: `${username}@arctic-ice.com`,
+          full_name: username === 'manager' ? 'John Manager' : username,
+          role: username,
+          location_id: 'loc_1',
+          is_active: true
+        };
+        
+        localStorage.setItem('user', JSON.stringify(userData));
+        setUser(userData);
+        
         return true;
       } else {
         return false;
@@ -102,7 +96,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('user');
     setToken(null);
     setUser(null);
   };

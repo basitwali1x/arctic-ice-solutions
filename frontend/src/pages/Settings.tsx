@@ -3,17 +3,30 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Users, MapPin, Truck, Package, Save } from 'lucide-react';
+import { Users, MapPin, Truck, Package, Save, LogOut } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 export function Settings() {
+  const { logout } = useAuth();
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
-        <Button>
-          <Save className="h-4 w-4 mr-2" />
-          Save Changes
-        </Button>
+        <div className="flex items-center space-x-2">
+          <Button>
+            <Save className="h-4 w-4 mr-2" />
+            Save Changes
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={logout}
+            className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Sign Out
+          </Button>
+        </div>
       </div>
 
       {/* Company Information */}
@@ -26,19 +39,19 @@ export function Settings() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="company-name">Company Name</Label>
-              <Input id="company-name" defaultValue="Arctic Ice Solutions" />
+              <Input id="company-name" defaultValue="Arctic Ice Solutions" autoComplete="organization" />
             </div>
             <div>
               <Label htmlFor="company-phone">Phone Number</Label>
-              <Input id="company-phone" defaultValue="(337) 555-0123" />
+              <Input id="company-phone" defaultValue="(337) 555-0123" autoComplete="tel" />
             </div>
             <div>
               <Label htmlFor="company-email">Email Address</Label>
-              <Input id="company-email" defaultValue="info@arcticeicesolutions.com" />
+              <Input id="company-email" defaultValue="info@arcticeicesolutions.com" autoComplete="email" />
             </div>
             <div>
               <Label htmlFor="company-website">Website</Label>
-              <Input id="company-website" defaultValue="www.arcticeicesolutions.com" />
+              <Input id="company-website" defaultValue="www.arcticeicesolutions.com" autoComplete="url" />
             </div>
           </div>
         </CardContent>
@@ -168,7 +181,7 @@ export function Settings() {
                 <p className="font-medium">Production Target</p>
                 <p className="text-sm text-gray-600">Daily pallet production goal</p>
               </div>
-              <Input className="w-32" defaultValue="160" />
+              <Input className="w-32" defaultValue="160" autoComplete="off" />
             </div>
 
             <div className="flex items-center justify-between">
@@ -198,6 +211,32 @@ export function Settings() {
                   Open Mobile App
                 </Button>
               </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Account Management */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Account Management</CardTitle>
+          <CardDescription>Manage your account and session</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div>
+                <p className="font-medium">Sign Out</p>
+                <p className="text-sm text-gray-600">End your current session and return to login</p>
+              </div>
+              <Button 
+                variant="outline" 
+                onClick={logout}
+                className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign Out
+              </Button>
             </div>
           </div>
         </CardContent>

@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
+import { Badge } from '../../components/ui/badge';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
+import { Textarea } from '../../components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Plus, Wrench, CheckCircle, XCircle, Clock } from 'lucide-react';
-import { API_BASE_URL } from '@/lib/constants';
-import { WorkOrder, Vehicle } from '@/types/api';
+import { API_BASE_URL } from '../../lib/constants';
+import { WorkOrder, Vehicle } from '../../types/api';
 
 export function MobileWorkOrders() {
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);

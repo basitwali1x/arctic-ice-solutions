@@ -10,16 +10,10 @@ import {
   Wrench,
   Factory
 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
-interface SidebarProps {
-  currentUser: {
-    name: string;
-    role: string;
-    location: string;
-  };
-}
-
-export function Sidebar({ currentUser }: SidebarProps) {
+export function Sidebar() {
+  const { user } = useAuth();
   const location = useLocation();
 
   const menuItems = [
@@ -33,6 +27,46 @@ export function Sidebar({ currentUser }: SidebarProps) {
     { path: '/settings', icon: Settings, label: 'Settings' },
   ];
 
+  const getVisibleMenuItems = () => {
+    const role = user?.role?.toLowerCase();
+    
+    if (role === 'manager') {
+      return menuItems;
+    }
+    
+    if (role === 'dispatcher') {
+      return menuItems.filter(item => 
+        ['dashboard', 'fleet', 'customers'].includes(item.path.substring(1))
+      );
+    }
+    
+    if (role === 'accountant') {
+      return menuItems.filter(item => 
+        ['dashboard', 'financial'].includes(item.path.substring(1))
+      );
+    }
+    
+    if (role === 'driver') {
+      return menuItems.filter(item => 
+        ['dashboard', 'fleet'].includes(item.path.substring(1))
+      );
+    }
+    
+    return menuItems;
+  };
+
+  const getLocationName = (locationId: string) => {
+    const locationMap: { [key: string]: string } = {
+      'loc_1': 'Leesville HQ',
+      'loc_2': 'Lake Charles',
+      'loc_3': 'Lufkin',
+      'loc_4': 'Jasper'
+    };
+    return locationMap[locationId] || locationId;
+  };
+
+  const visibleMenuItems = getVisibleMenuItems();
+
   return (
     <div className="bg-blue-900 text-white w-64 min-h-screen p-4">
       <div className="flex items-center mb-8">
@@ -45,13 +79,15 @@ export function Sidebar({ currentUser }: SidebarProps) {
 
       <div className="mb-6 p-3 bg-blue-800 rounded-lg">
         <p className="text-sm text-blue-200">Logged in as</p>
-        <p className="font-semibold">{currentUser.name}</p>
-        <p className="text-sm text-blue-200">{currentUser.role} • {currentUser.location}</p>
+        <p className="font-semibold">{user?.full_name}</p>
+        <p className="text-sm text-blue-200">
+          {user?.role} • {user?.location_id ? getLocationName(user.location_id) : 'Unknown'}
+        </p>
       </div>
 
       <nav>
         <ul className="space-y-2">
-          {menuItems.map((item) => {
+          {visibleMenuItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
             

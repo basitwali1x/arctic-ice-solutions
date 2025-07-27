@@ -3,42 +3,60 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Truck, MapPin, Plus, RefreshCw, Settings, Navigation } from 'lucide-react';
-import { Vehicle, Location, FleetDashboard } from '../types/api';
+import { Truck, MapPin, Plus, RefreshCw, Settings, Navigation, AlertCircle } from 'lucide-react';
+import { Vehicle, Location, FleetDashboard, Route } from '../types/api';
+import { apiRequest } from '../utils/api';
+import { useErrorToast } from '../hooks/useErrorToast';
+import { useToast } from '../hooks/use-toast';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export function FleetManagement() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [fleetData, setFleetData] = useState<FleetDashboard | null>(null);
+  const [routes, setRoutes] = useState<Route[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { showError } = useErrorToast();
+  const { toast } = useToast();
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [vehiclesRes, locationsRes, fleetRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/api/vehicles`),
-          fetch(`${API_BASE_URL}/api/locations`),
-          fetch(`${API_BASE_URL}/api/dashboard/fleet`)
-        ]);
-
-        const vehiclesData = await vehiclesRes.json();
-        const locationsData = await locationsRes.json();
-        const fleetDataRes = await fleetRes.json();
-
-        setVehicles(vehiclesData);
-        setLocations(locationsData);
-        setFleetData(fleetDataRes);
-      } catch (error) {
-        console.error('Failed to fetch data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchData();
   }, []);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const [vehiclesRes, locationsRes, fleetRes, routesRes] = await Promise.all([
+        apiRequest('/api/vehicles'),
+        apiRequest('/api/locations'),
+        apiRequest('/api/dashboard/fleet'),
+        apiRequest('/api/routes')
+      ]);
+
+      const vehiclesData = await vehiclesRes?.json();
+      const locationsData = await locationsRes?.json();
+      const fleetDataRes = await fleetRes?.json();
+      const routesData = await routesRes?.json();
+
+      setVehicles(Array.isArray(vehiclesData) ? vehiclesData : []);
+      setLocations(Array.isArray(locationsData) ? locationsData : []);
+      setFleetData(fleetDataRes || null);
+      setRoutes(Array.isArray(routesData) ? routesData : []);
+    } catch (error) {
+      console.error('Failed to fetch data:', error);
+      setError('Failed to load fleet data');
+      setVehicles([]);
+      setLocations([]);
+      setFleetData(null);
+      setRoutes([]);
+      showError(error, 'Failed to load fleet data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getLocationName = (locationId: string) => {
     const location = locations.find(l => l.id === locationId);
@@ -60,8 +78,48 @@ export function FleetManagement() {
     vehicles: count
   }));
 
+  const handleOptimizeRoutes = async () => {
+    try {
+      const response = await apiRequest('/api/routes/optimize?location_id=loc_1', {
+        method: 'POST'
+      });
+      
+      if (response?.ok) {
+        const result = await response.json();
+        toast({
+          title: 'Success',
+          description: result.message || 'Routes optimized successfully',
+        });
+        fetchData();
+      }
+    } catch (error) {
+      console.error('Error optimizing routes:', error);
+      showError(error, 'Failed to optimize routes');
+    }
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center h-64">Loading...</div>;
+  }
+
+  if (error) {
+    return (
+      <Card className="border-red-200 bg-red-50">
+        <CardHeader>
+          <CardTitle className="flex items-center text-red-800">
+            <AlertCircle className="h-5 w-5 mr-2" />
+            Fleet Data Unavailable
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-red-700 mb-4">{error}</p>
+          <Button onClick={fetchData} variant="outline">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Try Again
+          </Button>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
@@ -69,7 +127,7 @@ export function FleetManagement() {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900">Fleet & Route Management</h1>
         <div className="flex space-x-2">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={fetchData}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
@@ -201,27 +259,28 @@ export function FleetManagement() {
             <div className="space-y-4">
               <h3 className="font-semibold">Today's Routes</h3>
               <div className="space-y-2">
-                <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                  <div>
-                    <p className="font-medium">Route LA-001</p>
-                    <p className="text-sm text-gray-600">Lake Charles Area • 12 stops</p>
-                  </div>
-                  <Badge className="bg-green-100 text-green-800">In Progress</Badge>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-                  <div>
-                    <p className="font-medium">Route TX-002</p>
-                    <p className="text-sm text-gray-600">Lufkin Area • 8 stops</p>
-                  </div>
-                  <Badge className="bg-blue-100 text-blue-800">Planned</Badge>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
-                  <div>
-                    <p className="font-medium">Route LA-003</p>
-                    <p className="text-sm text-gray-600">Leesville Area • 15 stops</p>
-                  </div>
-                  <Badge className="bg-yellow-100 text-yellow-800">Optimizing</Badge>
-                </div>
+                {routes.length === 0 ? (
+                  <p className="text-gray-500">No routes scheduled for today</p>
+                ) : (
+                  routes.map((route) => (
+                    <div key={route.id} className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                      <div>
+                        <p className="font-medium">{route.name}</p>
+                        <p className="text-sm text-gray-600">{route.stops?.length || 0} stops • {route.estimated_duration_hours}h estimated</p>
+                      </div>
+                      <Badge className={`${
+                        route.status === 'active' ? 'bg-green-100 text-green-800' :
+                        route.status === 'planned' ? 'bg-blue-100 text-blue-800' :
+                        route.status === 'completed' ? 'bg-gray-100 text-gray-800' :
+                        'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {route.status === 'active' ? 'In Progress' : 
+                         route.status === 'planned' ? 'Planned' :
+                         route.status === 'completed' ? 'Completed' : 'Optimizing'}
+                      </Badge>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 
@@ -231,7 +290,7 @@ export function FleetManagement() {
                 <p className="text-sm text-gray-600 mb-3">
                   Automatic route optimization considers traffic, customer time windows, and vehicle capacity.
                 </p>
-                <Button className="w-full">
+                <Button className="w-full" onClick={handleOptimizeRoutes}>
                   <Navigation className="h-4 w-4 mr-2" />
                   Optimize All Routes
                 </Button>

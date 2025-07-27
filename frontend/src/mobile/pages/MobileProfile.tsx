@@ -1,16 +1,35 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
+import { Badge } from '../../components/ui/badge';
 import { User, MapPin, Phone, Mail, Settings, LogOut } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 export function MobileProfile() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  if (!user) {
+    return <div>Loading...</div>;
+  }
+
+  const getLocationName = (locationId: string) => {
+    const locationMap: { [key: string]: string } = {
+      'loc_1': 'Leesville HQ',
+      'loc_2': 'Lake Charles',
+      'loc_3': 'Lufkin',
+      'loc_4': 'Jasper'
+    };
+    return locationMap[locationId] || locationId;
+  };
+
   const currentUser = {
-    name: 'Field Technician',
-    role: 'technician',
-    location: 'Mobile Unit',
-    email: 'technician@arcticeicesolutions.com',
+    name: user.full_name,
+    role: user.role,
+    location: getLocationName(user.location_id),
+    email: `${user.username}@arcticeicesolutions.com`,
     phone: '(337) 555-0199',
-    employeeId: 'TECH-001'
+    employeeId: user.username.toUpperCase()
   };
 
   return (
@@ -83,7 +102,7 @@ export function MobileProfile() {
         <Button 
           variant="outline" 
           className="w-full justify-start"
-          onClick={() => window.location.href = '/mobile/settings'}
+          onClick={() => navigate('/mobile/settings')}
         >
           <Settings className="h-4 w-4 mr-2" />
           Settings
@@ -91,11 +110,7 @@ export function MobileProfile() {
         <Button 
           variant="outline" 
           className="w-full justify-start text-red-600 border-red-200 hover:bg-red-50"
-          onClick={() => {
-            if (confirm('Are you sure you want to sign out?')) {
-              window.location.href = '/';
-            }
-          }}
+          onClick={logout}
         >
           <LogOut className="h-4 w-4 mr-2" />
           Sign Out

@@ -3,36 +3,45 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Package, TrendingUp, AlertTriangle, Plus, RefreshCw } from 'lucide-react';
+import { Package, TrendingUp, AlertTriangle, Plus, RefreshCw, AlertCircle } from 'lucide-react';
 import { Product, ProductionDashboard } from '../types/api';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+import { apiRequest } from '../utils/api';
+import { useErrorToast } from '../hooks/useErrorToast';
 
 export function ProductionInventory() {
   const [products, setProducts] = useState<Product[]>([]);
   const [productionData, setProductionData] = useState<ProductionDashboard | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { showError } = useErrorToast();
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const [productsRes, productionRes] = await Promise.all([
+        apiRequest('/api/products'),
+        apiRequest('/api/dashboard/production')
+      ]);
+
+      const productsData = await productsRes?.json();
+      const productionDashboard = await productionRes?.json();
+      
+      setProducts(Array.isArray(productsData) ? productsData : []);
+      setProductionData(productionDashboard || null);
+    } catch (error) {
+      console.error('Failed to fetch data:', error);
+      setError('Failed to load production data');
+      setProducts([]);
+      setProductionData(null);
+      showError(error, 'Failed to load production data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [productsRes, productionRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/api/products`),
-          fetch(`${API_BASE_URL}/api/dashboard/production`)
-        ]);
-
-        const productsData = await productsRes.json();
-        const productionDataRes = await productionRes.json();
-
-        setProducts(productsData);
-        setProductionData(productionDataRes);
-      } catch (error) {
-        console.error('Failed to fetch data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchData();
   }, []);
 
@@ -56,12 +65,32 @@ export function ProductionInventory() {
     return <div className="flex items-center justify-center h-64">Loading...</div>;
   }
 
+  if (error) {
+    return (
+      <Card className="border-red-200 bg-red-50">
+        <CardHeader>
+          <CardTitle className="flex items-center text-red-800">
+            <AlertCircle className="h-5 w-5 mr-2" />
+            Production Data Unavailable
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-red-700 mb-4">{error}</p>
+          <Button onClick={fetchData} variant="outline">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Try Again
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900">Production & Inventory</h1>
         <div className="flex space-x-2">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={fetchData}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>

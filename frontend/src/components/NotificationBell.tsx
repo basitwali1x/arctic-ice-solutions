@@ -3,7 +3,7 @@ import { Bell } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Notification } from '../types/api';
-import { API_BASE_URL } from '@/lib/constants';
+import { apiRequest } from '../utils/api';
 
 export function NotificationBell() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -12,11 +12,16 @@ export function NotificationBell() {
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/notifications`);
-        const data = await response.json();
-        setNotifications(data);
+        const response = await apiRequest('/api/notifications');
+        if (response && response.ok) {
+          const data = await response.json();
+          setNotifications(Array.isArray(data) ? data : []);
+        } else {
+          setNotifications([]);
+        }
       } catch (error) {
         console.error('Failed to fetch notifications:', error);
+        setNotifications([]);
       }
     };
 

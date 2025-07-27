@@ -8,18 +8,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { DollarSign, TrendingUp, FileText, RefreshCw, Download, Upload, CheckCircle, AlertCircle, Plus } from 'lucide-react';
 import { FinancialDashboard, Expense } from '../types/api';
-import { API_BASE_URL } from '@/lib/constants';
+import { apiRequest } from '../utils/api';
+import { useErrorToast } from '../hooks/useErrorToast';
 
 
 export function Financial() {
   const [financialData, setFinancialData] = useState<FinancialDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [importStatus, setImportStatus] = useState<any>(null);
-  const [uploadMessage, setUploadMessage] = useState<string>('');
+  const [importStatus, setImportStatus] = useState<Record<string, unknown> | null>(null);
+  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [profitData, setProfitData] = useState<any>(null);
+  const [profitData, setProfitData] = useState<Record<string, unknown> | null>(null);
   const [showExpenseForm, setShowExpenseForm] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [newExpense, setNewExpense] = useState({
     date: new Date().toISOString().split('T')[0],
     category: 'fuel' as const,
@@ -28,33 +30,43 @@ export function Financial() {
     location_id: 'loc_1'
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { showError } = useErrorToast();
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const [financialResponse, statusResponse, expensesResponse, profitResponse] = await Promise.all([
+        apiRequest('/api/dashboard/financial'),
+        apiRequest('/api/import/status'),
+        apiRequest('/api/expenses'),
+        apiRequest('/api/financial/profit-analysis')
+      ]);
+      
+      const financialData = await financialResponse?.json();
+      const statusData = await statusResponse?.json();
+      const expensesData = await expensesResponse?.json();
+      const profitAnalysis = await profitResponse?.json();
+      
+      setFinancialData(financialData || null);
+      setImportStatus(statusData || null);
+      setExpenses(Array.isArray(expensesData) ? expensesData : []);
+      setProfitData(profitAnalysis || null);
+    } catch (error) {
+      console.error('Failed to fetch financial data:', error);
+      setError('Failed to load financial data');
+      showError(error, 'Failed to load financial data');
+      setFinancialData(null);
+      setImportStatus(null);
+      setExpenses([]);
+      setProfitData(null);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [financialResponse, statusResponse, expensesResponse, profitResponse] = await Promise.all([
-          fetch(`${API_BASE_URL}/api/dashboard/financial`),
-          fetch(`${API_BASE_URL}/api/import/status`),
-          fetch(`${API_BASE_URL}/api/expenses`),
-          fetch(`${API_BASE_URL}/api/financial/profit-analysis`)
-        ]);
-        
-        const financialData = await financialResponse.json();
-        const statusData = await statusResponse.json();
-        const expensesData = await expensesResponse.json();
-        const profitAnalysis = await profitResponse.json();
-        
-        setFinancialData(financialData);
-        setImportStatus(statusData);
-        setExpenses(expensesData);
-        setProfitData(profitAnalysis);
-      } catch (error) {
-        console.error('Failed to fetch financial data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchData();
   }, []);
 
@@ -71,27 +83,28 @@ export function Financial() {
         formData.append('files', file);
       });
 
-      const response = await fetch(`${API_BASE_URL}/api/import/excel`, {
+      const response = await apiRequest('/api/import/excel', {
         method: 'POST',
         body: formData,
+        headers: {}
       });
 
-      const result = await response.json();
+      const result = await response?.json();
 
-      if (response.ok) {
+      if (response?.ok) {
         setUploadMessage(`Successfully imported ${result.summary.customers_imported} customers and ${result.summary.orders_imported} orders!`);
         
         const [financialResponse, statusResponse, expensesResponse, profitResponse] = await Promise.all([
-          fetch(`${API_BASE_URL}/api/dashboard/financial`),
-          fetch(`${API_BASE_URL}/api/import/status`),
-          fetch(`${API_BASE_URL}/api/expenses`),
-          fetch(`${API_BASE_URL}/api/financial/profit-analysis`)
+          apiRequest('/api/dashboard/financial'),
+          apiRequest('/api/import/status'),
+          apiRequest('/api/expenses'),
+          apiRequest('/api/financial/profit-analysis')
         ]);
         
-        const financialData = await financialResponse.json();
-        const statusData = await statusResponse.json();
-        const expensesData = await expensesResponse.json();
-        const profitAnalysis = await profitResponse.json();
+        const financialData = await financialResponse?.json();
+        const statusData = await statusResponse?.json();
+        const expensesData = await expensesResponse?.json();
+        const profitAnalysis = await profitResponse?.json();
         
         setFinancialData(financialData);
         setImportStatus(statusData);
@@ -102,6 +115,7 @@ export function Financial() {
       }
     } catch (error) {
       setUploadMessage(`Error: ${error instanceof Error ? error.message : 'Failed to upload files'}`);
+      showError(error, 'Failed to upload files');
     } finally {
       setUploading(false);
       if (fileInputRef.current) {
@@ -118,27 +132,24 @@ export function Financial() {
     e.preventDefault();
     
     try {
-      const response = await fetch(`${API_BASE_URL}/api/expenses`, {
+      const response = await apiRequest('/api/expenses', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({
           ...newExpense,
           amount: parseFloat(newExpense.amount)
         }),
       });
 
-      if (response.ok) {
+      if (response?.ok) {
         const [expensesResponse, profitResponse, financialResponse] = await Promise.all([
-          fetch(`${API_BASE_URL}/api/expenses`),
-          fetch(`${API_BASE_URL}/api/financial/profit-analysis`),
-          fetch(`${API_BASE_URL}/api/dashboard/financial`)
+          apiRequest('/api/expenses'),
+          apiRequest('/api/financial/profit-analysis'),
+          apiRequest('/api/dashboard/financial')
         ]);
         
-        const expensesData = await expensesResponse.json();
-        const profitAnalysis = await profitResponse.json();
-        const financialData = await financialResponse.json();
+        const expensesData = await expensesResponse?.json();
+        const profitAnalysis = await profitResponse?.json();
+        const financialData = await financialResponse?.json();
         
         setExpenses(expensesData);
         setProfitData(profitAnalysis);
@@ -154,6 +165,7 @@ export function Financial() {
       }
     } catch (error) {
       console.error('Failed to create expense:', error);
+      showError(error, 'Failed to submit expense');
     }
   };
 
@@ -175,6 +187,46 @@ export function Financial() {
 
   if (loading) {
     return <div className="flex items-center justify-center h-64">Loading...</div>;
+  }
+
+  if (error) {
+    return (
+      <Card className="border-red-200 bg-red-50">
+        <CardHeader>
+          <CardTitle className="flex items-center text-red-800">
+            <AlertCircle className="h-5 w-5 mr-2" />
+            Financial Data Unavailable
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-red-700 mb-4">{error}</p>
+          <Button onClick={fetchData} variant="outline">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Try Again
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className="border-red-200 bg-red-50">
+        <CardHeader>
+          <CardTitle className="flex items-center text-red-800">
+            <AlertCircle className="h-5 w-5 mr-2" />
+            Financial Data Unavailable
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-red-700 mb-4">{error}</p>
+          <Button onClick={fetchData} variant="outline">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Try Again
+          </Button>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
@@ -199,7 +251,7 @@ export function Financial() {
             ref={fileInputRef}
             type="file"
             multiple
-            accept=".xlsx,.xls"
+            accept=".xlsx,.xls,.xlsm"
             onChange={handleFileUpload}
             style={{ display: 'none' }}
           />
@@ -238,8 +290,8 @@ export function Financial() {
                 <span className="text-blue-700 font-medium">Real Data Loaded</span>
               </div>
               <div className="text-sm text-blue-600">
-                {importStatus.customers_count} customers • {importStatus.orders_count} orders • 
-                ${importStatus.total_revenue?.toLocaleString()} total revenue
+                {(importStatus as any).customers_count} customers • {(importStatus as any).orders_count} orders • 
+                ${(importStatus as any).total_revenue?.toLocaleString()} total revenue
               </div>
             </div>
           </CardContent>
@@ -374,6 +426,7 @@ export function Financial() {
                       id="date"
                       type="date"
                       value={newExpense.date}
+                      autoComplete="off"
                       onChange={(e) => setNewExpense({...newExpense, date: e.target.value})}
                       required
                     />
@@ -401,6 +454,7 @@ export function Financial() {
                     id="description"
                     value={newExpense.description}
                     onChange={(e) => setNewExpense({...newExpense, description: e.target.value})}
+                    autoComplete="off"
                     placeholder="Enter expense description"
                     required
                   />
@@ -411,6 +465,7 @@ export function Financial() {
                     id="amount"
                     type="number"
                     step="0.01"
+                    autoComplete="off"
                     value={newExpense.amount}
                     onChange={(e) => setNewExpense({...newExpense, amount: e.target.value})}
                     placeholder="0.00"
@@ -430,7 +485,7 @@ export function Financial() {
               <div className="flex justify-between items-center">
                 <span className="font-medium">Today's Expenses</span>
                 <span className="text-lg font-bold text-red-600">
-                  ${profitData?.daily_expenses?.toFixed(2) || '0.00'}
+                  ${(profitData as any)?.daily_expenses?.toFixed(2) || '0.00'}
                 </span>
               </div>
               <div className="flex justify-between items-center">
@@ -485,15 +540,15 @@ export function Financial() {
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm">Profit Margin</span>
-                <span className="font-medium">{profitData?.profit_margin?.toFixed(1) || '0'}%</span>
+                <span className="font-medium">{(profitData as any)?.profit_margin?.toFixed(1) || '0'}%</span>
               </div>
             </div>
 
-            {profitData?.expense_breakdown && (
+            {(profitData as any)?.expense_breakdown && (
               <div className="mt-6">
                 <h4 className="font-medium mb-3">Expense Breakdown</h4>
                 <div className="space-y-2">
-                  {Object.entries(profitData.expense_breakdown).map(([category, amount]) => (
+                  {Object.entries((profitData as any).expense_breakdown).map(([category, amount]) => (
                     <div key={category} className="flex justify-between items-center">
                       <span className="text-sm capitalize">{category}</span>
                       <span className="font-medium">${(amount as number).toFixed(2)}</span>

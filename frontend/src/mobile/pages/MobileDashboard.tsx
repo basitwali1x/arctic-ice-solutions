@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Badge } from '../../components/ui/badge';
 import { Truck, AlertTriangle, CheckCircle, Clock, Wrench } from 'lucide-react';
-import { API_BASE_URL } from '@/lib/constants';
+import { API_BASE_URL } from '../../lib/constants';
 
 interface DashboardData {
   total_vehicles: number;

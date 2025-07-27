@@ -117,7 +117,7 @@ VITE_API_URL=http://localhost:8000
 ## Deployment URLs
 
 - **Frontend**: https://ice-management-app-4r16aafs.devinapps.com
-- **Backend API**: https://app-dfyyccxe.fly.dev
+- **Backend API**: https://app-ezgjqmrh.fly.dev
 
 ## Project Structure
 

@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { TrendingUp, Users, Truck, Package, DollarSign, MapPin, Clock, AlertCircle, RefreshCw } from 'lucide-react';
-import { DashboardOverview, ProductionDashboard, FleetDashboard, FinancialDashboard } from '../types/api';
+import { TrendingUp, Users, Truck, Package, DollarSign, MapPin, Clock, AlertCircle, RefreshCw, Phone, Mail, Navigation } from 'lucide-react';
+import { DashboardOverview, ProductionDashboard, FleetDashboard, FinancialDashboard, Location } from '../types/api';
 import { apiRequest } from '../utils/api';
 import { useErrorToast } from '../hooks/useErrorToast';
 
@@ -21,6 +22,9 @@ export function Dashboard() {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
+  const [showLocationModal, setShowLocationModal] = useState(false);
   const { showError } = useErrorToast();
 
   const fetchDashboardData = async () => {
@@ -28,21 +32,24 @@ export function Dashboard() {
       setLoading(true);
       setError(null);
       
-      const [overviewRes, productionRes, fleetRes, financialRes] = await Promise.all([
+      const [overviewRes, productionRes, fleetRes, financialRes, locationsRes] = await Promise.all([
         apiRequest('/api/dashboard/overview'),
         apiRequest('/api/dashboard/production'),
         apiRequest('/api/dashboard/fleet'),
-        apiRequest('/api/dashboard/financial')
+        apiRequest('/api/dashboard/financial'),
+        apiRequest('/api/locations')
       ]);
 
-      const [overview, production, fleet, financial] = await Promise.all([
+      const [overview, production, fleet, financial, locations] = await Promise.all([
         overviewRes?.ok ? overviewRes.json() : null,
         productionRes?.ok ? productionRes.json() : null,
         fleetRes?.ok ? fleetRes.json() : null,
-        financialRes?.ok ? financialRes.json() : null
+        financialRes?.ok ? financialRes.json() : null,
+        locationsRes?.ok ? locationsRes.json() : null
       ]);
 
       setDashboardData({ overview, production, fleet, financial });
+      setLocations(locations || []);
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
       setError('Failed to load dashboard data');
@@ -53,6 +60,7 @@ export function Dashboard() {
         fleet: null,
         financial: null
       });
+      setLocations([]);
     } finally {
       setLoading(false);
     }
@@ -81,6 +89,73 @@ export function Dashboard() {
     location,
     vehicles: count
   }));
+
+  const handleLocationClick = (locationName: string) => {
+    const location = locations.find(loc => 
+      loc.name.toLowerCase().includes(locationName.toLowerCase()) ||
+      locationName.toLowerCase().includes(loc.name.toLowerCase())
+    );
+    
+    if (location) {
+      setSelectedLocation(location);
+      setShowLocationModal(true);
+    } else {
+      const staticLocation: Location = {
+        id: locationName.toLowerCase().replace(/\s+/g, '-'),
+        name: locationName,
+        address: getLocationAddress(locationName),
+        city: getLocationCity(locationName),
+        state: getLocationState(locationName),
+        zip_code: getLocationZip(locationName),
+        phone: '(337) 555-0100',
+        email: `${locationName.toLowerCase().replace(/\s+/g, '')}@arcticeice.com`,
+        manager_id: '',
+        is_active: true
+      };
+      setSelectedLocation(staticLocation);
+      setShowLocationModal(true);
+    }
+  };
+
+  const getLocationAddress = (name: string) => {
+    const addresses: { [key: string]: string } = {
+      'Leesville HQ': '123 Ice Plant Rd',
+      'Lake Charles': '456 Distribution Ave',
+      'Lufkin': '789 Delivery St',
+      'Jasper': '321 Storage Blvd'
+    };
+    return addresses[name] || '123 Main St';
+  };
+
+  const getLocationCity = (name: string) => {
+    const cities: { [key: string]: string } = {
+      'Leesville HQ': 'Leesville',
+      'Lake Charles': 'Lake Charles',
+      'Lufkin': 'Lufkin',
+      'Jasper': 'Jasper'
+    };
+    return cities[name] || name;
+  };
+
+  const getLocationState = (name: string) => {
+    const states: { [key: string]: string } = {
+      'Leesville HQ': 'LA',
+      'Lake Charles': 'LA',
+      'Lufkin': 'TX',
+      'Jasper': 'TX'
+    };
+    return states[name] || 'LA';
+  };
+
+  const getLocationZip = (name: string) => {
+    const zips: { [key: string]: string } = {
+      'Leesville HQ': '71446',
+      'Lake Charles': '70601',
+      'Lufkin': '75901',
+      'Jasper': '75951'
+    };
+    return zips[name] || '70000';
+  };
 
   if (loading) {
     return <div className="flex items-center justify-center h-64">Loading dashboard...</div>;
@@ -263,7 +338,10 @@ export function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+              <div 
+                className="flex items-center justify-between p-3 bg-blue-50 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors"
+                onClick={() => handleLocationClick('Leesville HQ')}
+              >
                 <div className="flex items-center">
                   <MapPin className="h-5 w-5 text-blue-600 mr-2" />
                   <div>
@@ -274,7 +352,10 @@ export function Dashboard() {
                 <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">Active</span>
               </div>
 
-              <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+              <div 
+                className="flex items-center justify-between p-3 bg-green-50 rounded-lg cursor-pointer hover:bg-green-100 transition-colors"
+                onClick={() => handleLocationClick('Lake Charles')}
+              >
                 <div className="flex items-center">
                   <MapPin className="h-5 w-5 text-green-600 mr-2" />
                   <div>
@@ -285,7 +366,10 @@ export function Dashboard() {
                 <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">Active</span>
               </div>
 
-              <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
+              <div 
+                className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg cursor-pointer hover:bg-yellow-100 transition-colors"
+                onClick={() => handleLocationClick('Lufkin')}
+              >
                 <div className="flex items-center">
                   <MapPin className="h-5 w-5 text-yellow-600 mr-2" />
                   <div>
@@ -296,7 +380,10 @@ export function Dashboard() {
                 <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">Active</span>
               </div>
 
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div 
+                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
+                onClick={() => handleLocationClick('Jasper')}
+              >
                 <div className="flex items-center">
                   <MapPin className="h-5 w-5 text-gray-600 mr-2" />
                   <div>
@@ -310,6 +397,112 @@ export function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Location Details Modal */}
+      <Dialog open={showLocationModal} onOpenChange={setShowLocationModal}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center">
+              <MapPin className="h-5 w-5 mr-2" />
+              {selectedLocation?.name}
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedLocation && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="font-semibold text-gray-900 mb-2">Address</h3>
+                    <div className="text-gray-600">
+                      <p>{selectedLocation.address}</p>
+                      <p>{selectedLocation.city}, {selectedLocation.state} {selectedLocation.zip_code}</p>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h3 className="font-semibold text-gray-900 mb-2">Contact Information</h3>
+                    <div className="space-y-2">
+                      <div className="flex items-center text-gray-600">
+                        <Phone className="h-4 w-4 mr-2" />
+                        <span>{selectedLocation.phone}</span>
+                      </div>
+                      <div className="flex items-center text-gray-600">
+                        <Mail className="h-4 w-4 mr-2" />
+                        <span>{selectedLocation.email}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="font-semibold text-gray-900 mb-2">Operations</h3>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-600">Status</span>
+                        <span className={`px-2 py-1 rounded-full text-xs ${
+                          selectedLocation.is_active 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {selectedLocation.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-600">Type</span>
+                        <span className="text-gray-900">
+                          {selectedLocation.name.includes('HQ') ? 'Headquarters' :
+                           selectedLocation.name.includes('Jasper') ? 'Warehouse' : 'Distribution Center'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h3 className="font-semibold text-gray-900 mb-2">Quick Actions</h3>
+                    <div className="space-y-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="w-full justify-start"
+                        onClick={() => window.open(`https://maps.google.com/?q=${encodeURIComponent(selectedLocation.address + ', ' + selectedLocation.city + ', ' + selectedLocation.state)}`)}
+                      >
+                        <Navigation className="h-4 w-4 mr-2" />
+                        View on Map
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="w-full justify-start"
+                        onClick={() => window.open(`tel:${selectedLocation.phone}`)}
+                      >
+                        <Phone className="h-4 w-4 mr-2" />
+                        Call Location
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="w-full justify-start"
+                        onClick={() => window.open(`mailto:${selectedLocation.email}`)}
+                      >
+                        <Mail className="h-4 w-4 mr-2" />
+                        Send Email
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowLocationModal(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

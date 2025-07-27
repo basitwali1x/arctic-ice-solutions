@@ -1273,6 +1273,77 @@ async def get_current_user_info(current_user: UserInDB = Depends(get_current_use
 async def healthz():
     return {"status": "ok"}
 
+@app.get("/api/users")
+async def get_users(role: Optional[str] = None, current_user: UserInDB = Depends(get_current_user)):
+    if current_user.role != UserRole.MANAGER:
+        raise HTTPException(status_code=403, detail="Only managers can access user management")
+    
+    users = list(users_db.values())
+    if role:
+        users = [u for u in users if u["role"] == role]
+    
+    return [User(**{k: v for k, v in user.items() if k != "hashed_password"}) for user in users]
+
+@app.post("/api/users", response_model=User)
+async def create_user(user_data: dict, current_user: UserInDB = Depends(get_current_user)):
+    if current_user.role != UserRole.MANAGER:
+        raise HTTPException(status_code=403, detail="Only managers can create users")
+    
+    if any(u["username"] == user_data["username"] for u in users_db.values()):
+        raise HTTPException(status_code=400, detail="Username already exists")
+    
+    user_id = str(uuid.uuid4())
+    new_user = {
+        "id": user_id,
+        "username": user_data["username"],
+        "email": user_data["email"],
+        "full_name": user_data["full_name"],
+        "role": user_data["role"],
+        "location_id": user_data["location_id"],
+        "is_active": user_data.get("is_active", True),
+        "hashed_password": get_password_hash(user_data["password"])
+    }
+    
+    users_db[user_id] = new_user
+    return User(**{k: v for k, v in new_user.items() if k != "hashed_password"})
+
+@app.put("/api/users/{user_id}", response_model=User)
+async def update_user(user_id: str, user_data: dict, current_user: UserInDB = Depends(get_current_user)):
+    if current_user.role != UserRole.MANAGER:
+        raise HTTPException(status_code=403, detail="Only managers can update users")
+    
+    if user_id not in users_db:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    user = users_db[user_id]
+    
+    if "username" in user_data and user_data["username"] != user["username"]:
+        if any(u["username"] == user_data["username"] for u in users_db.values()):
+            raise HTTPException(status_code=400, detail="Username already exists")
+    
+    for key, value in user_data.items():
+        if key == "password":
+            user["hashed_password"] = get_password_hash(value)
+        elif key != "id":
+            user[key] = value
+    
+    users_db[user_id] = user
+    return User(**{k: v for k, v in user.items() if k != "hashed_password"})
+
+@app.delete("/api/users/{user_id}")
+async def delete_user(user_id: str, current_user: UserInDB = Depends(get_current_user)):
+    if current_user.role != UserRole.MANAGER:
+        raise HTTPException(status_code=403, detail="Only managers can delete users")
+    
+    if user_id not in users_db:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if user_id == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot delete your own account")
+    
+    del users_db[user_id]
+    return {"message": "User deleted successfully"}
+
 @app.get("/api/locations", response_model=List[Location])
 async def get_locations(current_user: UserInDB = Depends(get_current_user)):
     locations = list(locations_db.values())

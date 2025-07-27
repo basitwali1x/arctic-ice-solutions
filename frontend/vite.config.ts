@@ -35,7 +35,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://app-ezgjqmrh.fly.dev',
+        target: 'https://app-mofiwlau.fly.dev',
         changeOrigin: true,
         secure: true,
       }

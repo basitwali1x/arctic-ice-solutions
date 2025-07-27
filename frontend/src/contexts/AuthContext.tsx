@@ -37,7 +37,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://app-mofiwlau.fly.dev';
 
   useEffect(() => {
     const storedToken = localStorage.getItem('token');
@@ -75,33 +75,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (username: string, password: string): Promise<boolean> => {
     try {
-      console.log('=== COMPREHENSIVE LOGIN DEBUG ===');
-      console.log('Username:', JSON.stringify(username));
-      console.log('Password length:', password.length);
-      console.log('Password first 10 chars:', JSON.stringify(password.substring(0, 10)));
-      console.log('API_BASE_URL:', JSON.stringify(API_BASE_URL));
-      console.log('User agent:', navigator.userAgent);
-      console.log('Current URL:', window.location.href);
-      console.log('Timestamp:', new Date().toISOString());
-      
-      const requestPayload = { username, password };
-      console.log('Request payload:', JSON.stringify(requestPayload));
-      
       const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(requestPayload),
+        body: JSON.stringify({ username, password }),
       });
 
-      console.log('Response status:', response.status);
-      console.log('Response statusText:', response.statusText);
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-      
       if (response.ok) {
         const data = await response.json();
-        console.log('Login successful - received data:', data);
         const authToken = data.access_token;
         
         localStorage.setItem('token', authToken);
@@ -110,18 +93,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         await fetchCurrentUser(authToken);
         return true;
       } else {
-        const errorText = await response.text();
-        console.log('Login failed - response body:', errorText);
-        console.log('Login failed - status:', response.status);
         return false;
       }
     } catch (error) {
       console.error('Login error:', error);
-      console.log('Login exception details:', {
-        name: error instanceof Error ? error.name : 'Unknown',
-        message: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : 'No stack trace'
-      });
       return false;
     }
   };

@@ -416,29 +416,11 @@ def get_user(username: str):
     return None
 
 def authenticate_user(username: str, password: str):
-    print(f"DEBUG authenticate_user: username={repr(username)}, password_len={len(password)}")
-    print(f"DEBUG authenticate_user: password_first_10={repr(password[:10])}")
-    
     user = get_user(username)
     if not user:
-        print(f"DEBUG authenticate_user: User {repr(username)} not found")
-        print(f"DEBUG authenticate_user: Available users: {list(users_db.keys())}")
         return False
-    
-    print(f"DEBUG authenticate_user: User found: {user.username}")
-    print(f"DEBUG authenticate_user: Stored hash: {user.hashed_password[:50]}...")
-    
-    password_valid = verify_password(password, user.hashed_password)
-    print(f"DEBUG authenticate_user: Password verification result: {password_valid}")
-    
-    if not password_valid:
-        print(f"DEBUG authenticate_user: Password verification failed for {repr(username)}")
-        expected_password = "dev-password-change-in-production"
-        test_result = verify_password(expected_password, user.hashed_password)
-        print(f"DEBUG authenticate_user: Test with expected password: {test_result}")
+    if not verify_password(password, user.hashed_password):
         return False
-    
-    print(f"DEBUG authenticate_user: Authentication successful for {repr(username)}")
     return user
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
@@ -1263,25 +1245,13 @@ initialize_sample_data()
 
 @app.post("/api/auth/login", response_model=Token)
 async def login(login_request: LoginRequest):
-    print(f"=== COMPREHENSIVE BACKEND LOGIN DEBUG ===")
-    print(f"Timestamp: {datetime.now().isoformat()}")
-    print(f"Username received: {repr(login_request.username)}")
-    print(f"Username length: {len(login_request.username)}")
-    print(f"Username bytes: {login_request.username.encode('utf-8')}")
-    print(f"Password received length: {len(login_request.password)}")
-    print(f"Password first 10 chars: {repr(login_request.password[:10])}")
-    print(f"Password bytes (first 20): {login_request.password.encode('utf-8')[:20]}")
-    
     user = authenticate_user(login_request.username, login_request.password)
     if not user:
-        print(f"DEBUG: Authentication failed for username: {repr(login_request.username)}")
-        print(f"DEBUG: Available users in database: {list(users_db.keys())}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    print(f"DEBUG: Authentication successful for username: {repr(login_request.username)}")
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires

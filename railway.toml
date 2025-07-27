@@ -1,0 +1,11 @@
+[build]
+  builder = "nixpacks"
+
+[deploy]
+  startCommand = "cd frontend && npm run build && npm run preview"
+  healthcheckPath = "/"
+  healthcheckTimeout = 300
+  restartPolicyType = "on_failure"
+
+[variables]
+  VITE_API_URL = "https://your-backend-url.railway.app"

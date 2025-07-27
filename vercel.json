@@ -12,7 +12,7 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "https://your-backend-url.fly.dev/api/$1"
+      "dest": "https://app-ifnzsoec.fly.dev/api/$1"
     },
     {
       "src": "/(.*)",

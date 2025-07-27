@@ -6,6 +6,9 @@ export interface Location {
   state: string;
   zip_code: string;
   location_type: string;
+  phone?: string;
+  email?: string;
+  manager_id?: string;
   is_active: boolean;
 }
 
@@ -338,4 +341,34 @@ export interface PaymentTransaction {
   cardLast4?: string;
   authCode?: string;
   driverId: string;
+}
+
+export interface User {
+  id: string;
+  username: string;
+  email: string;
+  full_name: string;
+  role: 'manager' | 'dispatcher' | 'accountant' | 'driver';
+  location_id: string;
+  is_active: boolean;
+}
+
+export interface CreateUserRequest {
+  username: string;
+  email: string;
+  full_name: string;
+  role: 'manager' | 'dispatcher' | 'accountant' | 'driver';
+  location_id: string;
+  password: string;
+  is_active?: boolean;
+}
+
+export interface UpdateUserRequest {
+  username?: string;
+  email?: string;
+  full_name?: string;
+  role?: 'manager' | 'dispatcher' | 'accountant' | 'driver';
+  location_id?: string;
+  password?: string;
+  is_active?: boolean;
 }

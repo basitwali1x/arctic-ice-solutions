@@ -3,8 +3,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Users, MapPin, Truck, Package, Save, LogOut } from 'lucide-react';
+import { MapPin, Save, LogOut } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { UserManagement } from '@/components/UserManagement';
 
 export function Settings() {
   const { logout } = useAuth();
@@ -125,48 +126,7 @@ export function Settings() {
       </Card>
 
       {/* User Management */}
-      <Card>
-        <CardHeader>
-          <CardTitle>User Management</CardTitle>
-          <CardDescription>Manage user accounts and permissions</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-              <div className="flex items-center space-x-3">
-                <Users className="h-5 w-5 text-blue-600" />
-                <div>
-                  <p className="font-medium">Managers (3 users)</p>
-                  <p className="text-sm text-gray-600">Full system access</p>
-                </div>
-              </div>
-              <Button variant="outline" size="sm">Manage</Button>
-            </div>
-
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-              <div className="flex items-center space-x-3">
-                <Truck className="h-5 w-5 text-green-600" />
-                <div>
-                  <p className="font-medium">Dispatchers (4 users)</p>
-                  <p className="text-sm text-gray-600">Fleet and route management</p>
-                </div>
-              </div>
-              <Button variant="outline" size="sm">Manage</Button>
-            </div>
-
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-              <div className="flex items-center space-x-3">
-                <Package className="h-5 w-5 text-yellow-600" />
-                <div>
-                  <p className="font-medium">Accountants (3 users)</p>
-                  <p className="text-sm text-gray-600">Financial management</p>
-                </div>
-              </div>
-              <Button variant="outline" size="sm">Manage</Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <UserManagement />
 
       {/* System Configuration */}
       <Card>

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, status
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
@@ -12,6 +12,8 @@ import uuid
 import tempfile
 import os
 import json
+import secrets
+import string
 from pathlib import Path
 from .excel_import import process_excel_files
 from jose import JWTError, jwt
@@ -131,6 +133,31 @@ class TokenData(BaseModel):
 class LoginRequest(BaseModel):
     username: str
     password: str
+
+class CreateUserRequest(BaseModel):
+    username: str
+    email: str
+    full_name: str
+    role: UserRole
+    location_id: str
+
+class UpdateUserRequest(BaseModel):
+    username: Optional[str] = None
+    email: Optional[str] = None
+    full_name: Optional[str] = None
+    role: Optional[UserRole] = None
+    location_id: Optional[str] = None
+    is_active: Optional[bool] = None
+
+class UserResponse(BaseModel):
+    id: str
+    username: str
+    email: str
+    full_name: str
+    role: UserRole
+    location_id: str
+    is_active: bool
+    generated_password: Optional[str] = None
 
 class Customer(BaseModel):
     id: str
@@ -408,6 +435,12 @@ def verify_password(plain_password, hashed_password):
 
 def get_password_hash(password):
     return pwd_context.hash(password)
+
+def generate_secure_password(length=12):
+    """Generate a secure random password"""
+    alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
+    password = ''.join(secrets.choice(alphabet) for i in range(length))
+    return password
 
 def get_user(username: str):
     for user_data in users_db.values():
@@ -1265,6 +1298,127 @@ async def logout(current_user: UserInDB = Depends(get_current_user)):
 @app.get("/api/auth/me", response_model=User)
 async def get_current_user_info(current_user: UserInDB = Depends(get_current_user)):
     return User(**current_user.dict())
+
+@app.get("/api/users", response_model=List[UserResponse])
+async def get_users(current_user: UserInDB = Depends(get_current_user)):
+    if current_user.role != UserRole.MANAGER:
+        raise HTTPException(status_code=403, detail="Only managers can view users")
+    
+    users = []
+    for user_data in users_db.values():
+        user_response_data = user_data.copy()
+        if "hashed_password" in user_response_data:
+            del user_response_data["hashed_password"]
+        users.append(UserResponse(**user_response_data))
+    return users
+
+@app.post("/api/users", response_model=UserResponse)
+async def create_user(user_request: CreateUserRequest, current_user: UserInDB = Depends(get_current_user)):
+    if current_user.role != UserRole.MANAGER:
+        raise HTTPException(status_code=403, detail="Only managers can create users")
+    
+    if get_user(user_request.username):
+        raise HTTPException(status_code=400, detail="Username already exists")
+    
+    generated_password = generate_secure_password()
+    hashed_password = get_password_hash(generated_password)
+    
+    user_id = str(uuid.uuid4())
+    new_user = {
+        "id": user_id,
+        "username": user_request.username,
+        "email": user_request.email,
+        "full_name": user_request.full_name,
+        "role": user_request.role,
+        "location_id": user_request.location_id,
+        "is_active": True,
+        "hashed_password": hashed_password
+    }
+    
+    users_db[user_id] = new_user
+    save_data_to_disk()
+    
+    response_data = new_user.copy()
+    response_data["generated_password"] = generated_password
+    del response_data["hashed_password"]
+    return UserResponse(**response_data)
+
+@app.get("/api/users/{user_id}", response_model=UserResponse)
+async def get_user_by_id(user_id: str, current_user: UserInDB = Depends(get_current_user)):
+    if current_user.role != UserRole.MANAGER:
+        raise HTTPException(status_code=403, detail="Only managers can view users")
+    
+    if user_id not in users_db:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    user_data = users_db[user_id].copy()
+    del user_data["hashed_password"]
+    return UserResponse(**user_data)
+
+@app.put("/api/users/{user_id}", response_model=UserResponse)
+async def update_user(user_id: str, user_request: UpdateUserRequest, current_user: UserInDB = Depends(get_current_user)):
+    if current_user.role != UserRole.MANAGER:
+        raise HTTPException(status_code=403, detail="Only managers can update users")
+    
+    if user_id not in users_db:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    user_data = users_db[user_id]
+    
+    if user_request.username is not None:
+        existing_user = get_user(user_request.username)
+        if existing_user and existing_user.id != user_id:
+            raise HTTPException(status_code=400, detail="Username already exists")
+        user_data["username"] = user_request.username
+    
+    if user_request.email is not None:
+        user_data["email"] = user_request.email
+    if user_request.full_name is not None:
+        user_data["full_name"] = user_request.full_name
+    if user_request.role is not None:
+        user_data["role"] = user_request.role
+    if user_request.location_id is not None:
+        user_data["location_id"] = user_request.location_id
+    if user_request.is_active is not None:
+        user_data["is_active"] = user_request.is_active
+    
+    users_db[user_id] = user_data
+    save_data_to_disk()
+    
+    response_data = user_data.copy()
+    del response_data["hashed_password"]
+    return UserResponse(**response_data)
+
+@app.delete("/api/users/{user_id}")
+async def delete_user(user_id: str, current_user: UserInDB = Depends(get_current_user)):
+    if current_user.role != UserRole.MANAGER:
+        raise HTTPException(status_code=403, detail="Only managers can delete users")
+    
+    if user_id not in users_db:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if user_id == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot delete your own account")
+    
+    del users_db[user_id]
+    save_data_to_disk()
+    return {"success": True, "message": "User deleted successfully"}
+
+@app.post("/api/users/{user_id}/reset-password")
+async def reset_user_password(user_id: str, current_user: UserInDB = Depends(get_current_user)):
+    if current_user.role != UserRole.MANAGER:
+        raise HTTPException(status_code=403, detail="Only managers can reset passwords")
+    
+    if user_id not in users_db:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    new_password = generate_secure_password()
+    hashed_password = get_password_hash(new_password)
+    
+    users_db[user_id]["hashed_password"] = hashed_password
+    save_data_to_disk()
+    
+    return {"success": True, "new_password": new_password}
 
 @app.get("/healthz")
 async def healthz():

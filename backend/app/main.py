@@ -416,20 +416,11 @@ def get_user(username: str):
     return None
 
 def authenticate_user(username: str, password: str):
-    print(f"DEBUG: authenticate_user called with username='{username}', password length={len(password)}")
-    print(f"DEBUG: password first 10 chars: '{password[:10]}...'")
     user = get_user(username)
     if not user:
-        print(f"DEBUG: User '{username}' not found in database")
         return False
-    print(f"DEBUG: User found: {user.username}, checking password hash")
-    print(f"DEBUG: Stored hash: {user.hashed_password[:50]}...")
-    password_valid = verify_password(password, user.hashed_password)
-    print(f"DEBUG: Password verification result: {password_valid}")
-    if not password_valid:
-        print(f"DEBUG: Password verification failed for user '{username}'")
+    if not verify_password(password, user.hashed_password):
         return False
-    print(f"DEBUG: Authentication successful for user '{username}'")
     return user
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):

@@ -33,15 +33,6 @@ export default defineConfig({
     })
   ],
   server: {
-    host: true,
-    allowedHosts: ['customer-management-app-tunnel-nh1is7y5.devinapps.com'],
-    proxy: {
-      '/api': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
-        secure: false,
-      }
-    }
   },
   resolve: {
     alias: {

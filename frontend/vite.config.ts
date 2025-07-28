@@ -33,11 +33,13 @@ export default defineConfig({
     })
   ],
   server: {
+    host: true,
+    allowedHosts: ['customer-management-app-tunnel-1v679qaq.devinapps.com'],
     proxy: {
       '/api': {
-        target: 'https://app-ezgjqmrh.fly.dev',
+        target: 'http://localhost:8000',
         changeOrigin: true,
-        secure: true,
+        secure: false,
       }
     }
   },

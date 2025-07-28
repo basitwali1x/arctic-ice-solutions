@@ -3,6 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Users, Search, Plus, RefreshCw, MapPin, Phone, Mail, AlertCircle, Star, MessageSquare, DollarSign, FileText } from 'lucide-react';
 import { Customer, Location } from '../types/api';
 import { apiRequest } from '../utils/api';
@@ -17,6 +20,19 @@ export function CustomerManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [showCustomerDetails, setShowCustomerDetails] = useState(false);
+  const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
+  const [newCustomer, setNewCustomer] = useState({
+    name: '',
+    contact_person: '',
+    phone: '',
+    email: '',
+    address: '',
+    city: '',
+    state: '',
+    zip_code: '',
+    location_id: ''
+  });
+  const [submitting, setSubmitting] = useState(false);
   const { showError } = useErrorToast();
 
   const fetchData = async () => {
@@ -42,6 +58,60 @@ export function CustomerManagement() {
       showError(error, 'Failed to load customer data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAddCustomer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!newCustomer.name || !newCustomer.contact_person || !newCustomer.phone || 
+        !newCustomer.address || !newCustomer.city || !newCustomer.state || 
+        !newCustomer.zip_code || !newCustomer.location_id) {
+      showError(new Error('Please fill in all required fields'), 'Missing required fields');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      
+      const customerData = {
+        id: crypto.randomUUID(),
+        ...newCustomer,
+        credit_limit: 5000,
+        payment_terms: 30,
+        is_active: true
+      };
+
+      const response = await apiRequest('/api/customers', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(customerData),
+      });
+
+      if (response?.ok) {
+        await fetchData();
+        setShowAddCustomerModal(false);
+        setNewCustomer({
+          name: '',
+          contact_person: '',
+          phone: '',
+          email: '',
+          address: '',
+          city: '',
+          state: '',
+          zip_code: '',
+          location_id: ''
+        });
+      } else {
+        throw new Error('Failed to create customer');
+      }
+    } catch (error) {
+      console.error('Failed to create customer:', error);
+      showError(error, 'Failed to create customer');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -99,7 +169,7 @@ export function CustomerManagement() {
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
-          <Button size="sm">
+          <Button size="sm" onClick={() => setShowAddCustomerModal(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Add Customer
           </Button>
@@ -256,6 +326,139 @@ export function CustomerManagement() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Add Customer Modal */}
+      {showAddCustomerModal && (
+        <Dialog open={showAddCustomerModal} onOpenChange={setShowAddCustomerModal}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Add New Customer</DialogTitle>
+            </DialogHeader>
+            
+            <form onSubmit={handleAddCustomer} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="name">Company Name *</Label>
+                  <Input
+                    id="name"
+                    value={newCustomer.name}
+                    onChange={(e) => setNewCustomer({...newCustomer, name: e.target.value})}
+                    placeholder="Enter company name"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="contact_person">Contact Person *</Label>
+                  <Input
+                    id="contact_person"
+                    value={newCustomer.contact_person}
+                    onChange={(e) => setNewCustomer({...newCustomer, contact_person: e.target.value})}
+                    placeholder="Enter contact person name"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="phone">Phone *</Label>
+                  <Input
+                    id="phone"
+                    value={newCustomer.phone}
+                    onChange={(e) => setNewCustomer({...newCustomer, phone: e.target.value})}
+                    placeholder="Enter phone number"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={newCustomer.email}
+                    onChange={(e) => setNewCustomer({...newCustomer, email: e.target.value})}
+                    placeholder="Enter email address"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="address">Address *</Label>
+                <Input
+                  id="address"
+                  value={newCustomer.address}
+                  onChange={(e) => setNewCustomer({...newCustomer, address: e.target.value})}
+                  placeholder="Enter street address"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="city">City *</Label>
+                  <Input
+                    id="city"
+                    value={newCustomer.city}
+                    onChange={(e) => setNewCustomer({...newCustomer, city: e.target.value})}
+                    placeholder="Enter city"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="state">State *</Label>
+                  <Input
+                    id="state"
+                    value={newCustomer.state}
+                    onChange={(e) => setNewCustomer({...newCustomer, state: e.target.value})}
+                    placeholder="Enter state"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="zip_code">ZIP Code *</Label>
+                  <Input
+                    id="zip_code"
+                    value={newCustomer.zip_code}
+                    onChange={(e) => setNewCustomer({...newCustomer, zip_code: e.target.value})}
+                    placeholder="Enter ZIP code"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="location_id">Service Location *</Label>
+                <Select value={newCustomer.location_id} onValueChange={(value) => setNewCustomer({...newCustomer, location_id: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a service location" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {locations.map((location) => (
+                      <SelectItem key={location.id} value={location.id}>
+                        {location.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <DialogFooter>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setShowAddCustomerModal(false)}
+                  disabled={submitting}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={submitting}>
+                  {submitting ? 'Creating...' : 'Create Customer'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Customer Details Modal */}
       {showCustomerDetails && selectedCustomer && (

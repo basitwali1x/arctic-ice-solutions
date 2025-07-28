@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { DollarSign, TrendingUp, FileText, RefreshCw, Download, Upload, CheckCircle, AlertCircle, Plus } from 'lucide-react';
-import { FinancialDashboard, Expense } from '../types/api';
+import { FinancialDashboard, Expense, Location } from '../types/api';
 import { apiRequest } from '../utils/api';
 import { useErrorToast } from '../hooks/useErrorToast';
 
@@ -20,6 +20,8 @@ export function Financial() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [profitData, setProfitData] = useState<Record<string, unknown> | null>(null);
   const [showExpenseForm, setShowExpenseForm] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState<string>('loc_1');
+  const [locations, setLocations] = useState<Location[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [newExpense, setNewExpense] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -36,22 +38,25 @@ export function Financial() {
       setLoading(true);
       setError(null);
       
-      const [financialResponse, statusResponse, expensesResponse, profitResponse] = await Promise.all([
+      const [financialResponse, statusResponse, expensesResponse, profitResponse, locationsResponse] = await Promise.all([
         apiRequest('/api/dashboard/financial'),
         apiRequest('/api/import/status'),
         apiRequest('/api/expenses'),
-        apiRequest('/api/financial/profit-analysis')
+        apiRequest('/api/financial/profit-analysis'),
+        apiRequest('/api/locations')
       ]);
       
       const financialData = await financialResponse?.json();
       const statusData = await statusResponse?.json();
       const expensesData = await expensesResponse?.json();
       const profitAnalysis = await profitResponse?.json();
+      const locationsData = await locationsResponse?.json();
       
       setFinancialData(financialData || null);
       setImportStatus(statusData || null);
       setExpenses(Array.isArray(expensesData) ? expensesData : []);
       setProfitData(profitAnalysis || null);
+      setLocations(Array.isArray(locationsData) ? locationsData : []);
     } catch (error) {
       console.error('Failed to fetch financial data:', error);
       setError('Failed to load financial data');
@@ -80,6 +85,7 @@ export function Financial() {
       Array.from(files).forEach(file => {
         formData.append('files', file);
       });
+      formData.append('location_id', selectedLocation);
 
       const response = await apiRequest('/api/import/excel', {
         method: 'POST',
@@ -94,12 +100,12 @@ export function Financial() {
           apiRequest('/api/expenses'),
           apiRequest('/api/financial/profit-analysis')
         ]);
-        
+
         const financialData = await financialResponse?.json();
         const statusData = await statusResponse?.json();
         const expensesData = await expensesResponse?.json();
         const profitAnalysis = await profitResponse?.json();
-        
+
         setFinancialData(financialData);
         setImportStatus(statusData);
         setExpenses(expensesData);
@@ -230,6 +236,18 @@ export function Financial() {
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
+          <Select value={selectedLocation} onValueChange={setSelectedLocation}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Select location" />
+            </SelectTrigger>
+            <SelectContent>
+              {locations.map((location) => (
+                <SelectItem key={location.id} value={location.id}>
+                  {location.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button 
             variant="outline" 
             size="sm" 

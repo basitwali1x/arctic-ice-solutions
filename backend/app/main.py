@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, status
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
@@ -1702,11 +1702,16 @@ async def get_financial_data(current_user: UserInDB = Depends(get_current_user))
     }
 
 @app.post("/api/import/excel")
-async def import_excel_data(files: List[UploadFile] = File(...), current_user: UserInDB = Depends(get_current_user)):
+async def import_excel_data(files: List[UploadFile] = File(...), location_id: str = Form("loc_1"), current_user: UserInDB = Depends(get_current_user)):
     """Import historical sales data from Excel files"""
     global imported_customers, imported_orders, imported_financial_data
     
+    print(f"DEBUG: Excel import called with location_id={location_id}, files={[f.filename for f in files]}")
+    print(f"DEBUG: Request content type and form data received")
+    print(f"DEBUG: Current user: {current_user.username}, role: {current_user.role}")
+    
     if not files:
+        print("ERROR: No files provided")
         raise HTTPException(status_code=400, detail="No files provided")
     
     temp_files = []
@@ -1722,7 +1727,10 @@ async def import_excel_data(files: List[UploadFile] = File(...), current_user: U
             temp_file.close()
             temp_files.append(temp_file.name)
         
-        processed_data = process_excel_files(temp_files)
+        location = locations_db.get(location_id)
+        location_name = location["name"] if location else "Unknown Location"
+        
+        processed_data = process_excel_files(temp_files, location_id, location_name)
         
         imported_customers = processed_data["customers"]
         imported_orders = processed_data["orders"] 
@@ -1731,20 +1739,16 @@ async def import_excel_data(files: List[UploadFile] = File(...), current_user: U
         save_data_to_disk()
         
         return {
-            "success": True,
             "message": "Excel data imported successfully",
             "summary": {
                 "customers_imported": len(imported_customers),
                 "orders_imported": len(imported_orders),
-                "total_records": processed_data["total_records"],
-                "date_range": processed_data["date_range"],
-                "total_revenue": imported_financial_data.get("total_revenue", 0)
+                "location": location_name
             }
         }
-        
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error processing Excel files: {str(e)}")
-    
+        print(f"ERROR: Excel import failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to import Excel data: {str(e)}")
     finally:
         for temp_file in temp_files:
             try:

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -17,11 +17,11 @@ export function Financial() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [importStatus, setImportStatus] = useState<Record<string, unknown> | null>(null);
-  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [profitData, setProfitData] = useState<Record<string, unknown> | null>(null);
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
   const [newExpense, setNewExpense] = useState({
     date: new Date().toISOString().split('T')[0],
     category: 'fuel' as const,
@@ -75,7 +75,7 @@ export function Financial() {
     if (!files || files.length === 0) return;
 
     setUploading(true);
-    setUploadMessage('');
+    console.log('Starting file upload');
 
     try {
       const formData = new FormData();
@@ -89,10 +89,8 @@ export function Financial() {
         headers: {}
       });
 
-      const result = await response?.json();
-
       if (response?.ok) {
-        setUploadMessage(`Successfully imported ${result.summary.customers_imported} customers and ${result.summary.orders_imported} orders!`);
+        console.log('File upload successful');
         
         const [financialResponse, statusResponse, expensesResponse, profitResponse] = await Promise.all([
           apiRequest('/api/dashboard/financial'),
@@ -111,10 +109,10 @@ export function Financial() {
         setExpenses(expensesData);
         setProfitData(profitAnalysis);
       } else {
-        setUploadMessage(`Error: ${result.detail || 'Failed to import data'}`);
+        console.error('File upload failed');
       }
     } catch (error) {
-      setUploadMessage(`Error: ${error instanceof Error ? error.message : 'Failed to upload files'}`);
+      console.error('File upload error:', error);
       showError(error, 'Failed to upload files');
     } finally {
       setUploading(false);
@@ -262,26 +260,8 @@ export function Financial() {
         </div>
       </div>
 
-      {/* Upload Status Message */}
-      {uploadMessage && (
-        <Card className={`border-l-4 ${uploadMessage.includes('Error') ? 'border-red-500 bg-red-50' : 'border-green-500 bg-green-50'}`}>
-          <CardContent className="pt-4">
-            <div className="flex items-center">
-              {uploadMessage.includes('Error') ? (
-                <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
-              ) : (
-                <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-              )}
-              <span className={uploadMessage.includes('Error') ? 'text-red-700' : 'text-green-700'}>
-                {uploadMessage}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Import Status */}
-      {importStatus && importStatus.has_data && (
+      {importStatus && (importStatus as any).has_data && (
         <Card className="border-l-4 border-blue-500 bg-blue-50">
           <CardContent className="pt-4">
             <div className="flex items-center justify-between">
@@ -599,7 +579,7 @@ export function Financial() {
               <div className="flex items-center justify-between">
                 <span className="text-sm">Last Import</span>
                 <span className="text-sm text-gray-500">
-                  {importStatus?.has_data ? 'Just now' : 'Never'}
+                  {(importStatus as any)?.has_data ? 'Just now' : 'Never'}
                 </span>
               </div>
               <Button 

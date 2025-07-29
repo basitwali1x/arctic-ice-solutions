@@ -135,7 +135,7 @@ export function Maintenance() {
         <div className="flex items-center space-x-4">
           <Badge variant="outline" className="flex items-center space-x-1">
             <AlertTriangle className="h-4 w-4" />
-            <span>{pendingOrders.length} Pending Approval</span>
+            <span>{pendingOrders.length} Pending</span>
           </Badge>
         </div>
       </div>

@@ -35,9 +35,9 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://app-ezgjqmrh.fly.dev',
+        target: 'http://localhost:8000',
         changeOrigin: true,
-        secure: true,
+        secure: false,
       }
     }
   },

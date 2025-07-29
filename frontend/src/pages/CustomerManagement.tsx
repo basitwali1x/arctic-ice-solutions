@@ -33,6 +33,7 @@ export function CustomerManagement() {
     location_id: ''
   });
   const [submitting, setSubmitting] = useState(false);
+  const [selectedLocationFilter, setSelectedLocationFilter] = useState<string | null>(null);
   const { showError } = useErrorToast();
 
   const fetchData = async () => {
@@ -125,11 +126,15 @@ export function CustomerManagement() {
     return location ? location.name : 'Unknown Location';
   };
 
-  const filteredCustomers = Array.isArray(customers) ? customers.filter(customer =>
-    customer.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (customer.contact_person && customer.contact_person.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    customer.phone?.includes(searchTerm)
-  ) : [];
+  const filteredCustomers = Array.isArray(customers) ? customers.filter(customer => {
+    const matchesSearch = customer.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (customer.contact_person && customer.contact_person.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      customer.phone?.includes(searchTerm);
+    
+    const matchesLocation = !selectedLocationFilter || customer.location_id === selectedLocationFilter;
+    
+    return matchesSearch && matchesLocation;
+  }) : [];
 
   const customersByLocation = Array.isArray(locations) ? locations.map(location => ({
     location: location.name,
@@ -232,7 +237,20 @@ export function CustomerManagement() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {customersByLocation.map((item) => (
-              <div key={item.location} className="p-4 bg-gray-50 rounded-lg">
+              <div 
+                key={item.location} 
+                className={`p-4 rounded-lg cursor-pointer transition-colors ${
+                  selectedLocationFilter === locations.find(l => l.name === item.location)?.id 
+                    ? 'bg-blue-100 border-2 border-blue-500' 
+                    : 'bg-gray-50 hover:bg-gray-100'
+                }`}
+                onClick={() => {
+                  const location = locations.find(l => l.name === item.location);
+                  setSelectedLocationFilter(
+                    selectedLocationFilter === location?.id ? null : location?.id || null
+                  );
+                }}
+              >
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-medium">{item.location}</p>
@@ -264,7 +282,9 @@ export function CustomerManagement() {
                 className="pl-10"
               />
             </div>
-            <Button variant="outline">Filter</Button>
+            <Button variant="outline" onClick={() => setSelectedLocationFilter(null)}>
+              {selectedLocationFilter ? 'Clear Filter' : 'Filter'}
+            </Button>
           </div>
 
           <div className="space-y-4">

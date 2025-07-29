@@ -107,6 +107,7 @@ export function Dashboard() {
         city: getLocationCity(locationName),
         state: getLocationState(locationName),
         zip_code: getLocationZip(locationName),
+        location_type: 'distribution',
         phone: '(337) 555-0100',
         email: `${locationName.toLowerCase().replace(/\s+/g, '')}@arcticeice.com`,
         manager_id: '',

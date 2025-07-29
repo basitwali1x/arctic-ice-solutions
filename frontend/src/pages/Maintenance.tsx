@@ -32,8 +32,10 @@ export function Maintenance() {
       setLoading(true);
       setError(null);
       
+      console.log('Fetching maintenance data from /api/maintenance/work-orders');
       const workOrdersRes = await apiRequest('/api/maintenance/work-orders');
       const workOrdersData = await workOrdersRes?.json();
+      console.log('Maintenance data received:', workOrdersData);
       setWorkOrders(Array.isArray(workOrdersData) ? workOrdersData : []);
     } catch (error) {
       console.error('Failed to fetch maintenance data:', error);

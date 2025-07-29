@@ -57,7 +57,7 @@ function App() {
                               <Route path="/customers" element={<CustomerManagement />} />
                               <Route path="/financial" element={<Financial />} />
                               <Route path="/maintenance" element={<Maintenance />} />
-                              <Route path="/production" element={<ProductionManager />} />
+                              <Route path="/production-manager" element={<ProductionManager />} />
                               <Route path="/settings" element={<Settings />} />
                             </Routes>
                           </ErrorBoundary>

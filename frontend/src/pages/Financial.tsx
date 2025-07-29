@@ -17,7 +17,6 @@ export function Financial() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [importStatus, setImportStatus] = useState<Record<string, unknown> | null>(null);
-  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [profitData, setProfitData] = useState<Record<string, unknown> | null>(null);
   const [showExpenseForm, setShowExpenseForm] = useState(false);
@@ -31,6 +30,7 @@ export function Financial() {
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { showError } = useErrorToast();
+
 
   const fetchData = async () => {
     try {
@@ -75,7 +75,6 @@ export function Financial() {
     if (!files || files.length === 0) return;
 
     setUploading(true);
-    setUploadMessage('');
 
     try {
       const formData = new FormData();
@@ -89,10 +88,7 @@ export function Financial() {
         headers: {}
       });
 
-      const result = await response?.json();
-
       if (response?.ok) {
-        setUploadMessage(`Successfully imported ${result.summary.customers_imported} customers and ${result.summary.orders_imported} orders!`);
         
         const [financialResponse, statusResponse, expensesResponse, profitResponse] = await Promise.all([
           apiRequest('/api/dashboard/financial'),
@@ -111,10 +107,8 @@ export function Financial() {
         setExpenses(expensesData);
         setProfitData(profitAnalysis);
       } else {
-        setUploadMessage(`Error: ${result.detail || 'Failed to import data'}`);
       }
     } catch (error) {
-      setUploadMessage(`Error: ${error instanceof Error ? error.message : 'Failed to upload files'}`);
       showError(error, 'Failed to upload files');
     } finally {
       setUploading(false);
@@ -262,26 +256,9 @@ export function Financial() {
         </div>
       </div>
 
-      {/* Upload Status Message */}
-      {uploadMessage && (
-        <Card className={`border-l-4 ${uploadMessage.includes('Error') ? 'border-red-500 bg-red-50' : 'border-green-500 bg-green-50'}`}>
-          <CardContent className="pt-4">
-            <div className="flex items-center">
-              {uploadMessage.includes('Error') ? (
-                <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
-              ) : (
-                <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-              )}
-              <span className={uploadMessage.includes('Error') ? 'text-red-700' : 'text-green-700'}>
-                {uploadMessage}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Import Status */}
-      {importStatus && importStatus.has_data && (
+      {importStatus && (importStatus as any).has_data && (
         <Card className="border-l-4 border-blue-500 bg-blue-50">
           <CardContent className="pt-4">
             <div className="flex items-center justify-between">

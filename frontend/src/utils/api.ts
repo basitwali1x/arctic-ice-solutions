@@ -1,3 +1,5 @@
+const API_BASE_URL = import.meta.env?.VITE_API_URL || '';
+
 export interface ApiError {
   status: number;
   message: string;
@@ -31,7 +33,7 @@ export const apiRequest = async (endpoint: string, options: RequestInit = {}) =>
   };
   
   try {
-    const response = await fetch(endpoint, config);
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
     
     if (response.status === 401) {
       localStorage.removeItem('token');

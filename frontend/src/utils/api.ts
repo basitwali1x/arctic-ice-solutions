@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env?.VITE_API_URL || '';
+import { API_BASE_URL, TUNNEL_AUTH } from '../lib/constants';
 
 export interface ApiError {
   status: number;
@@ -18,6 +18,7 @@ export const apiRequest = async (endpoint: string, options: RequestInit = {}) =>
   
   const defaultHeaders: HeadersInit = {
     'Content-Type': 'application/json',
+    'Authorization': TUNNEL_AUTH,
   };
   
   if (token) {

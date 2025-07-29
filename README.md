@@ -80,6 +80,25 @@ A comprehensive web application for managing ice manufacturing and distribution 
 - **Backend**: Deployed on Fly.io
 - **Data Persistence**: JSON file storage with automatic backup
 
+### Frontend
+- Deployed on Devin Apps Platform
+- URL: https://ice-management-app-4r16aafs.devinapps.com
+- Environment Variables:
+  - Production: `VITE_API_URL=https://app-ezgjqmrh.fly.dev`
+  - Local Development: `VITE_API_URL=http://localhost:8000`
+
+### Backend
+- Deployed on Fly.io
+- URL: https://app-ezgjqmrh.fly.dev
+- Health Check: https://app-ezgjqmrh.fly.dev/healthz
+
+### Deployment Verification Steps
+1. Verify frontend loads at https://ice-management-app-4r16aafs.devinapps.com
+2. Check logout functionality is visible in Header and Settings
+3. Test API connectivity (no SOCKS connection errors in console)
+4. Verify Add Customer functionality works end-to-end
+5. Test manager authentication and logout flow
+
 ## Data Import Capabilities
 
 - **Excel Integration**: Import historical sales data

@@ -232,7 +232,7 @@ export function Financial() {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900">Financial Management</h1>
         <div className="flex space-x-2">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={fetchData}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>

@@ -212,26 +212,6 @@ export function Financial() {
     );
   }
 
-  if (error) {
-    return (
-      <Card className="border-red-200 bg-red-50">
-        <CardHeader>
-          <CardTitle className="flex items-center text-red-800">
-            <AlertCircle className="h-5 w-5 mr-2" />
-            Financial Data Unavailable
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-red-700 mb-4">{error}</p>
-          <Button onClick={fetchData} variant="outline">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Try Again
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -252,7 +232,7 @@ export function Financial() {
               </SelectContent>
             </Select>
           </div>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={fetchData}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>

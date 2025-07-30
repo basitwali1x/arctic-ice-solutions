@@ -164,6 +164,14 @@ class Vehicle(BaseModel):
     is_active: bool = True
     last_maintenance: Optional[date] = None
 
+class VehicleCreate(BaseModel):
+    license_plate: str
+    vehicle_type: VehicleType
+    capacity_pallets: int
+    location_id: str
+    is_active: bool = True
+    last_maintenance: Optional[date] = None
+
 class Inventory(BaseModel):
     id: str
     product_id: str
@@ -1405,6 +1413,20 @@ async def get_vehicle(vehicle_id: str, current_user: UserInDB = Depends(get_curr
     vehicle = vehicles_db[vehicle_id]
     if current_user.role != UserRole.MANAGER and vehicle["location_id"] != current_user.location_id:
         raise HTTPException(status_code=403, detail="Access denied to this vehicle")
+    return vehicle
+
+@app.post("/api/vehicles", response_model=Vehicle)
+async def create_vehicle(vehicle_data: VehicleCreate, current_user: UserInDB = Depends(get_current_user)):
+    if current_user.role != UserRole.MANAGER and vehicle_data.location_id != current_user.location_id:
+        raise HTTPException(status_code=403, detail="Cannot create vehicle for different location")
+    
+    vehicle_id = str(uuid.uuid4())
+    vehicle = Vehicle(
+        id=vehicle_id,
+        **vehicle_data.dict()
+    )
+    vehicles_db[vehicle_id] = vehicle.dict()
+    save_data_to_disk()
     return vehicle
 
 @app.get("/api/customers")

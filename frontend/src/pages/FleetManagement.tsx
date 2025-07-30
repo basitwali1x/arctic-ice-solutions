@@ -2,6 +2,10 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Truck, MapPin, Plus, RefreshCw, Settings, Navigation, AlertCircle } from 'lucide-react';
 import { Vehicle, Location, FleetDashboard, Route } from '../types/api';
@@ -19,6 +23,14 @@ export function FleetManagement() {
   const [error, setError] = useState<string | null>(null);
   const { showError } = useErrorToast();
   const { toast } = useToast();
+  const [showVehicleModal, setShowVehicleModal] = useState(false);
+  const [newVehicle, setNewVehicle] = useState({
+    license_plate: '',
+    vehicle_type: '53ft_reefer',
+    capacity_pallets: '',
+    location_id: '',
+    is_active: true
+  });
 
   useEffect(() => {
     fetchData();
@@ -98,6 +110,43 @@ export function FleetManagement() {
     }
   };
 
+  const handleCreateVehicle = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const vehicleData = {
+        ...newVehicle,
+        capacity_pallets: parseInt(newVehicle.capacity_pallets)
+      };
+
+      const response = await apiRequest('/api/vehicles', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(vehicleData)
+      });
+
+      if (response?.ok) {
+        toast({
+          title: 'Success',
+          description: 'Vehicle created successfully',
+        });
+        setShowVehicleModal(false);
+        setNewVehicle({
+          license_plate: '',
+          vehicle_type: '53ft_reefer',
+          capacity_pallets: '',
+          location_id: '',
+          is_active: true
+        });
+        fetchData();
+      }
+    } catch (error) {
+      console.error('Error creating vehicle:', error);
+      showError(error, 'Failed to create vehicle');
+    }
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center h-64">Loading...</div>;
   }
@@ -135,7 +184,7 @@ export function FleetManagement() {
             <Navigation className="h-4 w-4 mr-2" />
             Route Optimizer
           </Button>
-          <Button size="sm">
+          <Button size="sm" onClick={() => setShowVehicleModal(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Add Vehicle
           </Button>
@@ -299,6 +348,91 @@ export function FleetManagement() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Vehicle Creation Modal */}
+      <Dialog open={showVehicleModal} onOpenChange={setShowVehicleModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add New Vehicle</DialogTitle>
+          </DialogHeader>
+          
+          <form onSubmit={handleCreateVehicle} className="space-y-4">
+            <div>
+              <Label htmlFor="license_plate">License Plate</Label>
+              <Input
+                id="license_plate"
+                value={newVehicle.license_plate}
+                onChange={(e) => setNewVehicle({...newVehicle, license_plate: e.target.value})}
+                placeholder="Enter license plate"
+                required
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="vehicle_type">Vehicle Type</Label>
+              <Select value={newVehicle.vehicle_type} onValueChange={(value) => setNewVehicle({...newVehicle, vehicle_type: value})}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="53ft_reefer">53ft Reefer</SelectItem>
+                  <SelectItem value="42ft_reefer">42ft Reefer</SelectItem>
+                  <SelectItem value="20ft_reefer">20ft Reefer</SelectItem>
+                  <SelectItem value="16ft_reefer">16ft Reefer</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label htmlFor="capacity_pallets">Capacity (Pallets)</Label>
+              <Input
+                id="capacity_pallets"
+                type="number"
+                value={newVehicle.capacity_pallets}
+                onChange={(e) => setNewVehicle({...newVehicle, capacity_pallets: e.target.value})}
+                placeholder="Enter pallet capacity"
+                min="1"
+                required
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="location_id">Location</Label>
+              <Select value={newVehicle.location_id} onValueChange={(value) => setNewVehicle({...newVehicle, location_id: value})}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select location" />
+                </SelectTrigger>
+                <SelectContent>
+                  {locations.map(location => (
+                    <SelectItem key={location.id} value={location.id}>
+                      {location.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="is_active"
+                checked={newVehicle.is_active}
+                onChange={(e) => setNewVehicle({...newVehicle, is_active: e.target.checked})}
+              />
+              <Label htmlFor="is_active">Active Vehicle</Label>
+            </div>
+            
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setShowVehicleModal(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">
+                Create Vehicle
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

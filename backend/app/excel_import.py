@@ -168,3 +168,78 @@ def process_excel_files(file_paths: List[str], location_id: str = "loc_3", locat
         "total_records": len(combined_df),
         "date_range": financial_metrics["date_range"]
     }
+
+def process_customer_contact_excel(file_path: str) -> Dict[str, Any]:
+    """Process customer contact Excel file with location-based sheets"""
+    try:
+        logger.info(f"Processing customer contact Excel file: {file_path}")
+        excel_file = pd.ExcelFile(file_path)
+        
+        location_mapping = {
+            'jasper': {'id': 'loc_4', 'name': 'Jasper Warehouse', 'area_code': '409', 'state': 'Texas', 'zip_base': 75951},
+            'leesville': {'id': 'loc_1', 'name': 'Leesville HQ', 'area_code': '337', 'state': 'Louisiana', 'zip_base': 71446},
+            'lufkin': {'id': 'loc_3', 'name': 'Lufkin Distribution', 'area_code': '936', 'state': 'Texas', 'zip_base': 75901},
+            'all': {'id': 'loc_2', 'name': 'Lake Charles Distribution', 'area_code': '337', 'state': 'Louisiana', 'zip_base': 70601}
+        }
+        
+        all_customers = []
+        total_imported = 0
+        
+        for sheet_name in excel_file.sheet_names:
+            if sheet_name.strip().lower() in location_mapping:
+                location_key = sheet_name.strip().lower()
+                location_info = location_mapping[location_key]
+                
+                df = pd.read_excel(file_path, sheet_name=sheet_name)
+                
+                if df.empty or 'Customer' not in df.columns:
+                    logger.info(f"Skipping empty or invalid sheet: {sheet_name}")
+                    continue
+                
+                df_clean = df.dropna(subset=['Customer']).copy()
+                df_clean['Customer'] = df_clean['Customer'].astype(str).str.strip()
+                df_clean = df_clean[df_clean['Customer'] != '']
+                
+                logger.info(f"Processing {len(df_clean)} customers from {sheet_name} sheet")
+                
+                for i, row in df_clean.iterrows():
+                    customer_name = row['Customer']
+                    address = str(row.get('Address', '')).strip() if pd.notna(row.get('Address')) else f"{100 + i} Main St, {location_info['name']}"
+                    phone = str(row.get('Main Phone', '')).strip() if pd.notna(row.get('Main Phone')) else f"({location_info['area_code']}) 555-{1000 + i:04d}"
+                    
+                    email_base = customer_name.lower().replace(' ', '').replace('#', '').replace('-', '').replace('.', '').replace(',', '').replace('&', '').replace("'", '')[:20]
+                    email = f"{email_base}@email.com"
+                    
+                    customer_data = {
+                        "id": f"{location_info['name'].lower().replace(' ', '_')}_customer_{total_imported + 1}",
+                        "name": customer_name,
+                        "email": email,
+                        "phone": phone,
+                        "address": address,
+                        "location_id": location_info['id'],
+                        "credit_limit": 5000.0,
+                        "current_balance": 0.0,
+                        "total_orders": 0,
+                        "total_spent": 0.0,
+                        "last_order_date": None,
+                        "status": "active"
+                    }
+                    
+                    all_customers.append(customer_data)
+                    total_imported += 1
+        
+        logger.info(f"Successfully processed {total_imported} customers from {len(excel_file.sheet_names)} sheets")
+        
+        return {
+            "customers": all_customers,
+            "total_imported": total_imported,
+            "sheets_processed": list(excel_file.sheet_names),
+            "location_distribution": {
+                loc_info['name']: len([c for c in all_customers if c['location_id'] == loc_info['id']]) 
+                for loc_info in location_mapping.values()
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error processing customer contact Excel file: {e}")
+        raise ValueError(f"Failed to process customer contact file: {str(e)}")

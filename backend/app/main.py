@@ -12,10 +12,13 @@ import uuid
 import tempfile
 import os
 import json
+import logging
 from pathlib import Path
-from .excel_import import process_excel_files
+from .excel_import import process_excel_files, process_customer_contact_excel
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Arctic Ice Solutions API", version="1.0.0")
 
@@ -1706,21 +1709,66 @@ async def import_excel_data(files: List[UploadFile] = File(...), current_user: U
     """Import historical sales data from Excel files"""
     global imported_customers, imported_orders, imported_financial_data
     
+    logger.info(f"Excel import request received with {len(files) if files else 0} files")
+    
     if not files:
+        logger.error("No files provided in import request")
         raise HTTPException(status_code=400, detail="No files provided")
     
     temp_files = []
     try:
-        for file in files:
+        for i, file in enumerate(files):
+            logger.info(f"Processing file {i+1}: {file.filename}, content_type: {file.content_type}, size: {file.size if hasattr(file, 'size') else 'unknown'}")
+            
             if not file.filename.endswith(('.xlsx', '.xls', '.xlsm')):
+                logger.error(f"Invalid file type: {file.filename}")
                 raise HTTPException(status_code=400, detail=f"Invalid file type: {file.filename}")
             
             file_ext = os.path.splitext(file.filename)[1] if file.filename else '.xlsx'
             temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=file_ext)
             content = await file.read()
+            logger.info(f"Read {len(content)} bytes from {file.filename}")
             temp_file.write(content)
             temp_file.close()
             temp_files.append(temp_file.name)
+            logger.info(f"Saved to temporary file: {temp_file.name}")
+        
+        try:
+            if len(temp_files) == 1:
+                import pandas as pd
+                excel_file = pd.ExcelFile(temp_files[0])
+                if any(sheet.strip().lower() in ['jasper', 'leesville', 'lufkin', 'all'] for sheet in excel_file.sheet_names):
+                    sample_df = pd.read_excel(temp_files[0], sheet_name=excel_file.sheet_names[0])
+                    if 'Customer' in sample_df.columns:
+                        logger.info("Detected customer contact Excel format")
+                        contact_data = process_customer_contact_excel(temp_files[0])
+                        global imported_customers, imported_orders, imported_financial_data
+                        imported_customers = contact_data["customers"]
+                        imported_orders = []  # No orders in contact file
+                        imported_financial_data = {
+                            "total_revenue": 0,
+                            "total_transactions": 0,
+                            "monthly_revenue": {},
+                            "daily_revenue": {},
+                            "top_products": {},
+                            "date_range": {"start": None, "end": None}
+                        }
+                        
+                        save_data_to_disk()
+                        
+                        return {
+                            "success": True,
+                            "message": "Customer contact data imported successfully",
+                            "summary": {
+                                "customers_imported": contact_data["total_imported"],
+                                "orders_imported": 0,
+                                "total_records": contact_data["total_imported"],
+                                "sheets_processed": contact_data["sheets_processed"],
+                                "location_distribution": contact_data["location_distribution"]
+                            }
+                        }
+        except Exception as e:
+            logger.info(f"Not a customer contact file, trying sales data format: {e}")
         
         processed_data = process_excel_files(temp_files)
         
@@ -1743,6 +1791,9 @@ async def import_excel_data(files: List[UploadFile] = File(...), current_user: U
         }
         
     except Exception as e:
+        logger.error(f"Error processing Excel files: {str(e)}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Error processing Excel files: {str(e)}")
     
     finally:

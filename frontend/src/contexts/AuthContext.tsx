@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { API_BASE_URL } from '../lib/constants';
 
 interface User {
   id: string;
@@ -36,8 +37,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-
-  const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
   useEffect(() => {
     const storedToken = localStorage.getItem('token');

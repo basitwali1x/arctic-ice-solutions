@@ -30,8 +30,6 @@ def examine_excel_file(file_path):
     except Exception as e:
         print(f"Error reading {file_path}: {e}")
 
-file1 = "/home/ubuntu/attachments/418624df-adb6-499d-b079-ab07e0c61330/Sales+from+A+to+Sunshine+8.xlsx"
-file2 = "/home/ubuntu/attachments/01dcbd43-dddd-487e-b716-3453dce10246/Sales+from+Sunshine+9+to+Z.xlsx"
+file_path = "/home/ubuntu/attachments/29eaa1ae-7e6d-4a83-9bcf-a0d8177d108c/West+La+Ice+Customer+List.xlsx"
 
-examine_excel_file(file1)
-examine_excel_file(file2)
+examine_excel_file(file_path)

@@ -233,6 +233,14 @@ class Expense(BaseModel):
     submitted_by: str
     submitted_at: datetime
 
+class CustomerPricing(BaseModel):
+    id: str
+    customer_id: str
+    product_id: str
+    custom_price: float
+    created_at: datetime
+    updated_by: str
+
 def calculate_distance(addr1: str, addr2: str) -> float:
     hash1 = hash(addr1) % 1000
     hash2 = hash(addr2) % 1000
@@ -323,6 +331,7 @@ vehicles_db = {}
 inventory_db = {}
 routes_db = {}
 orders_db = {}
+customer_pricing_db = {}
 
 imported_customers = []
 imported_orders = []
@@ -457,6 +466,19 @@ def filter_by_location(data: List[dict], user: UserInDB, location_key: str = "lo
     if user.role == UserRole.MANAGER:
         return data
     return [item for item in data if item.get(location_key) == user.location_id]
+
+def get_customer_price_for_product(customer_id: str, product_id: str) -> float:
+    for pricing_id, pricing in customer_pricing_db.items():
+        if pricing['customer_id'] == customer_id and pricing['product_id'] == product_id:
+            return pricing['custom_price']
+    
+    if product_id in products_db:
+        return products_db[product_id]['price']
+    
+    return 0.0
+
+def get_all_customer_pricing(customer_id: str) -> list:
+    return [pricing for pricing in customer_pricing_db.values() if pricing['customer_id'] == customer_id]
 
 def initialize_sample_data():
     print("DEBUG: Initializing sample data...")
@@ -1417,17 +1439,17 @@ async def get_customer_orders(customer_id: str, current_user: UserInDB = Depends
             "status": "delivered",
             "items": [
                 {
-                    "productId": "prod-001",
+                    "productId": "prod_1",
                     "productName": "8lb Ice Bags",
                     "quantity": 100,
-                    "unitPrice": 2.50,
-                    "totalPrice": 250.00
+                    "unitPrice": get_customer_price_for_product(customer_id, "prod_1"),
+                    "totalPrice": get_customer_price_for_product(customer_id, "prod_1") * 100
                 }
             ],
-            "subtotal": 250.00,
-            "tax": 22.50,
+            "subtotal": get_customer_price_for_product(customer_id, "prod_1") * 100,
+            "tax": get_customer_price_for_product(customer_id, "prod_1") * 100 * 0.09,
             "deliveryFee": 25.00,
-            "totalAmount": 297.50,
+            "totalAmount": get_customer_price_for_product(customer_id, "prod_1") * 100 * 1.09 + 25.00,
             "deliveryAddress": "Customer Address",
             "paymentMethod": "credit",
             "paymentStatus": "paid",
@@ -1447,6 +1469,94 @@ async def create_customer_order(customer_id: str, order_data: dict, current_user
         "paymentStatus": "pending"
     }
     return new_order
+
+@app.get("/api/customers/{customer_id}/pricing")
+async def get_customer_pricing(customer_id: str, current_user: UserInDB = Depends(get_current_user)):
+    if current_user.role != UserRole.MANAGER:
+        raise HTTPException(status_code=403, detail="Only managers can access customer pricing")
+    
+    pricing_records = get_all_customer_pricing(customer_id)
+    products = list(products_db.values())
+    
+    result = []
+    for product in products:
+        custom_price = None
+        for pricing in pricing_records:
+            if pricing['product_id'] == product['id']:
+                custom_price = pricing['custom_price']
+                break
+        
+        result.append({
+            "product_id": product['id'],
+            "product_name": product['name'],
+            "default_price": product['price'],
+            "custom_price": custom_price
+        })
+    
+    return result
+
+@app.post("/api/customers/{customer_id}/pricing")
+async def set_customer_pricing(customer_id: str, pricing_data: dict, current_user: UserInDB = Depends(get_current_user)):
+    if current_user.role != UserRole.MANAGER:
+        raise HTTPException(status_code=403, detail="Only managers can set customer pricing")
+    
+    product_id = pricing_data.get('product_id')
+    custom_price = pricing_data.get('custom_price')
+    
+    if not product_id or custom_price is None:
+        raise HTTPException(status_code=400, detail="product_id and custom_price are required")
+    
+    if custom_price < 0:
+        raise HTTPException(status_code=400, detail="Price must be non-negative")
+    
+    if product_id not in products_db:
+        raise HTTPException(status_code=404, detail="Product not found")
+    
+    if customer_id not in customers_db:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    existing_pricing_id = None
+    for pricing_id, pricing in customer_pricing_db.items():
+        if pricing['customer_id'] == customer_id and pricing['product_id'] == product_id:
+            existing_pricing_id = pricing_id
+            break
+    
+    if existing_pricing_id:
+        customer_pricing_db[existing_pricing_id]['custom_price'] = custom_price
+        customer_pricing_db[existing_pricing_id]['updated_by'] = current_user.username
+        pricing_record = customer_pricing_db[existing_pricing_id]
+    else:
+        pricing_id = str(uuid.uuid4())
+        pricing_record = {
+            "id": pricing_id,
+            "customer_id": customer_id,
+            "product_id": product_id,
+            "custom_price": custom_price,
+            "created_at": datetime.now().isoformat(),
+            "updated_by": current_user.username
+        }
+        customer_pricing_db[pricing_id] = pricing_record
+    
+    save_data_to_disk()
+    return pricing_record
+
+@app.delete("/api/customers/{customer_id}/pricing/{product_id}")
+async def delete_customer_pricing(customer_id: str, product_id: str, current_user: UserInDB = Depends(get_current_user)):
+    if current_user.role != UserRole.MANAGER:
+        raise HTTPException(status_code=403, detail="Only managers can delete customer pricing")
+    
+    pricing_id_to_delete = None
+    for pricing_id, pricing in customer_pricing_db.items():
+        if pricing['customer_id'] == customer_id and pricing['product_id'] == product_id:
+            pricing_id_to_delete = pricing_id
+            break
+    
+    if not pricing_id_to_delete:
+        raise HTTPException(status_code=404, detail="Custom pricing not found")
+    
+    del customer_pricing_db[pricing_id_to_delete]
+    save_data_to_disk()
+    return {"message": "Custom pricing deleted successfully"}
 
 @app.get("/api/customers/{customer_id}/feedback")
 async def get_customer_feedback(customer_id: str, current_user: UserInDB = Depends(get_current_user)):

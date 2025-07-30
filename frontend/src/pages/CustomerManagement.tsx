@@ -6,10 +6,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Users, Search, Plus, RefreshCw, MapPin, Phone, Mail, AlertCircle, Star, MessageSquare, DollarSign, FileText } from 'lucide-react';
-import { Customer, Location } from '../types/api';
+import { Users, Search, Plus, RefreshCw, MapPin, Phone, Mail, AlertCircle, Star, MessageSquare, DollarSign, FileText, Edit, Save, X } from 'lucide-react';
+import { Customer, Location, CustomerPricingDisplay } from '../types/api';
 import { apiRequest } from '../utils/api';
 import { useErrorToast } from '../hooks/useErrorToast';
+import { useAuth } from '../contexts/AuthContext';
 
 
 export function CustomerManagement() {
@@ -33,7 +34,12 @@ export function CustomerManagement() {
     location_id: ''
   });
   const [submitting, setSubmitting] = useState(false);
+  const [customerPricing, setCustomerPricing] = useState<CustomerPricingDisplay[]>([]);
+  const [editingPricing, setEditingPricing] = useState(false);
+  const [pricingChanges, setPricingChanges] = useState<Record<string, number>>({});
+  const [savingPricing, setSavingPricing] = useState(false);
   const { showError } = useErrorToast();
+  const { user } = useAuth();
 
   const fetchData = async () => {
     try {
@@ -135,6 +141,92 @@ export function CustomerManagement() {
     location: location.name,
     count: Array.isArray(customers) ? customers.filter(c => c.location_id === location.id).length : 0
   })) : [];
+
+  const fetchCustomerPricing = async (customerId: string) => {
+    try {
+      const response = await apiRequest(`/api/customers/${customerId}/pricing`);
+      if (response?.ok) {
+        const pricingData = await response.json();
+        setCustomerPricing(pricingData);
+      }
+    } catch (error) {
+      console.error('Failed to fetch customer pricing:', error);
+    }
+  };
+
+  const handleEditPricing = () => {
+    setEditingPricing(true);
+    const changes: Record<string, number> = {};
+    customerPricing.forEach(pricing => {
+      if (pricing.custom_price !== null) {
+        changes[pricing.product_id] = pricing.custom_price;
+      }
+    });
+    setPricingChanges(changes);
+  };
+
+  const handlePricingChange = (productId: string, price: string) => {
+    const numPrice = parseFloat(price);
+    if (!isNaN(numPrice) && numPrice >= 0) {
+      setPricingChanges(prev => ({
+        ...prev,
+        [productId]: numPrice
+      }));
+    } else if (price === '') {
+      setPricingChanges(prev => {
+        const newChanges = { ...prev };
+        delete newChanges[productId];
+        return newChanges;
+      });
+    }
+  };
+
+  const handleSavePricing = async () => {
+    if (!selectedCustomer) return;
+    
+    try {
+      setSavingPricing(true);
+      
+      for (const [productId, price] of Object.entries(pricingChanges)) {
+        await apiRequest(`/api/customers/${selectedCustomer.id}/pricing`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            product_id: productId,
+            custom_price: price
+          }),
+        });
+      }
+
+      const pricingToDelete = customerPricing.filter(pricing => 
+        pricing.custom_price !== null && !pricingChanges[pricing.product_id]
+      );
+
+      for (const pricing of pricingToDelete) {
+        await apiRequest(`/api/customers/${selectedCustomer.id}/pricing/${pricing.product_id}`, {
+          method: 'DELETE',
+        });
+      }
+
+      await fetchCustomerPricing(selectedCustomer.id);
+      setEditingPricing(false);
+      setPricingChanges({});
+    } catch (error) {
+      console.error('Failed to save pricing:', error);
+      showError(error, 'Failed to save pricing');
+    } finally {
+      setSavingPricing(false);
+    }
+  };
+
+  const handleCancelPricing = () => {
+    setEditingPricing(false);
+    setPricingChanges({});
+  };
+
+  const isManager = user?.role === 'manager';
 
   if (loading) {
     return <div className="flex items-center justify-center h-64">Loading...</div>;
@@ -312,9 +404,12 @@ export function CustomerManagement() {
                     <Button 
                       variant="outline" 
                       size="sm"
-                      onClick={() => {
+                      onClick={async () => {
                         setSelectedCustomer(customer);
                         setShowCustomerDetails(true);
+                        if (isManager) {
+                          await fetchCustomerPricing(customer.id);
+                        }
                       }}
                     >
                       View Details
@@ -475,6 +570,9 @@ export function CustomerManagement() {
                   onClick={() => {
                     setShowCustomerDetails(false);
                     setSelectedCustomer(null);
+                    setCustomerPricing([]);
+                    setEditingPricing(false);
+                    setPricingChanges({});
                   }}
                 >
                   Close
@@ -536,6 +634,92 @@ export function CustomerManagement() {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Custom Pricing - Only for Managers */}
+              {isManager && (
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="flex items-center">
+                        <DollarSign className="w-5 h-5 mr-2" />
+                        Custom Pricing
+                      </CardTitle>
+                      {!editingPricing ? (
+                        <Button variant="outline" size="sm" onClick={handleEditPricing}>
+                          <Edit className="w-4 h-4 mr-2" />
+                          Edit Prices
+                        </Button>
+                      ) : (
+                        <div className="flex space-x-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={handleCancelPricing}
+                            disabled={savingPricing}
+                          >
+                            <X className="w-4 h-4 mr-2" />
+                            Cancel
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            onClick={handleSavePricing}
+                            disabled={savingPricing}
+                          >
+                            <Save className="w-4 h-4 mr-2" />
+                            {savingPricing ? 'Saving...' : 'Save'}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {customerPricing.map((pricing) => (
+                        <div key={pricing.product_id} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div>
+                            <p className="font-medium">{pricing.product_name}</p>
+                            <p className="text-sm text-gray-600">
+                              Default: ${pricing.default_price.toFixed(2)}
+                            </p>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            {editingPricing ? (
+                              <div className="flex items-center space-x-2">
+                                <span className="text-sm text-gray-600">$</span>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  className="w-20"
+                                  value={pricingChanges[pricing.product_id] ?? ''}
+                                  onChange={(e) => handlePricingChange(pricing.product_id, e.target.value)}
+                                  placeholder={pricing.default_price.toFixed(2)}
+                                />
+                              </div>
+                            ) : (
+                              <div className="text-right">
+                                <p className="font-medium">
+                                  ${(pricing.custom_price ?? pricing.default_price).toFixed(2)}
+                                </p>
+                                {pricing.custom_price !== null && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    Custom
+                                  </Badge>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      {customerPricing.length === 0 && (
+                        <div className="text-center py-4 text-gray-500">
+                          Loading pricing information...
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Recent Orders */}
               <Card>

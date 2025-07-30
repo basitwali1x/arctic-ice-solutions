@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { TrendingUp, Users, Truck, Package, DollarSign, MapPin, Clock, AlertCircle, RefreshCw, Phone, Mail, Navigation } from 'lucide-react';
-import { DashboardOverview, ProductionDashboard, FleetDashboard, FinancialDashboard, Location } from '../types/api';
+import { DashboardOverview, ProductionDashboard, FleetDashboard, FinancialDashboard, Location, Route } from '../types/api';
 import { apiRequest } from '../utils/api';
 import { useErrorToast } from '../hooks/useErrorToast';
 
@@ -25,6 +27,9 @@ export function Dashboard() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
   const [showLocationModal, setShowLocationModal] = useState(false);
+  const [selectedOptimizeLocation, setSelectedOptimizeLocation] = useState<string>('');
+  const [optimizedRoutes, setOptimizedRoutes] = useState<Route[]>([]);
+  const [isOptimizing, setIsOptimizing] = useState(false);
   const { showError } = useErrorToast();
 
   const fetchDashboardData = async () => {
@@ -156,6 +161,36 @@ export function Dashboard() {
       'Jasper': '75951'
     };
     return zips[name] || '70000';
+  };
+
+  const handleOptimizeRoutes = async () => {
+    if (!selectedOptimizeLocation) {
+      showError(new Error('Please select a location'), 'Please select a location for route optimization');
+      return;
+    }
+
+    try {
+      setIsOptimizing(true);
+      const response = await apiRequest(`/api/routes/optimize?location_id=${selectedOptimizeLocation}`, {
+        method: 'POST'
+      });
+      
+      if (response?.ok) {
+        const result = await response.json();
+        setOptimizedRoutes(result.routes || []);
+        if (result.routes && result.routes.length > 0) {
+          
+        } else {
+          showError(new Error('No routes generated'), result.message || 'No pending orders found for optimization');
+        }
+      }
+    } catch (error) {
+      console.error('Error optimizing routes:', error);
+      showError(error, 'Failed to optimize routes');
+      setOptimizedRoutes([]);
+    } finally {
+      setIsOptimizing(false);
+    }
   };
 
   if (loading) {
@@ -398,6 +433,89 @@ export function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* AI Route Optimization */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Navigation className="h-5 w-5 mr-2" />
+            AI Route Optimization
+          </CardTitle>
+          <CardDescription>Generate optimized delivery routes using AI algorithms</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">Select Location</label>
+                <Select value={selectedOptimizeLocation} onValueChange={setSelectedOptimizeLocation}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose location for optimization" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {locations.map((location) => (
+                      <SelectItem key={location.id} value={location.id}>
+                        {location.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <Button 
+                onClick={handleOptimizeRoutes} 
+                disabled={!selectedOptimizeLocation || isOptimizing}
+                className="w-full"
+              >
+                <Navigation className="h-4 w-4 mr-2" />
+                {isOptimizing ? 'Optimizing Routes...' : 'Generate Optimized Routes'}
+              </Button>
+              
+              {optimizedRoutes.length > 0 && (
+                <div className="text-sm text-green-600 bg-green-50 p-3 rounded-lg">
+                  ✓ Generated {optimizedRoutes.length} optimized route{optimizedRoutes.length !== 1 ? 's' : ''}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="font-semibold">Route Preview</h3>
+              {optimizedRoutes.length === 0 ? (
+                <div className="text-gray-500 text-sm bg-gray-50 p-4 rounded-lg text-center">
+                  Select a location and click "Generate Optimized Routes" to see AI-generated delivery routes
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-64 overflow-y-auto">
+                  {optimizedRoutes.map((route) => (
+                    <div key={route.id} className="p-3 bg-blue-50 rounded-lg border">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-medium text-sm">{route.name}</h4>
+                        <Badge className="bg-blue-100 text-blue-800">
+                          {route.status}
+                        </Badge>
+                      </div>
+                      <div className="text-xs text-gray-600 space-y-1">
+                        <div className="flex justify-between">
+                          <span>Stops:</span>
+                          <span>{route.stops?.length || 0}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Est. Duration:</span>
+                          <span>{route.estimated_duration_hours}h</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Date:</span>
+                          <span>{route.date}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Location Details Modal */}
       <Dialog open={showLocationModal} onOpenChange={setShowLocationModal}>

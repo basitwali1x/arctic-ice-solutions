@@ -15,6 +15,7 @@ import { useErrorToast } from '../hooks/useErrorToast';
 export function CustomerManagement() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
+  const [customersByLocationData, setCustomersByLocationData] = useState<Array<{location_id: string, location_name: string, customer_count: number}>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -40,21 +41,25 @@ export function CustomerManagement() {
       setLoading(true);
       setError(null);
       
-      const [customersRes, locationsRes] = await Promise.all([
+      const [customersRes, locationsRes, customersByLocationRes] = await Promise.all([
         apiRequest('/api/customers'),
-        apiRequest('/api/locations')
+        apiRequest('/api/locations'),
+        apiRequest('/api/customers/by-location')
       ]);
 
       const customersData = await customersRes?.json();
       const locationsData = await locationsRes?.json();
+      const customersByLocationData = await customersByLocationRes?.json();
 
       setCustomers(Array.isArray(customersData) ? customersData : []);
       setLocations(Array.isArray(locationsData) ? locationsData : []);
+      setCustomersByLocationData(Array.isArray(customersByLocationData) ? customersByLocationData : []);
     } catch (error) {
       console.error('Failed to fetch data:', error);
       setError('Failed to load customer data');
       setCustomers([]);
       setLocations([]);
+      setCustomersByLocationData([]);
       showError(error, 'Failed to load customer data');
     } finally {
       setLoading(false);
@@ -131,9 +136,9 @@ export function CustomerManagement() {
     customer.phone?.includes(searchTerm)
   ) : [];
 
-  const customersByLocation = Array.isArray(locations) ? locations.map(location => ({
-    location: location.name,
-    count: Array.isArray(customers) ? customers.filter(c => c.location_id === location.id).length : 0
+  const customersByLocation = Array.isArray(customersByLocationData) ? customersByLocationData.map(item => ({
+    location: item.location_name,
+    count: item.customer_count
   })) : [];
 
   if (loading) {

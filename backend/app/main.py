@@ -1387,16 +1387,38 @@ async def get_vehicle(vehicle_id: str, current_user: UserInDB = Depends(get_curr
 
 @app.get("/api/customers")
 async def get_customers(location_id: Optional[str] = None, current_user: UserInDB = Depends(get_current_user)):
-    if imported_customers is not None and len(imported_customers) > 0:
+    if imported_customers and len(imported_customers) > 0:
         customers = imported_customers
-        if location_id:
-            customers = [c for c in customers if c.get("location_id") == location_id]
-        return filter_by_location(customers, current_user)
     else:
         customers = list(customers_db.values())
-        if location_id:
-            customers = [c for c in customers if c["location_id"] == location_id]
-        return filter_by_location(customers, current_user)
+    
+    if location_id:
+        customers = [c for c in customers if c.get("location_id") == location_id]
+    
+    return filter_by_location(customers, current_user)
+
+@app.get("/api/customers/by-location")
+async def get_customers_by_location(current_user: UserInDB = Depends(get_current_user)):
+    """Get customer counts by location for the location distribution chart"""
+    if imported_customers and len(imported_customers) > 0:
+        customers = imported_customers
+    else:
+        customers = list(customers_db.values())
+    
+    all_locations = list(locations_db.values())
+    filtered_locations = filter_by_location(all_locations, current_user, location_key="id")
+    
+    location_counts = []
+    for location in filtered_locations:
+        location_customers = [c for c in customers if c.get("location_id") == location["id"]]
+        
+        location_counts.append({
+            "location_id": location["id"],
+            "location_name": location["name"],
+            "customer_count": len(location_customers)
+        })
+    
+    return location_counts
 
 @app.post("/api/customers", response_model=Customer)
 async def create_customer(customer: Customer, current_user: UserInDB = Depends(get_current_user)):

@@ -32,18 +32,42 @@ def clean_excel_data(df: pd.DataFrame) -> pd.DataFrame:
     return df_clean
 
 def extract_customers_from_excel(df: pd.DataFrame, location_id: str = "loc_3", location_name: str = "Lufkin") -> List[Dict[str, Any]]:
-    """Extract unique customers from Excel data"""
+    """Extract unique customers from Excel data with proper location mapping"""
     customers = []
     unique_customers = df['Name'].unique()
     
-    if location_id == "loc_3":  # Lufkin, TX
-        area_code = "936"
-        state = "Texas"
-        zip_base = 75901
-    else:  # Default to Louisiana
-        area_code = "337"
-        state = "Louisiana"
-        zip_base = 70601
+    location_config = {
+        "loc_1": {  # Leesville HQ & Production
+            "area_code": "337",
+            "state": "Louisiana", 
+            "zip_base": 71446,
+            "city": "Leesville"
+        },
+        "loc_2": {  # Lake Charles Distribution
+            "area_code": "337",
+            "state": "Louisiana",
+            "zip_base": 70601,
+            "city": "Lake Charles"
+        },
+        "loc_3": {  # Lufkin Distribution
+            "area_code": "936", 
+            "state": "Texas",
+            "zip_base": 75901,
+            "city": "Lufkin"
+        },
+        "loc_4": {  # Jasper Warehouse
+            "area_code": "903",
+            "state": "Texas", 
+            "zip_base": 75951,
+            "city": "Jasper"
+        }
+    }
+    
+    config = location_config.get(location_id, location_config["loc_3"])
+    area_code = config["area_code"]
+    state = config["state"]
+    zip_base = config["zip_base"]
+    city = config["city"]
     
     for i, customer_name in enumerate(unique_customers):
         if pd.isna(customer_name) or customer_name == 'nan':
@@ -55,11 +79,11 @@ def extract_customers_from_excel(df: pd.DataFrame, location_id: str = "loc_3", l
         last_order = customer_data['Date'].max()
         
         customers.append({
-            "id": f"{location_name.lower()}_customer_{i+1}",
+            "id": f"{city.lower()}_customer_{i+1}",
             "name": customer_name,
             "email": f"{customer_name.lower().replace(' ', '').replace('#', '').replace('-', '').replace('.', '').replace(',', '')}@email.com",
             "phone": f"({area_code}) 555-{1000 + i:04d}",
-            "address": f"{100 + i} Customer St, {location_name}, {state}",
+            "address": f"{100 + i} Customer St, {city}, {state} {zip_base + (i % 100)}",
             "location_id": location_id,
             "credit_limit": 5000.0,
             "current_balance": 0.0,
@@ -90,8 +114,16 @@ def extract_orders_from_excel(df: pd.DataFrame, location_id: str = "loc_3", loca
         else:  # Default to 8lb bags
             product_type = "8lb_bag"
             
+        location_cities = {
+            "loc_1": "leesville",
+            "loc_2": "lakecharles", 
+            "loc_3": "lufkin",
+            "loc_4": "jasper"
+        }
+        city_name = location_cities.get(location_id, "lufkin")
+        
         orders.append({
-            "id": f"{location_name.lower()}_order_{i+1}",
+            "id": f"{city_name}_order_{i+1}",
             "customer_name": row['Name'],
             "date": row['Date'].isoformat(),
             "invoice_number": str(row['Num']) if pd.notna(row['Num']) else f"INV-{i+1}",

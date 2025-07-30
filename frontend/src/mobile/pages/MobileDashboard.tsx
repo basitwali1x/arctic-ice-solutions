@@ -35,24 +35,36 @@ export function MobileDashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      const [fleetResponse, workOrdersResponse] = await Promise.all([
+      const [fleetResponse, workOrdersResponse] = await Promise.allSettled([
         fetch(`${API_BASE_URL}/api/dashboard/fleet`),
         fetch(`${API_BASE_URL}/api/maintenance/work-orders`)
       ]);
 
-      const fleetData = await fleetResponse.json();
-      const workOrders = await workOrdersResponse.json();
+      let fleetData = null;
+      let workOrders = [];
+
+      if (fleetResponse.status === 'fulfilled' && fleetResponse.value.ok) {
+        fleetData = await fleetResponse.value.json();
+      }
+
+      if (workOrdersResponse.status === 'fulfilled' && workOrdersResponse.value.ok) {
+        workOrders = await workOrdersResponse.value.json();
+      }
 
       setFleetData(fleetData);
       
-      const summary = workOrders.reduce((acc: WorkOrderSummary, order: any) => {
-        acc[order.status as keyof WorkOrderSummary]++;
-        return acc;
-      }, { pending: 0, approved: 0, in_progress: 0, completed: 0 });
+      const summary = Array.isArray(workOrders) 
+        ? workOrders.reduce((acc: WorkOrderSummary, order: any) => {
+            acc[order.status as keyof WorkOrderSummary]++;
+            return acc;
+          }, { pending: 0, approved: 0, in_progress: 0, completed: 0 })
+        : { pending: 0, approved: 0, in_progress: 0, completed: 0 };
       
       setWorkOrderSummary(summary);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
+      setFleetData(null);
+      setWorkOrderSummary({ pending: 0, approved: 0, in_progress: 0, completed: 0 });
     } finally {
       setLoading(false);
     }

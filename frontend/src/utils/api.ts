@@ -1,4 +1,4 @@
-import { API_BASE_URL, TUNNEL_AUTH } from '../lib/constants';
+import { API_BASE_URL } from '../lib/constants';
 
 export interface ApiError {
   status: number;
@@ -18,7 +18,6 @@ export const apiRequest = async (endpoint: string, options: RequestInit = {}) =>
   
   const defaultHeaders: HeadersInit = {
     'Content-Type': 'application/json',
-    'Authorization': TUNNEL_AUTH,
   };
   
   if (token) {

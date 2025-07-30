@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, status
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
@@ -1834,12 +1834,29 @@ async def get_financial_data(current_user: UserInDB = Depends(get_current_user))
     }
 
 @app.post("/api/import/excel")
-async def import_excel_data(files: List[UploadFile] = File(...), current_user: UserInDB = Depends(get_current_user)):
-    """Import historical sales data from Excel files"""
+async def import_excel_data(
+    files: List[UploadFile] = File(...), 
+    location_id: str = Form("loc_3"),
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """Import historical sales data from Excel files with location mapping"""
     global imported_customers, imported_orders, imported_financial_data
     
     if not files:
         raise HTTPException(status_code=400, detail="No files provided")
+    
+    # Validate location_id
+    valid_locations = ["loc_1", "loc_2", "loc_3", "loc_4"]
+    if location_id not in valid_locations:
+        raise HTTPException(status_code=400, detail=f"Invalid location_id. Must be one of: {valid_locations}")
+    
+    location_names = {
+        "loc_1": "Leesville",
+        "loc_2": "Lake Charles", 
+        "loc_3": "Lufkin",
+        "loc_4": "Jasper"
+    }
+    location_name = location_names[location_id]
     
     temp_files = []
     try:
@@ -1854,7 +1871,7 @@ async def import_excel_data(files: List[UploadFile] = File(...), current_user: U
             temp_file.close()
             temp_files.append(temp_file.name)
         
-        processed_data = process_excel_files(temp_files)
+        processed_data = process_excel_files(temp_files, location_id, location_name)
         
         imported_customers = processed_data["customers"]
         imported_orders = processed_data["orders"] 
@@ -1864,13 +1881,15 @@ async def import_excel_data(files: List[UploadFile] = File(...), current_user: U
         
         return {
             "success": True,
-            "message": "Excel data imported successfully",
+            "message": f"Excel data imported successfully for {location_name}",
             "summary": {
                 "customers_imported": len(imported_customers),
                 "orders_imported": len(imported_orders),
                 "total_records": processed_data["total_records"],
                 "date_range": processed_data["date_range"],
-                "total_revenue": imported_financial_data.get("total_revenue", 0)
+                "total_revenue": imported_financial_data.get("total_revenue", 0),
+                "location_id": location_id,
+                "location_name": location_name
             }
         }
         

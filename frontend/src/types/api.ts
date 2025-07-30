@@ -372,3 +372,19 @@ export interface UpdateUserRequest {
   password?: string;
   is_active?: boolean;
 }
+
+export interface CustomerPricing {
+  id: string;
+  customer_id: string;
+  product_id: string;
+  custom_price: number;
+  created_at: string;
+  updated_by: string;
+}
+
+export interface CustomerPricingDisplay {
+  product_id: string;
+  product_name: string;
+  default_price: number;
+  custom_price: number | null;
+}

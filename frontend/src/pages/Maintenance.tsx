@@ -32,7 +32,7 @@ export function Maintenance() {
       setLoading(true);
       setError(null);
       
-      const workOrdersRes = await apiRequest('/api/work-orders');
+      const workOrdersRes = await apiRequest('/api/maintenance/work-orders');
       const workOrdersData = await workOrdersRes?.json();
       setWorkOrders(Array.isArray(workOrdersData) ? workOrdersData : []);
     } catch (error) {
@@ -76,7 +76,7 @@ export function Maintenance() {
 
   const handleApprove = async (workOrderId: string) => {
     try {
-      await apiRequest(`/api/work-orders/${workOrderId}/approve`, {
+      await apiRequest(`/api/maintenance/work-orders/${workOrderId}/approve`, {
         method: 'POST',
       });
       fetchData();
@@ -88,7 +88,7 @@ export function Maintenance() {
 
   const handleReject = async (workOrderId: string) => {
     try {
-      await apiRequest(`/api/work-orders/${workOrderId}/reject`, {
+      await apiRequest(`/api/maintenance/work-orders/${workOrderId}/reject`, {
         method: 'POST',
       });
       fetchData();

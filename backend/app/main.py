@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, status
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
@@ -157,6 +157,14 @@ class Product(BaseModel):
 
 class Vehicle(BaseModel):
     id: str
+    license_plate: str
+    vehicle_type: VehicleType
+    capacity_pallets: int
+    location_id: str
+    is_active: bool = True
+    last_maintenance: Optional[date] = None
+
+class VehicleCreate(BaseModel):
     license_plate: str
     vehicle_type: VehicleType
     capacity_pallets: int
@@ -1407,18 +1415,54 @@ async def get_vehicle(vehicle_id: str, current_user: UserInDB = Depends(get_curr
         raise HTTPException(status_code=403, detail="Access denied to this vehicle")
     return vehicle
 
+@app.post("/api/vehicles", response_model=Vehicle)
+async def create_vehicle(vehicle_data: VehicleCreate, current_user: UserInDB = Depends(get_current_user)):
+    if current_user.role != UserRole.MANAGER and vehicle_data.location_id != current_user.location_id:
+        raise HTTPException(status_code=403, detail="Cannot create vehicle for different location")
+    
+    vehicle_id = str(uuid.uuid4())
+    vehicle = Vehicle(
+        id=vehicle_id,
+        **vehicle_data.dict()
+    )
+    vehicles_db[vehicle_id] = vehicle.dict()
+    save_data_to_disk()
+    return vehicle
+
 @app.get("/api/customers")
 async def get_customers(location_id: Optional[str] = None, current_user: UserInDB = Depends(get_current_user)):
-    if imported_customers is not None and len(imported_customers) > 0:
+    if imported_customers and len(imported_customers) > 0:
         customers = imported_customers
-        if location_id:
-            customers = [c for c in customers if c.get("location_id") == location_id]
-        return filter_by_location(customers, current_user)
     else:
         customers = list(customers_db.values())
-        if location_id:
-            customers = [c for c in customers if c["location_id"] == location_id]
-        return filter_by_location(customers, current_user)
+    
+    if location_id:
+        customers = [c for c in customers if c.get("location_id") == location_id]
+    
+    return filter_by_location(customers, current_user)
+
+@app.get("/api/customers/by-location")
+async def get_customers_by_location(current_user: UserInDB = Depends(get_current_user)):
+    """Get customer counts by location for the location distribution chart"""
+    if imported_customers and len(imported_customers) > 0:
+        customers = imported_customers
+    else:
+        customers = list(customers_db.values())
+    
+    all_locations = list(locations_db.values())
+    filtered_locations = filter_by_location(all_locations, current_user, location_key="id")
+    
+    location_counts = []
+    for location in filtered_locations:
+        location_customers = [c for c in customers if c.get("location_id") == location["id"]]
+        
+        location_counts.append({
+            "location_id": location["id"],
+            "location_name": location["name"],
+            "customer_count": len(location_customers)
+        })
+    
+    return location_counts
 
 @app.post("/api/customers", response_model=Customer)
 async def create_customer(customer: Customer, current_user: UserInDB = Depends(get_current_user)):
@@ -1812,12 +1856,29 @@ async def get_financial_data(current_user: UserInDB = Depends(get_current_user))
     }
 
 @app.post("/api/import/excel")
-async def import_excel_data(files: List[UploadFile] = File(...), current_user: UserInDB = Depends(get_current_user)):
-    """Import historical sales data from Excel files"""
+async def import_excel_data(
+    files: List[UploadFile] = File(...), 
+    location_id: str = Form("loc_3"),
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """Import historical sales data from Excel files with location mapping"""
     global imported_customers, imported_orders, imported_financial_data
     
     if not files:
         raise HTTPException(status_code=400, detail="No files provided")
+    
+    # Validate location_id
+    valid_locations = ["loc_1", "loc_2", "loc_3", "loc_4"]
+    if location_id not in valid_locations:
+        raise HTTPException(status_code=400, detail=f"Invalid location_id. Must be one of: {valid_locations}")
+    
+    location_names = {
+        "loc_1": "Leesville",
+        "loc_2": "Lake Charles", 
+        "loc_3": "Lufkin",
+        "loc_4": "Jasper"
+    }
+    location_name = location_names[location_id]
     
     temp_files = []
     try:
@@ -1832,7 +1893,7 @@ async def import_excel_data(files: List[UploadFile] = File(...), current_user: U
             temp_file.close()
             temp_files.append(temp_file.name)
         
-        processed_data = process_excel_files(temp_files)
+        processed_data = process_excel_files(temp_files, location_id, location_name)
         
         imported_customers = processed_data["customers"]
         imported_orders = processed_data["orders"] 
@@ -1842,13 +1903,15 @@ async def import_excel_data(files: List[UploadFile] = File(...), current_user: U
         
         return {
             "success": True,
-            "message": "Excel data imported successfully",
+            "message": f"Excel data imported successfully for {location_name}",
             "summary": {
                 "customers_imported": len(imported_customers),
                 "orders_imported": len(imported_orders),
                 "total_records": processed_data["total_records"],
                 "date_range": processed_data["date_range"],
-                "total_revenue": imported_financial_data.get("total_revenue", 0)
+                "total_revenue": imported_financial_data.get("total_revenue", 0),
+                "location_id": location_id,
+                "location_name": location_name
             }
         }
         

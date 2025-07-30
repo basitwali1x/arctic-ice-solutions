@@ -21,6 +21,8 @@ export function Financial() {
   const [profitData, setProfitData] = useState<Record<string, unknown> | null>(null);
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState('loc_3');
+  const [locations, setLocations] = useState<any[]>([]);
 
   const [newExpense, setNewExpense] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -36,23 +38,26 @@ export function Financial() {
     try {
       setLoading(true);
       setError(null);
-      
-      const [financialResponse, statusResponse, expensesResponse, profitResponse] = await Promise.all([
+
+      const [financialResponse, statusResponse, expensesResponse, profitResponse, locationsResponse] = await Promise.all([
         apiRequest('/api/dashboard/financial'),
         apiRequest('/api/import/status'),
         apiRequest('/api/expenses'),
-        apiRequest('/api/financial/profit-analysis')
+        apiRequest('/api/financial/profit-analysis'),
+        apiRequest('/api/locations')
       ]);
-      
+
       const financialData = await financialResponse?.json();
       const statusData = await statusResponse?.json();
       const expensesData = await expensesResponse?.json();
       const profitAnalysis = await profitResponse?.json();
-      
+      const locationsData = await locationsResponse?.json();
+
       setFinancialData(financialData || null);
       setImportStatus(statusData || null);
       setExpenses(Array.isArray(expensesData) ? expensesData : []);
       setProfitData(profitAnalysis || null);
+      setLocations(Array.isArray(locationsData) ? locationsData : []);
     } catch (error) {
       console.error('Failed to fetch financial data:', error);
       setError('Failed to load financial data');
@@ -82,28 +87,28 @@ export function Financial() {
       Array.from(files).forEach(file => {
         formData.append('files', file);
       });
+      formData.append('location_id', selectedLocation);
 
       const response = await apiRequest('/api/import/excel', {
         method: 'POST',
-        body: formData,
-        headers: {}
+        body: formData
       });
 
       if (response?.ok) {
         console.log('File upload successful');
-        
+
         const [financialResponse, statusResponse, expensesResponse, profitResponse] = await Promise.all([
           apiRequest('/api/dashboard/financial'),
           apiRequest('/api/import/status'),
           apiRequest('/api/expenses'),
           apiRequest('/api/financial/profit-analysis')
         ]);
-        
+
         const financialData = await financialResponse?.json();
         const statusData = await statusResponse?.json();
         const expensesData = await expensesResponse?.json();
         const profitAnalysis = await profitResponse?.json();
-        
+
         setFinancialData(financialData);
         setImportStatus(statusData);
         setExpenses(expensesData);
@@ -128,7 +133,7 @@ export function Financial() {
 
   const handleExpenseSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
       const response = await apiRequest('/api/expenses', {
         method: 'POST',
@@ -144,11 +149,11 @@ export function Financial() {
           apiRequest('/api/financial/profit-analysis'),
           apiRequest('/api/dashboard/financial')
         ]);
-        
+
         const expensesData = await expensesResponse?.json();
         const profitAnalysis = await profitResponse?.json();
         const financialData = await financialResponse?.json();
-        
+
         setExpenses(expensesData);
         setProfitData(profitAnalysis);
         setFinancialData(financialData);
@@ -207,38 +212,33 @@ export function Financial() {
     );
   }
 
-  if (error) {
-    return (
-      <Card className="border-red-200 bg-red-50">
-        <CardHeader>
-          <CardTitle className="flex items-center text-red-800">
-            <AlertCircle className="h-5 w-5 mr-2" />
-            Financial Data Unavailable
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-red-700 mb-4">{error}</p>
-          <Button onClick={fetchData} variant="outline">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Try Again
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900">Financial Management</h1>
-        <div className="flex space-x-2">
+        <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2">
+            <Label htmlFor="location-select" className="text-sm font-medium">Location:</Label>
+            <Select value={selectedLocation} onValueChange={setSelectedLocation}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Select location" />
+              </SelectTrigger>
+              <SelectContent>
+                {locations.map((location) => (
+                  <SelectItem key={location.id} value={location.id}>
+                    {location.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <Button variant="outline" size="sm" onClick={fetchData}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             onClick={triggerFileUpload}
             disabled={uploading}
           >
@@ -270,7 +270,7 @@ export function Financial() {
                 <span className="text-blue-700 font-medium">Real Data Loaded</span>
               </div>
               <div className="text-sm text-blue-600">
-                {(importStatus as any).customers_count} customers • {(importStatus as any).orders_count} orders • 
+                {(importStatus as any).customers_count} customers • {(importStatus as any).orders_count} orders •
                 ${(importStatus as any).total_revenue?.toLocaleString()} total revenue
               </div>
             </div>
@@ -460,7 +460,7 @@ export function Financial() {
                 </div>
               </form>
             )}
-            
+
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="font-medium">Today's Expenses</span>
@@ -582,8 +582,8 @@ export function Financial() {
                   {(importStatus as any)?.has_data ? 'Just now' : 'Never'}
                 </span>
               </div>
-              <Button 
-                className="w-full" 
+              <Button
+                className="w-full"
                 variant="outline"
                 onClick={triggerFileUpload}
                 disabled={uploading}

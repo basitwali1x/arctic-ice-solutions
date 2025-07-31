@@ -13,8 +13,9 @@ export function MobileNavigation() {
     { path: '/mobile/work-orders', icon: Wrench, label: 'Work Orders', roles: ['manager', 'technician'] },
     { path: '/mobile/routes', icon: Route, label: 'Routes', roles: ['manager', 'dispatcher', 'driver'] },
     { path: '/mobile/driver', icon: Truck, label: 'Driver', roles: ['manager', 'driver'] },
+    { path: '/mobile/customer', icon: User, label: 'Customer Portal', roles: ['customer'] },
     { path: '/mobile/inspection', icon: ClipboardCheck, label: 'Inspection', roles: ['manager', 'driver', 'technician'] },
-    { path: '/mobile/profile', icon: User, label: 'Profile', roles: ['manager', 'dispatcher', 'driver', 'technician'] },
+    { path: '/mobile/profile', icon: User, label: 'Profile', roles: ['manager', 'dispatcher', 'driver', 'technician', 'customer'] },
   ];
 
   const getVisibleNavItems = () => {

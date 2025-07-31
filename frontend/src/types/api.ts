@@ -348,7 +348,7 @@ export interface User {
   username: string;
   email: string;
   full_name: string;
-  role: 'manager' | 'dispatcher' | 'accountant' | 'driver';
+  role: 'manager' | 'dispatcher' | 'accountant' | 'driver' | 'customer';
   location_id: string;
   is_active: boolean;
 }
@@ -357,7 +357,7 @@ export interface CreateUserRequest {
   username: string;
   email: string;
   full_name: string;
-  role: 'manager' | 'dispatcher' | 'accountant' | 'driver';
+  role: 'manager' | 'dispatcher' | 'accountant' | 'driver' | 'customer';
   location_id: string;
   password: string;
   is_active?: boolean;
@@ -367,7 +367,7 @@ export interface UpdateUserRequest {
   username?: string;
   email?: string;
   full_name?: string;
-  role?: 'manager' | 'dispatcher' | 'accountant' | 'driver';
+  role?: 'manager' | 'dispatcher' | 'accountant' | 'driver' | 'customer';
   location_id?: string;
   password?: string;
   is_active?: boolean;

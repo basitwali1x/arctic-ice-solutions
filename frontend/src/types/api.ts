@@ -388,3 +388,23 @@ export interface CustomerPricingDisplay {
   default_price: number;
   custom_price: number | null;
 }
+
+export interface QuickBooksStatus {
+  is_connected: boolean;
+  last_sync: string | null;
+  company_name?: string;
+  realm_id?: string;
+}
+
+export interface QuickBooksSyncRequest {
+  sync_customers: boolean;
+  sync_invoices: boolean;
+  sync_payments: boolean;
+}
+
+export interface QuickBooksSyncResult {
+  customers_synced: number;
+  invoices_synced: number;
+  payments_synced: number;
+  errors: string[];
+}

@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { DollarSign, TrendingUp, FileText, RefreshCw, Download, Upload, CheckCircle, AlertCircle, Plus } from 'lucide-react';
-import { FinancialDashboard, Expense } from '../types/api';
+import { FinancialDashboard, Expense, QuickBooksStatus, QuickBooksSyncResult } from '../types/api';
 import { apiRequest } from '../utils/api';
 import { useErrorToast } from '../hooks/useErrorToast';
 import { API_BASE_URL } from '../lib/constants';
@@ -27,6 +27,12 @@ export function Financial() {
   const [googleSheetsUrl, setGoogleSheetsUrl] = useState('');
   const [googleSheetsConnecting, setGoogleSheetsConnecting] = useState(false);
   const [googleSheetsStatus, setGoogleSheetsStatus] = useState('Setup Required');
+  const [quickbooksStatus, setQuickbooksStatus] = useState<QuickBooksStatus>({
+    is_connected: false,
+    last_sync: null
+  });
+  const [quickbooksConnecting, setQuickbooksConnecting] = useState(false);
+  const [quickbooksSyncing, setQuickbooksSyncing] = useState(false);
 
   const [newExpense, setNewExpense] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -43,12 +49,13 @@ export function Financial() {
       setLoading(true);
       setError(null);
 
-      const [financialResponse, statusResponse, expensesResponse, profitResponse, locationsResponse] = await Promise.all([
+      const [financialResponse, statusResponse, expensesResponse, profitResponse, locationsResponse, quickbooksResponse] = await Promise.all([
         apiRequest('/api/dashboard/financial'),
         apiRequest('/api/import/status'),
         apiRequest('/api/expenses'),
         apiRequest('/api/financial/profit-analysis'),
-        apiRequest('/api/locations')
+        apiRequest('/api/locations'),
+        apiRequest('/api/quickbooks/status')
       ]);
 
       const financialData = await financialResponse?.json();
@@ -56,12 +63,14 @@ export function Financial() {
       const expensesData = await expensesResponse?.json();
       const profitAnalysis = await profitResponse?.json();
       const locationsData = await locationsResponse?.json();
+      const quickbooksData = await quickbooksResponse?.json();
 
       setFinancialData(financialData || null);
       setImportStatus(statusData || null);
       setExpenses(Array.isArray(expensesData) ? expensesData : []);
       setProfitData(profitAnalysis || null);
       setLocations(Array.isArray(locationsData) ? locationsData : []);
+      setQuickbooksStatus(quickbooksData || { is_connected: false, last_sync: null });
     } catch (error) {
       console.error('Failed to fetch financial data:', error);
       setError('Failed to load financial data');
@@ -128,6 +137,112 @@ export function Financial() {
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+    }
+  };
+
+  const handleQuickBooksConnect = async () => {
+    setQuickbooksConnecting(true);
+    
+    try {
+      const response = await apiRequest('/api/quickbooks/auth', {
+        method: 'POST',
+        body: JSON.stringify({ state: 'arctic-ice-solutions' })
+      });
+
+      if (response?.ok) {
+        const authData = await response.json();
+        window.open(authData.authorization_url, '_blank', 'width=600,height=700');
+        
+        const checkConnection = setInterval(async () => {
+          try {
+            const statusResponse = await apiRequest('/api/quickbooks/status');
+            if (statusResponse?.ok) {
+              const status = await statusResponse.json();
+              if (status.is_connected) {
+                setQuickbooksStatus(status);
+                clearInterval(checkConnection);
+                setQuickbooksConnecting(false);
+                alert(`QuickBooks connected successfully to ${status.company_name}!`);
+              }
+            }
+          } catch (error) {
+            console.error('Error checking QuickBooks status:', error);
+          }
+        }, 2000);
+
+        setTimeout(() => {
+          clearInterval(checkConnection);
+          setQuickbooksConnecting(false);
+        }, 60000);
+      } else {
+        alert('Failed to initiate QuickBooks connection');
+        setQuickbooksConnecting(false);
+      }
+    } catch (error) {
+      console.error('Error connecting to QuickBooks:', error);
+      showError(error, 'Failed to connect to QuickBooks');
+      setQuickbooksConnecting(false);
+    }
+  };
+
+  const handleQuickBooksSync = async () => {
+    setQuickbooksSyncing(true);
+    
+    try {
+      const response = await apiRequest('/api/quickbooks/sync', {
+        method: 'POST',
+        body: JSON.stringify({
+          sync_customers: true,
+          sync_invoices: true,
+          sync_payments: true
+        })
+      });
+
+      if (response?.ok) {
+        const syncResult: QuickBooksSyncResult = await response.json();
+        
+        const statusResponse = await apiRequest('/api/quickbooks/status');
+        if (statusResponse?.ok) {
+          const status = await statusResponse.json();
+          setQuickbooksStatus(status);
+        }
+
+        const message = `Sync completed!\nCustomers: ${syncResult.customers_synced}\nInvoices: ${syncResult.invoices_synced}\nPayments: ${syncResult.payments_synced}`;
+        if (syncResult.errors.length > 0) {
+          alert(`${message}\n\nErrors:\n${syncResult.errors.join('\n')}`);
+        } else {
+          alert(message);
+        }
+      } else {
+        alert('Failed to sync with QuickBooks');
+      }
+    } catch (error) {
+      console.error('Error syncing with QuickBooks:', error);
+      showError(error, 'Failed to sync with QuickBooks');
+    } finally {
+      setQuickbooksSyncing(false);
+    }
+  };
+
+  const handleQuickBooksDisconnect = async () => {
+    if (!confirm('Are you sure you want to disconnect QuickBooks?')) {
+      return;
+    }
+
+    try {
+      const response = await apiRequest('/api/quickbooks/disconnect', {
+        method: 'DELETE'
+      });
+
+      if (response?.ok) {
+        setQuickbooksStatus({ is_connected: false, last_sync: null });
+        alert('QuickBooks disconnected successfully');
+      } else {
+        alert('Failed to disconnect QuickBooks');
+      }
+    } catch (error) {
+      console.error('Error disconnecting QuickBooks:', error);
+      showError(error, 'Failed to disconnect QuickBooks');
     }
   };
 
@@ -617,15 +732,60 @@ export function Financial() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm">Connection Status</span>
-                <Badge className="bg-yellow-100 text-yellow-800">Setup Required</Badge>
+                <Badge className={
+                  quickbooksStatus.is_connected 
+                    ? 'bg-green-100 text-green-800' 
+                    : 'bg-yellow-100 text-yellow-800'
+                }>
+                  {quickbooksStatus.is_connected ? 'Connected' : 'Setup Required'}
+                </Badge>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm">Last Sync</span>
-                <span className="text-sm text-gray-500">Never</span>
+                <span className="text-sm text-gray-500">
+                  {quickbooksStatus.last_sync 
+                    ? new Date(quickbooksStatus.last_sync).toLocaleDateString()
+                    : 'Never'
+                  }
+                </span>
               </div>
-              <Button className="w-full" variant="outline">
-                Configure QuickBooks
-              </Button>
+              {quickbooksStatus.company_name && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Company</span>
+                  <span className="text-sm text-gray-700">{quickbooksStatus.company_name}</span>
+                </div>
+              )}
+              <div className="space-y-2">
+                {!quickbooksStatus.is_connected ? (
+                  <Button 
+                    className="w-full" 
+                    variant="outline"
+                    onClick={handleQuickBooksConnect}
+                    disabled={quickbooksConnecting}
+                  >
+                    {quickbooksConnecting ? 'Connecting...' : 'Connect to QuickBooks'}
+                  </Button>
+                ) : (
+                  <>
+                    <Button 
+                      className="w-full" 
+                      variant="outline"
+                      onClick={handleQuickBooksSync}
+                      disabled={quickbooksSyncing}
+                    >
+                      {quickbooksSyncing ? 'Syncing...' : 'Sync Now'}
+                    </Button>
+                    <Button 
+                      className="w-full" 
+                      variant="outline"
+                      size="sm"
+                      onClick={handleQuickBooksDisconnect}
+                    >
+                      Disconnect
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>

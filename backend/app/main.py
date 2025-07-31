@@ -1458,6 +1458,24 @@ async def get_location(location_id: str, current_user: UserInDB = Depends(get_cu
         raise HTTPException(status_code=403, detail="Access denied to this location")
     return locations_db[location_id]
 
+@app.put("/api/locations/{location_id}", response_model=Location)
+async def update_location(location_id: str, location_data: dict, current_user: UserInDB = Depends(get_current_user)):
+    if current_user.role != UserRole.MANAGER:
+        raise HTTPException(status_code=403, detail="Only managers can update locations")
+    
+    if location_id not in locations_db:
+        raise HTTPException(status_code=404, detail="Location not found")
+    
+    location = locations_db[location_id]
+    
+    for key, value in location_data.items():
+        if key != "id":
+            location[key] = value
+    
+    locations_db[location_id] = location
+    save_data_to_disk()
+    return Location(**location)
+
 @app.get("/api/products", response_model=List[Product])
 async def get_products(current_user: UserInDB = Depends(get_current_user)):
     return list(products_db.values())

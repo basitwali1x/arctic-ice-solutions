@@ -9,15 +9,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Users, MapPin, Truck, Package, Save, LogOut, Plus, Edit, Trash2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiRequest } from '../utils/api';
-import { User, CreateUserRequest, UpdateUserRequest, Location } from '../types/api';
+import { User, CreateUserRequest, UpdateUserRequest, Location, LocationType } from '../types/api';
 
 export function Settings() {
   const { logout } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [showUserModal, setShowUserModal] = useState(false);
+  const [showLocationModal, setShowLocationModal] = useState(false);
   const [selectedRole, setSelectedRole] = useState<string>('');
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editingLocation, setEditingLocation] = useState<Location | null>(null);
   const [formData, setFormData] = useState<CreateUserRequest>({
     username: '',
     email: '',
@@ -25,6 +27,15 @@ export function Settings() {
     role: 'manager',
     location_id: '',
     password: '',
+    is_active: true
+  });
+  const [locationFormData, setLocationFormData] = useState({
+    name: '',
+    address: '',
+    city: '',
+    state: '',
+    zip_code: '',
+    location_type: 'distribution' as LocationType,
     is_active: true
   });
   const [loading, setLoading] = useState(false);
@@ -154,6 +165,53 @@ export function Settings() {
     setError('');
   };
 
+  const handleEditLocation = (location: Location) => {
+    setEditingLocation(location);
+    setLocationFormData({
+      name: location.name,
+      address: location.address,
+      city: location.city,
+      state: location.state,
+      zip_code: location.zip_code,
+      location_type: location.location_type,
+      is_active: location.is_active
+    });
+    setShowLocationModal(true);
+  };
+
+  const handleUpdateLocation = async () => {
+    if (!editingLocation) return;
+    setLoading(true);
+    setError('');
+    try {
+      await apiRequest(`/api/locations/${editingLocation.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(locationFormData)
+      });
+      await fetchLocations();
+      setShowLocationModal(false);
+      resetLocationForm();
+    } catch (error: any) {
+      setError(error.apiError?.message || 'Failed to update location');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetLocationForm = () => {
+    setLocationFormData({
+      name: '',
+      address: '',
+      city: '',
+      state: '',
+      zip_code: '',
+      location_type: 'distribution',
+      is_active: true
+    });
+    setEditingLocation(null);
+    setError('');
+  };
+
   const filteredUsers = users.filter(user => user.role === selectedRole);
   const getUserCountByRole = (role: string) => users.filter(user => user.role === role).length;
 
@@ -213,61 +271,30 @@ export function Settings() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-              <div className="flex items-center space-x-3">
-                <MapPin className="h-5 w-5 text-blue-600" />
-                <div>
-                  <p className="font-medium">Leesville HQ & Production</p>
-                  <p className="text-sm text-gray-600">123 Ice Plant Rd, Leesville, LA 71446</p>
+            {locations.map((location) => (
+              <div key={location.id} className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="flex items-center space-x-3">
+                  <MapPin className={`h-5 w-5 ${
+                    location.location_type === 'headquarters' ? 'text-blue-600' :
+                    location.location_type === 'distribution' ? 'text-green-600' :
+                    location.location_type === 'warehouse' ? 'text-gray-600' : 'text-yellow-600'
+                  }`} />
+                  <div>
+                    <p className="font-medium">{location.name}</p>
+                    <p className="text-sm text-gray-600">{location.address}, {location.city}, {location.state} {location.zip_code}</p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Badge variant={
+                    location.location_type === 'headquarters' ? 'default' :
+                    location.location_type === 'distribution' ? 'secondary' : 'outline'
+                  }>
+                    {location.location_type.charAt(0).toUpperCase() + location.location_type.slice(1)}
+                  </Badge>
+                  <Button variant="outline" size="sm" onClick={() => handleEditLocation(location)}>Edit</Button>
                 </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <Badge>Headquarters</Badge>
-                <Button variant="outline" size="sm">Edit</Button>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-              <div className="flex items-center space-x-3">
-                <MapPin className="h-5 w-5 text-green-600" />
-                <div>
-                  <p className="font-medium">Lake Charles Distribution</p>
-                  <p className="text-sm text-gray-600">456 Distribution Ave, Lake Charles, LA 70601</p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Badge variant="secondary">Distribution</Badge>
-                <Button variant="outline" size="sm">Edit</Button>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-              <div className="flex items-center space-x-3">
-                <MapPin className="h-5 w-5 text-yellow-600" />
-                <div>
-                  <p className="font-medium">Lufkin Distribution</p>
-                  <p className="text-sm text-gray-600">789 Delivery St, Lufkin, TX 75901</p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Badge variant="secondary">Distribution</Badge>
-                <Button variant="outline" size="sm">Edit</Button>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-              <div className="flex items-center space-x-3">
-                <MapPin className="h-5 w-5 text-gray-600" />
-                <div>
-                  <p className="font-medium">Jasper Warehouse</p>
-                  <p className="text-sm text-gray-600">321 Storage Blvd, Jasper, TX 75951</p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Badge variant="outline">Warehouse</Badge>
-                <Button variant="outline" size="sm">Edit</Button>
-              </div>
-            </div>
+            ))}
           </div>
         </CardContent>
       </Card>
@@ -538,6 +565,99 @@ export function Settings() {
                 {loading ? 'Saving...' : (editingUser ? 'Update User' : 'Create User')}
               </Button>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Location Management Modal */}
+      <Dialog open={showLocationModal} onOpenChange={setShowLocationModal}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Location</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+                {error}
+              </div>
+            )}
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="location-name">Location Name</Label>
+                <Input
+                  id="location-name"
+                  value={locationFormData.name}
+                  onChange={(e) => setLocationFormData(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="Enter location name"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="location-type">Location Type</Label>
+                <Select value={locationFormData.location_type} onValueChange={(value) => setLocationFormData(prev => ({ ...prev, location_type: value as LocationType }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select location type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="headquarters">Headquarters</SelectItem>
+                    <SelectItem value="production">Production</SelectItem>
+                    <SelectItem value="distribution">Distribution</SelectItem>
+                    <SelectItem value="warehouse">Warehouse</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="col-span-2">
+                <Label htmlFor="location-address">Address</Label>
+                <Input
+                  id="location-address"
+                  value={locationFormData.address}
+                  onChange={(e) => setLocationFormData(prev => ({ ...prev, address: e.target.value }))}
+                  placeholder="Enter street address"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="location-city">City</Label>
+                <Input
+                  id="location-city"
+                  value={locationFormData.city}
+                  onChange={(e) => setLocationFormData(prev => ({ ...prev, city: e.target.value }))}
+                  placeholder="Enter city"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="location-state">State</Label>
+                <Input
+                  id="location-state"
+                  value={locationFormData.state}
+                  onChange={(e) => setLocationFormData(prev => ({ ...prev, state: e.target.value }))}
+                  placeholder="Enter state"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="location-zip">ZIP Code</Label>
+                <Input
+                  id="location-zip"
+                  value={locationFormData.zip_code}
+                  onChange={(e) => setLocationFormData(prev => ({ ...prev, zip_code: e.target.value }))}
+                  placeholder="Enter ZIP code"
+                />
+              </div>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowLocationModal(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateLocation} disabled={loading}>
+              {loading ? 'Updating...' : 'Update Location'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

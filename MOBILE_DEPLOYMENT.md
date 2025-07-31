@@ -129,18 +129,26 @@ pnpm cap:build:ios
 2. Open Android Studio and install SDK Platform 34
 3. Install Android SDK Build Tools 34.0.0+
 
-#### Option B: Command Line Tools
+#### Option B: Command Line Tools (Alternative)
 ```bash
-# Download Android SDK command line tools
-wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+# Download and extract Android Studio (recommended for better compatibility)
+cd /tmp
+wget https://redirector.gvt1.com/edgedl/android/studio/ide-zips/2023.3.1.18/android-studio-2023.3.1.18-linux.tar.gz
+sudo tar -xzf android-studio-2023.3.1.18-linux.tar.gz -C /opt/
+sudo chown -R $USER:$USER /opt/android-studio
 
-# Extract and setup
+# Setup Android Studio SDK
+export ANDROID_HOME=/opt/android-studio/sdk
+mkdir -p $ANDROID_HOME/cmdline-tools/latest
+cd $ANDROID_HOME
+wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
 unzip commandlinetools-linux-9477386_latest.zip
-mkdir -p /opt/android-sdk/cmdline-tools
-mv cmdline-tools /opt/android-sdk/cmdline-tools/latest
+cd cmdline-tools/latest
+unzip ../../commandlinetools-linux-9477386_latest.zip
+mv cmdline-tools/* .
+rmdir cmdline-tools
 
 # Set environment variables
-export ANDROID_HOME=/opt/android-sdk
 export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
 
 # Install required packages
@@ -227,9 +235,15 @@ npx cap open ios
 Set these environment variables for Android development:
 
 ```bash
-export ANDROID_HOME=/path/to/android-sdk
+# For Android Studio installation (recommended)
+export ANDROID_HOME=/opt/android-studio/sdk
 export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
-export JAVA_HOME=/path/to/java-17
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+
+# For standalone SDK installation (alternative)
+export ANDROID_HOME=/opt/android-sdk
+export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 ```
 
 ## Troubleshooting
@@ -237,16 +251,22 @@ export JAVA_HOME=/path/to/java-17
 ### Common Android Issues
 
 1. **AAPT2 Daemon Startup Failed**:
+   - Use Android Studio installation instead of standalone SDK tools
    - Install 32-bit libraries: `sudo apt install lib32stdc++6 lib32z1`
    - Clean Gradle cache: `cd android && ./gradlew clean`
-   - Restart Android Studio
 
 2. **SDK Not Found**:
-   - Verify ANDROID_HOME environment variable
-   - Check SDK installation in Android Studio
+   - Verify ANDROID_HOME environment variable points to correct SDK location
+   - For Android Studio: `/opt/android-studio/sdk`
+   - For standalone SDK: `/opt/android-sdk`
 
 3. **Build Tools Version**:
    - Update build tools: `sdkmanager "build-tools;34.0.0"`
+
+4. **Signing Errors (Development)**:
+   - Signing errors are expected for development builds without keystore
+   - Use `npx cap run android` for development testing
+   - Configure keystore only for production releases
 
 ### Common iOS Issues
 

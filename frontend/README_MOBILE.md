@@ -108,7 +108,8 @@ await initializePushNotifications();
 ### Prerequisites
 - Node.js 18+
 - pnpm package manager
-- Android Studio (for Android development)
+- Java JDK 17 (OpenJDK recommended)
+- Android Studio (for Android development) - **Recommended approach**
 - Xcode (for iOS development, macOS only)
 
 ### Environment Setup

@@ -11,12 +11,16 @@ import os
 import uuid
 import tempfile
 import os
+import logging
 import json
 from pathlib import Path
 from .excel_import import process_excel_files
 from .google_sheets_import import process_google_sheets_data, test_google_sheets_connection
+from .quickbooks_integration import QuickBooksClient, map_arctic_customer_to_qb, map_arctic_order_to_qb_invoice, map_arctic_payment_to_qb
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Arctic Ice Solutions API", version="1.0.0")
 
@@ -251,6 +255,23 @@ class CustomerPricing(BaseModel):
     created_at: datetime
     updated_by: str
 
+class QuickBooksConnection(BaseModel):
+    access_token: str
+    refresh_token: str
+    realm_id: str
+    expires_at: datetime
+    is_active: bool
+    company_name: Optional[str] = None
+    last_sync: Optional[datetime] = None
+
+class QuickBooksAuthRequest(BaseModel):
+    state: Optional[str] = None
+
+class QuickBooksSyncRequest(BaseModel):
+    sync_customers: bool = True
+    sync_invoices: bool = True
+    sync_payments: bool = True
+
 def calculate_distance(addr1: str, addr2: str) -> float:
     hash1 = hash(addr1) % 1000
     hash2 = hash(addr2) % 1000
@@ -346,6 +367,8 @@ customer_pricing_db = {}
 imported_customers = []
 imported_orders = []
 imported_financial_data = {}
+quickbooks_connection = None
+quickbooks_client = QuickBooksClient()
 
 work_orders_db = {}
 production_entries_db = {}
@@ -365,6 +388,27 @@ EXPENSES_FILE = DATA_DIR / "expenses.json"
 def save_data_to_disk():
     """Save all data to disk for persistence"""
     try:
+        data_file = Path("data/arctic_ice_data.json")
+        data_file.parent.mkdir(exist_ok=True)
+        
+        with open(data_file, 'w') as f:
+            json.dump({
+                'users': users_db,
+                'customers': customers_db,
+                'products': products_db,
+                'vehicles': vehicles_db,
+                'orders': orders_db,
+                'routes': routes_db,
+                'work_orders': work_orders_db,
+                'production_entries': production_entries_db,
+                'expenses': expenses_db,
+                'customer_pricing': customer_pricing_db,
+                'imported_financial_data': imported_financial_data,
+                'imported_customers': imported_customers,
+                'imported_orders': imported_orders,
+                'quickbooks_connection': quickbooks_connection
+            }, f, indent=2, default=str)
+        
         DATA_DIR.mkdir(exist_ok=True)
         
         with open(CUSTOMERS_FILE, 'w') as f:
@@ -2275,6 +2319,148 @@ async def update_route_status(route_id: str, status: str, current_user: UserInDB
     routes_db[route_id]["status"] = status
     save_data_to_disk()
     return {"success": True, "message": f"Route status updated to {status}"}
+
+@app.post("/api/quickbooks/auth")
+async def quickbooks_auth(auth_request: QuickBooksAuthRequest, current_user: UserInDB = Depends(get_current_user)):
+    if current_user.role not in [UserRole.MANAGER, UserRole.ACCOUNTANT]:
+        raise HTTPException(status_code=403, detail="Only managers and accountants can configure QuickBooks")
+    
+    try:
+        authorization_url, state = quickbooks_client.get_authorization_url(auth_request.state)
+        return {
+            "authorization_url": authorization_url,
+            "state": state
+        }
+    except Exception as e:
+        logger.error(f"QuickBooks auth initiation failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to initiate QuickBooks authentication")
+
+@app.get("/api/quickbooks/callback")
+async def quickbooks_callback(code: str, state: str, realmId: str):
+    global quickbooks_connection
+    
+    try:
+        authorization_response = f"http://localhost:8000/api/quickbooks/callback?code={code}&state={state}&realmId={realmId}"
+        token_data = quickbooks_client.exchange_code_for_tokens(authorization_response, state)
+        
+        expires_at = datetime.utcnow() + timedelta(seconds=token_data.get("expires_in", 3600))
+        
+        company_info = quickbooks_client.get_company_info(token_data["access_token"], realmId)
+        company_name = company_info.get("CompanyName", "Unknown Company")
+        
+        quickbooks_connection = {
+            "access_token": token_data["access_token"],
+            "refresh_token": token_data["refresh_token"],
+            "realm_id": realmId,
+            "expires_at": expires_at.isoformat(),
+            "is_active": True,
+            "company_name": company_name,
+            "last_sync": None
+        }
+        
+        save_data_to_disk()
+        
+        return {
+            "message": "QuickBooks connected successfully",
+            "company_name": company_name,
+            "realm_id": realmId
+        }
+    except Exception as e:
+        logger.error(f"QuickBooks callback failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to complete QuickBooks authentication")
+
+@app.get("/api/quickbooks/status")
+async def quickbooks_status(current_user: UserInDB = Depends(get_current_user)):
+    global quickbooks_connection
+    
+    if not quickbooks_connection or not quickbooks_connection.get("is_active"):
+        return {
+            "is_connected": False,
+            "last_sync": None,
+            "company_name": None,
+            "realm_id": None
+        }
+    
+    return {
+        "is_connected": True,
+        "last_sync": quickbooks_connection.get("last_sync"),
+        "company_name": quickbooks_connection.get("company_name"),
+        "realm_id": quickbooks_connection.get("realm_id")
+    }
+
+@app.post("/api/quickbooks/sync")
+async def quickbooks_sync(sync_request: QuickBooksSyncRequest, current_user: UserInDB = Depends(get_current_user)):
+    global quickbooks_connection
+    
+    if current_user.role not in [UserRole.MANAGER, UserRole.ACCOUNTANT]:
+        raise HTTPException(status_code=403, detail="Only managers and accountants can sync QuickBooks data")
+    
+    if not quickbooks_connection or not quickbooks_connection.get("is_active"):
+        raise HTTPException(status_code=400, detail="QuickBooks not connected")
+    
+    try:
+        access_token = quickbooks_connection["access_token"]
+        realm_id = quickbooks_connection["realm_id"]
+        
+        sync_results = {
+            "customers_synced": 0,
+            "invoices_synced": 0,
+            "payments_synced": 0,
+            "errors": []
+        }
+        
+        if sync_request.sync_customers:
+            try:
+                arctic_customers = list(customers_db.values())
+                qb_customers = quickbooks_client.get_customers(access_token, realm_id)
+                qb_customer_names = {c.get("Name", "").lower() for c in qb_customers}
+                
+                for customer in arctic_customers:
+                    customer_name = customer.get("name", "").lower()
+                    if customer_name not in qb_customer_names:
+                        qb_customer_data = map_arctic_customer_to_qb(customer)
+                        quickbooks_client.create_customer(access_token, realm_id, qb_customer_data)
+                        sync_results["customers_synced"] += 1
+                        
+            except Exception as e:
+                sync_results["errors"].append(f"Customer sync error: {str(e)}")
+        
+        if sync_request.sync_invoices:
+            try:
+                arctic_orders = list(orders_db.values())
+                qb_customers = quickbooks_client.get_customers(access_token, realm_id)
+                customer_map = {c.get("Name", "").lower(): c.get("Id") for c in qb_customers}
+                
+                for order in arctic_orders[:10]:
+                    customer_name = order.get("customer_name", "").lower()
+                    if customer_name in customer_map:
+                        invoice_data = map_arctic_order_to_qb_invoice(order, customer_map[customer_name])
+                        quickbooks_client.create_invoice(access_token, realm_id, invoice_data)
+                        sync_results["invoices_synced"] += 1
+                        
+            except Exception as e:
+                sync_results["errors"].append(f"Invoice sync error: {str(e)}")
+        
+        quickbooks_connection["last_sync"] = datetime.utcnow().isoformat()
+        save_data_to_disk()
+        
+        return sync_results
+        
+    except Exception as e:
+        logger.error(f"QuickBooks sync failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to sync with QuickBooks")
+
+@app.delete("/api/quickbooks/disconnect")
+async def quickbooks_disconnect(current_user: UserInDB = Depends(get_current_user)):
+    global quickbooks_connection
+    
+    if current_user.role not in [UserRole.MANAGER, UserRole.ACCOUNTANT]:
+        raise HTTPException(status_code=403, detail="Only managers and accountants can disconnect QuickBooks")
+    
+    quickbooks_connection = None
+    save_data_to_disk()
+    
+    return {"message": "QuickBooks disconnected successfully"}
 
 @app.get("/{full_path:path}")
 async def serve_spa(full_path: str):

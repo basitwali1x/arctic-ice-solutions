@@ -110,13 +110,15 @@ def process_google_sheets_data(sheets_url: str, location_id: str = "loc_3", loca
 
 def detect_data_format(df: pd.DataFrame) -> str:
     """Detect if data is customer-only format or sales transaction format"""
-    customer_cols = ['Customer', 'Address', 'Main Phone']
+    customer_cols_strict = ['Customer', 'Address', 'Main Phone']
+    customer_cols_flexible = ['Customer', 'Address', 'Phone']
     sales_cols = ['Type', 'Date', 'Name', 'Amount']
     
-    customer_match = all(col in df.columns for col in customer_cols)
+    customer_match_strict = all(col in df.columns for col in customer_cols_strict)
+    customer_match_flexible = all(col in df.columns for col in customer_cols_flexible)
     sales_match = all(col in df.columns for col in sales_cols)
     
-    if customer_match:
+    if customer_match_strict or customer_match_flexible:
         return "customer_only"
     elif sales_match:
         return "sales_transaction"
@@ -141,11 +143,13 @@ def extract_customers_from_customer_data(df: pd.DataFrame, location_id: str = "l
         "409": "loc_3"
     }
     
+    phone_col = 'Main Phone' if 'Main Phone' in df.columns else 'Phone'
+    
     for i, row in df.iterrows():
         if pd.isna(row['Customer']) or row['Customer'] == 'nan':
             continue
             
-        phone = str(row['Main Phone']).replace('(', '').replace(')', '').replace('-', '').replace(' ', '')
+        phone = str(row[phone_col]).replace('(', '').replace(')', '').replace('-', '').replace(' ', '')
         area_code = phone[:3] if len(phone) >= 10 else '936'
         detected_location_id = area_code_to_location.get(area_code, location_id)
         
@@ -158,7 +162,7 @@ def extract_customers_from_customer_data(df: pd.DataFrame, location_id: str = "l
             "id": f"{city.lower()}_customer_{i+1}",
             "name": row['Customer'],
             "email": f"{customer_name_clean}@email.com",
-            "phone": row['Main Phone'],
+            "phone": row[phone_col],
             "address": row['Address'],
             "location_id": detected_location_id,
             "credit_limit": 5000.0,

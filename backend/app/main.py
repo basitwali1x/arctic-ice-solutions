@@ -14,11 +14,14 @@ import os
 import logging
 import json
 from pathlib import Path
+from dotenv import load_dotenv
 from .excel_import import process_excel_files
 from .google_sheets_import import process_google_sheets_data, test_google_sheets_connection
 from .quickbooks_integration import QuickBooksClient, map_arctic_customer_to_qb, map_arctic_order_to_qb_invoice, map_arctic_payment_to_qb
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 

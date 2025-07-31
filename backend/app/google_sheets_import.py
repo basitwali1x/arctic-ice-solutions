@@ -47,12 +47,11 @@ def get_google_sheets_data(sheets_url: str, worksheet_name: str = None) -> pd.Da
         
         df = pd.DataFrame(data)
         
-        required_cols = ['Type', 'Date', 'Name', 'Amount']
-        missing_cols = [col for col in required_cols if col not in df.columns]
-        if missing_cols:
-            raise ValueError(f"Missing required columns: {missing_cols}")
+        data_format = detect_data_format(df)
+        if data_format == "unknown":
+            raise ValueError("Unsupported data format. Expected either Customer/Address/Phone or Type/Date/Name/Amount columns")
         
-        logger.info(f"Successfully read {len(df)} rows from Google Sheets")
+        logger.info(f"Successfully read {len(df)} rows from Google Sheets with format: {data_format}")
         return df
         
     except GoogleAuthError as e:
@@ -66,37 +65,111 @@ def process_google_sheets_data(sheets_url: str, location_id: str = "loc_3", loca
     """Process Google Sheets data and return consolidated customer/order data"""
     try:
         df = get_google_sheets_data(sheets_url, worksheet_name)
+        data_format = detect_data_format(df)
         
-        df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
-        df = df.dropna(subset=['Date'])
-        
-        df = df[df['Type'].isin(['Invoice', 'Sales Receipt'])]
-        
-        df['Qty'] = pd.to_numeric(df['Qty'], errors='coerce').fillna(0)
-        df['Sales Price'] = pd.to_numeric(df['Sales Price'], errors='coerce').fillna(0)
-        df['Amount'] = pd.to_numeric(df['Amount'], errors='coerce').fillna(0)
-        
-        df['Name'] = df['Name'].astype(str).str.strip()
-        df['Item'] = df['Item'].astype(str).str.strip()
-        df['Num'] = df['Num'].astype(str).str.strip()
-        
-        df = df[df['Amount'] > 0]
-        
-        customers = extract_customers_from_excel(df, location_id, location_name)
-        orders = extract_orders_from_excel(df, location_id, location_name)
-        financial_metrics = calculate_financial_metrics(df)
+        if data_format == "customer_only":
+            customers = extract_customers_from_customer_data(df, location_id, location_name)
+            orders = []
+            financial_metrics = {
+                "total_revenue": 0.0,
+                "total_transactions": 0,
+                "monthly_revenue": {},
+                "daily_revenue": {},
+                "top_products": {},
+                "date_range": {"start": None, "end": None}
+            }
+            
+        elif data_format == "sales_transaction":
+            df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+            df = df.dropna(subset=['Date'])
+            df = df[df['Type'].isin(['Invoice', 'Sales Receipt'])]
+            df['Qty'] = pd.to_numeric(df['Qty'], errors='coerce').fillna(0)
+            df['Sales Price'] = pd.to_numeric(df['Sales Price'], errors='coerce').fillna(0)
+            df['Amount'] = pd.to_numeric(df['Amount'], errors='coerce').fillna(0)
+            df['Name'] = df['Name'].astype(str).str.strip()
+            df['Item'] = df['Item'].astype(str).str.strip()
+            df['Num'] = df['Num'].astype(str).str.strip()
+            df = df[df['Amount'] > 0]
+            
+            customers = extract_customers_from_excel(df, location_id, location_name)
+            orders = extract_orders_from_excel(df, location_id, location_name)
+            financial_metrics = calculate_financial_metrics(df)
         
         return {
             "customers": customers,
             "orders": orders,
             "financial_metrics": financial_metrics,
             "total_records": len(df),
-            "date_range": financial_metrics["date_range"]
+            "date_range": financial_metrics["date_range"],
+            "data_format": data_format
         }
         
     except Exception as e:
         logger.error(f"Error processing Google Sheets data: {e}")
         raise
+
+def detect_data_format(df: pd.DataFrame) -> str:
+    """Detect if data is customer-only format or sales transaction format"""
+    customer_cols = ['Customer', 'Address', 'Main Phone']
+    sales_cols = ['Type', 'Date', 'Name', 'Amount']
+    
+    customer_match = all(col in df.columns for col in customer_cols)
+    sales_match = all(col in df.columns for col in sales_cols)
+    
+    if customer_match:
+        return "customer_only"
+    elif sales_match:
+        return "sales_transaction"
+    else:
+        return "unknown"
+
+def extract_customers_from_customer_data(df: pd.DataFrame, location_id: str = "loc_3", location_name: str = "Lufkin") -> List[Dict[str, Any]]:
+    """Extract customers from customer-only data format (Customer/Address/Phone)"""
+    customers = []
+    
+    location_config = {
+        "loc_1": {"area_code": "337", "state": "Louisiana", "zip_base": 71446, "city": "Leesville"},
+        "loc_2": {"area_code": "337", "state": "Louisiana", "zip_base": 70601, "city": "Lake Charles"},
+        "loc_3": {"area_code": "936", "state": "Texas", "zip_base": 75901, "city": "Lufkin"},
+        "loc_4": {"area_code": "903", "state": "Texas", "zip_base": 75951, "city": "Jasper"}
+    }
+    
+    area_code_to_location = {
+        "337": "loc_1",
+        "936": "loc_3",
+        "903": "loc_4",
+        "409": "loc_3"
+    }
+    
+    for i, row in df.iterrows():
+        if pd.isna(row['Customer']) or row['Customer'] == 'nan':
+            continue
+            
+        phone = str(row['Main Phone']).replace('(', '').replace(')', '').replace('-', '').replace(' ', '')
+        area_code = phone[:3] if len(phone) >= 10 else '936'
+        detected_location_id = area_code_to_location.get(area_code, location_id)
+        
+        config = location_config.get(detected_location_id, location_config["loc_3"])
+        city = config["city"]
+        
+        customer_name_clean = str(row['Customer']).lower().replace(' ', '').replace('#', '').replace('-', '').replace('.', '').replace(',', '')
+        
+        customers.append({
+            "id": f"{city.lower()}_customer_{i+1}",
+            "name": row['Customer'],
+            "email": f"{customer_name_clean}@email.com",
+            "phone": row['Main Phone'],
+            "address": row['Address'],
+            "location_id": detected_location_id,
+            "credit_limit": 5000.0,
+            "current_balance": 0.0,
+            "total_orders": 0,
+            "total_spent": 0.0,
+            "last_order_date": None,
+            "status": "active"
+        })
+    
+    return customers
 
 def test_google_sheets_connection() -> Dict[str, Any]:
     """Test Google Sheets API connection"""

@@ -10,6 +10,7 @@ import { DollarSign, TrendingUp, FileText, RefreshCw, Download, Upload, CheckCir
 import { FinancialDashboard, Expense } from '../types/api';
 import { apiRequest } from '../utils/api';
 import { useErrorToast } from '../hooks/useErrorToast';
+import { API_BASE_URL } from '../lib/constants';
 
 
 export function Financial() {
@@ -23,6 +24,9 @@ export function Financial() {
   const [error, setError] = useState<string | null>(null);
   const [selectedLocation, setSelectedLocation] = useState('loc_3');
   const [locations, setLocations] = useState<any[]>([]);
+  const [googleSheetsUrl, setGoogleSheetsUrl] = useState('');
+  const [googleSheetsConnecting, setGoogleSheetsConnecting] = useState(false);
+  const [googleSheetsStatus, setGoogleSheetsStatus] = useState('Setup Required');
 
   const [newExpense, setNewExpense] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -129,6 +133,67 @@ export function Financial() {
 
   const triggerFileUpload = () => {
     fileInputRef.current?.click();
+  };
+
+  const handleGoogleSheetsConnect = async () => {
+    if (!googleSheetsUrl.trim()) {
+      alert('Please enter a Google Sheets URL');
+      return;
+    }
+
+    setGoogleSheetsConnecting(true);
+    
+    try {
+      const formData = new FormData();
+      formData.append('sheets_url', googleSheetsUrl);
+      formData.append('location_id', 'loc_3');
+
+      const response = await fetch(`${API_BASE_URL}/api/import/google-sheets`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: formData
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setGoogleSheetsStatus('Connected');
+        alert(`Google Sheets import successful! Imported ${result.summary.customers_imported} customers and ${result.summary.orders_imported} orders.`);
+        
+        const [financialResponse, statusResponse, expensesResponse, profitResponse] = await Promise.all([
+          fetch(`${API_BASE_URL}/api/financial/metrics`, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+          }),
+          fetch(`${API_BASE_URL}/api/import/status`, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+          }),
+          fetch(`${API_BASE_URL}/api/expenses`, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+          }),
+          fetch(`${API_BASE_URL}/api/financial/profit-analysis`, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+          })
+        ]);
+
+        if (financialResponse.ok && statusResponse.ok && expensesResponse.ok && profitResponse.ok) {
+          setFinancialData(await financialResponse.json());
+          setImportStatus(await statusResponse.json());
+          setExpenses(await expensesResponse.json());
+          setProfitData(await profitResponse.json());
+        }
+      } else {
+        setGoogleSheetsStatus('Connection Failed');
+        alert(`Google Sheets import failed: ${result.detail}`);
+      }
+    } catch (error) {
+      console.error('Error connecting to Google Sheets:', error);
+      setGoogleSheetsStatus('Connection Failed');
+      alert('Error connecting to Google Sheets. Please check your URL and try again.');
+    } finally {
+      setGoogleSheetsConnecting(false);
+    }
   };
 
   const handleExpenseSubmit = async (e: React.FormEvent) => {
@@ -604,15 +669,37 @@ export function Financial() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm">Connection Status</span>
-                <Badge className="bg-yellow-100 text-yellow-800">Setup Required</Badge>
+                <Badge className={
+                  googleSheetsStatus === 'Connected' ? 'bg-green-100 text-green-800' :
+                  googleSheetsStatus === 'Connection Failed' ? 'bg-red-100 text-red-800' :
+                  'bg-yellow-100 text-yellow-800'
+                }>
+                  {googleSheetsStatus}
+                </Badge>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm">Auto Sync</span>
-                <span className="text-sm text-gray-500">Disabled</span>
+                <span className="text-sm text-gray-500">
+                  {googleSheetsStatus === 'Connected' ? 'Manual' : 'Disabled'}
+                </span>
               </div>
-              <Button className="w-full" variant="outline">
-                Connect Google Sheets
-              </Button>
+              <div className="space-y-2">
+                <input
+                  type="url"
+                  placeholder="Enter Google Sheets URL"
+                  value={googleSheetsUrl}
+                  onChange={(e) => setGoogleSheetsUrl(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                />
+                <Button 
+                  className="w-full" 
+                  variant="outline"
+                  onClick={handleGoogleSheetsConnect}
+                  disabled={googleSheetsConnecting}
+                >
+                  {googleSheetsConnecting ? 'Connecting...' : 'Connect Google Sheets'}
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>

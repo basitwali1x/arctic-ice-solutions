@@ -14,6 +14,7 @@ import os
 import json
 from pathlib import Path
 from .excel_import import process_excel_files
+from .google_sheets_import import process_google_sheets_data, test_google_sheets_connection
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
@@ -1935,6 +1936,67 @@ async def get_import_status(current_user: UserInDB = Depends(get_current_user)):
         "total_revenue": imported_financial_data.get("total_revenue", 0),
         "date_range": imported_financial_data.get("date_range") if imported_financial_data else None
     }
+
+@app.post("/api/import/google-sheets")
+async def import_google_sheets_data(
+    sheets_url: str = Form(...),
+    location_id: str = Form("loc_3"),
+    worksheet_name: str = Form(None),
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """Import customer data from Google Sheets with location mapping"""
+    global imported_customers, imported_orders, imported_financial_data
+    
+    if not sheets_url:
+        raise HTTPException(status_code=400, detail="Google Sheets URL is required")
+    
+    valid_locations = ["loc_1", "loc_2", "loc_3", "loc_4"]
+    if location_id not in valid_locations:
+        raise HTTPException(status_code=400, detail=f"Invalid location_id. Must be one of: {valid_locations}")
+    
+    location_names = {
+        "loc_1": "Leesville",
+        "loc_2": "Lake Charles", 
+        "loc_3": "Lufkin",
+        "loc_4": "Jasper"
+    }
+    location_name = location_names[location_id]
+    
+    try:
+        processed_data = process_google_sheets_data(sheets_url, location_id, location_name, worksheet_name)
+        
+        imported_customers = processed_data["customers"]
+        imported_orders = processed_data["orders"] 
+        imported_financial_data = processed_data["financial_metrics"]
+        
+        save_data_to_disk()
+        
+        return {
+            "success": True,
+            "message": f"Google Sheets data imported successfully for {location_name}",
+            "summary": {
+                "customers_imported": len(imported_customers),
+                "orders_imported": len(imported_orders),
+                "total_records": processed_data["total_records"],
+                "date_range": processed_data["date_range"],
+                "total_revenue": imported_financial_data.get("total_revenue", 0),
+                "location_id": location_id,
+                "location_name": location_name,
+                "sheets_url": sheets_url
+            }
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing Google Sheets data: {str(e)}")
+
+@app.get("/api/google-sheets/test-connection")
+async def test_google_sheets_connection_endpoint(current_user: UserInDB = Depends(get_current_user)):
+    """Test Google Sheets API connection"""
+    try:
+        result = test_google_sheets_connection()
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Connection test failed: {str(e)}")
 
 @app.get("/api/maintenance/work-orders")
 async def get_work_orders(status: Optional[str] = None, current_user: UserInDB = Depends(get_current_user)):

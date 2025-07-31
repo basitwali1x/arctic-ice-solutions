@@ -43,6 +43,7 @@ class UserRole(str, Enum):
     DISPATCHER = "dispatcher"
     ACCOUNTANT = "accountant"
     DRIVER = "driver"
+    CUSTOMER = "customer"
 
 class LocationType(str, Enum):
     HEADQUARTERS = "headquarters"
@@ -1213,6 +1214,26 @@ def initialize_sample_data():
             "full_name": "Carlos Driver",
             "role": "driver", 
             "location_id": "loc_4",
+            "is_active": True,
+            "hashed_password": get_password_hash(demo_password)
+        },
+        {
+            "id": "user_5",
+            "username": "customer1",
+            "email": "customer1@example.com",
+            "full_name": "Jane Customer",
+            "role": "customer",
+            "location_id": "loc_1",
+            "is_active": True,
+            "hashed_password": get_password_hash(demo_password)
+        },
+        {
+            "id": "user_6", 
+            "username": "customer2",
+            "email": "customer2@example.com",
+            "full_name": "Bob Customer",
+            "role": "customer",
+            "location_id": "loc_2",
             "is_active": True,
             "hashed_password": get_password_hash(demo_password)
         }

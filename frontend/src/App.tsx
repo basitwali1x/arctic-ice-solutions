@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { LoginPage } from './components/LoginPage';
 import { Sidebar } from './components/Sidebar';
@@ -16,9 +16,24 @@ import { Maintenance } from './pages/Maintenance';
 import { ProductionManager } from './pages/ProductionManager';
 import MobileApp from './mobile/MobileApp';
 import { useIsMobile } from './hooks/use-mobile';
+import React from 'react';
+
+const RoleBasedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user } = useAuth();
+  const isMobile = useIsMobile();
+  
+  if (user?.role === 'customer') {
+    return <Navigate to="/mobile/customer" replace />;
+  }
+  
+  if (isMobile) {
+    return <Navigate to="/mobile" replace />;
+  }
+  
+  return <>{children}</>;
+};
 
 function App() {
-  const isMobile = useIsMobile();
 
   return (
     <ErrorBoundary>
@@ -40,9 +55,7 @@ function App() {
               path="/*"
               element={
                 <ProtectedRoute>
-                  {isMobile ? (
-                    <Navigate to="/mobile" replace />
-                  ) : (
+                  <RoleBasedRoute>
                     <div className="flex h-screen bg-gray-100">
                       <Sidebar />
                       <div className="flex-1 flex flex-col overflow-hidden">
@@ -64,7 +77,7 @@ function App() {
                         </main>
                       </div>
                     </div>
-                  )}
+                  </RoleBasedRoute>
                 </ProtectedRoute>
               }
             />

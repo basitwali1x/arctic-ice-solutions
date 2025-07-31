@@ -1,3 +1,5 @@
+export type LocationType = 'headquarters' | 'production' | 'distribution' | 'warehouse';
+
 export interface Location {
   id: string;
   name: string;
@@ -5,7 +7,7 @@ export interface Location {
   city: string;
   state: string;
   zip_code: string;
-  location_type: string;
+  location_type: LocationType;
   phone?: string;
   email?: string;
   manager_id?: string;

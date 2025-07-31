@@ -5,6 +5,69 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+def detect_data_format(df: pd.DataFrame) -> str:
+    """Detect if data is customer-only format or sales transaction format"""
+    customer_cols = ['Customer', 'Address', 'Main Phone']
+    sales_cols = ['Type', 'Date', 'Name', 'Amount']
+    
+    customer_match = all(col in df.columns for col in customer_cols)
+    sales_match = all(col in df.columns for col in sales_cols)
+    
+    if customer_match:
+        return "customer_only"
+    elif sales_match:
+        return "sales_transaction"
+    else:
+        return "unknown"
+
+def extract_customers_from_customer_data(df: pd.DataFrame, location_id: str = "loc_3", location_name: str = "Lufkin") -> List[Dict[str, Any]]:
+    """Extract customers from customer-only data format (Customer/Address/Phone)"""
+    customers = []
+    
+    location_config = {
+        "loc_1": {"area_code": "337", "state": "Louisiana", "zip_base": 71446, "city": "Leesville"},
+        "loc_2": {"area_code": "337", "state": "Louisiana", "zip_base": 70601, "city": "Lake Charles"},
+        "loc_3": {"area_code": "936", "state": "Texas", "zip_base": 75901, "city": "Lufkin"},
+        "loc_4": {"area_code": "903", "state": "Texas", "zip_base": 75951, "city": "Jasper"}
+    }
+    
+    area_code_to_location = {
+        "337": "loc_1",
+        "936": "loc_3",
+        "903": "loc_4",
+        "409": "loc_3"
+    }
+    
+    for i, row in df.iterrows():
+        if pd.isna(row['Customer']) or row['Customer'] == 'nan':
+            continue
+            
+        phone = str(row['Main Phone']).replace('(', '').replace(')', '').replace('-', '').replace(' ', '')
+        area_code = phone[:3] if len(phone) >= 10 else '936'
+        detected_location_id = area_code_to_location.get(area_code, location_id)
+        
+        config = location_config.get(detected_location_id, location_config["loc_3"])
+        city = config["city"]
+        
+        customer_name_clean = str(row['Customer']).lower().replace(' ', '').replace('#', '').replace('-', '').replace('.', '').replace(',', '')
+        
+        customers.append({
+            "id": f"{city.lower()}_customer_{i+1}",
+            "name": row['Customer'],
+            "email": f"{customer_name_clean}@email.com",
+            "phone": row['Main Phone'],
+            "address": row['Address'],
+            "location_id": detected_location_id,
+            "credit_limit": 5000.0,
+            "current_balance": 0.0,
+            "total_orders": 0,
+            "total_spent": 0.0,
+            "last_order_date": None,
+            "status": "active"
+        })
+    
+    return customers
+
 def clean_excel_data(df: pd.DataFrame) -> pd.DataFrame:
     """Clean and standardize Excel data"""
     required_cols = ['Type', 'Date', 'Name', 'Amount']
@@ -168,35 +231,68 @@ def calculate_financial_metrics(df: pd.DataFrame) -> Dict[str, Any]:
 
 def process_excel_files(file_paths: List[str], location_id: str = "loc_3", location_name: str = "Lufkin") -> Dict[str, Any]:
     """Process multiple Excel files and return consolidated data"""
+    all_customers = []
+    all_orders = []
     all_data = []
     
     for file_path in file_paths:
         try:
             logger.info(f"Processing Excel file: {file_path}")
+            
             if file_path.endswith('.xlsm'):
-                df = pd.read_excel(file_path, engine='openpyxl', sheet_name='Sheet1')
+                df = pd.read_excel(file_path, engine='openpyxl', sheet_name=None)
             else:
-                df = pd.read_excel(file_path, sheet_name='Sheet1')
-            df_clean = clean_excel_data(df)
-            all_data.append(df_clean)
-            logger.info(f"Processed {len(df_clean)} records from {file_path}")
+                df = pd.read_excel(file_path, sheet_name=None)
+            
+            first_sheet_name = list(df.keys())[0]
+            df = df[first_sheet_name]
+            
+            data_format = detect_data_format(df)
+            logger.info(f"Detected data format: {data_format}")
+            
+            if data_format == "customer_only":
+                customers = extract_customers_from_customer_data(df, location_id, location_name)
+                all_customers.extend(customers)
+                logger.info(f"Processed {len(customers)} customers from {file_path}")
+                
+            elif data_format == "sales_transaction":
+                df_clean = clean_excel_data(df)
+                if not df_clean.empty:
+                    all_data.append(df_clean)
+                    customers = extract_customers_from_excel(df_clean, location_id, location_name)
+                    orders = extract_orders_from_excel(df_clean, location_id, location_name)
+                    all_customers.extend(customers)
+                    all_orders.extend(orders)
+                    logger.info(f"Processed {len(df_clean)} records from {file_path}")
+            else:
+                logger.warning(f"Unsupported data format in {file_path}")
+                continue
+                
         except Exception as e:
             logger.error(f"Error processing {file_path}: {e}")
             continue
     
-    if not all_data:
+    if not all_customers:
         raise ValueError("No valid data found in Excel files")
     
-    combined_df = pd.concat(all_data, ignore_index=True)
-    
-    customers = extract_customers_from_excel(combined_df, location_id, location_name)
-    orders = extract_orders_from_excel(combined_df, location_id, location_name)
-    financial_metrics = calculate_financial_metrics(combined_df)
+    if all_data:
+        combined_df = pd.concat(all_data, ignore_index=True)
+        financial_metrics = calculate_financial_metrics(combined_df)
+    else:
+        financial_metrics = {
+            "total_revenue": 0.0,
+            "total_transactions": 0,
+            "monthly_revenue": {},
+            "daily_revenue": {},
+            "top_products": {},
+            "date_range": {"start": None, "end": None}
+        }
     
     return {
-        "customers": customers,
-        "orders": orders,
+        "customers": all_customers,
+        "orders": all_orders,
         "financial_metrics": financial_metrics,
-        "total_records": len(combined_df),
-        "date_range": financial_metrics["date_range"]
+        "total_records": len(all_customers),
+        "date_range": financial_metrics["date_range"],
+        "data_format": "mixed" if all_data and all_customers else ("customer_only" if all_customers else "sales_transaction")
     }

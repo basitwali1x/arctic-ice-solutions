@@ -12,6 +12,7 @@ import { MobileSettings } from './pages/MobileSettings';
 import { MobileNavigation } from './components/MobileNavigation';
 import { MobileHeader } from './components/MobileHeader';
 import { MobileLocationAuth } from './components/MobileLocationAuth';
+import { initializeCapacitor, getCurrentPosition, initializePushNotifications } from '../utils/capacitor';
 
 function MobileApp() {
   const { user } = useAuth();
@@ -19,23 +20,24 @@ function MobileApp() {
   const [, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
 
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setCurrentLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          });
-          setLocationVerified(true);
-        },
-        (error) => {
-          console.error('GPS Error:', error);
-          setLocationVerified(true);
-        }
-      );
-    } else {
-      setLocationVerified(true);
-    }
+    const initializeApp = async () => {
+      try {
+        await initializeCapacitor();
+        await initializePushNotifications();
+        
+        const position = await getCurrentPosition();
+        setCurrentLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        });
+        setLocationVerified(true);
+      } catch (error) {
+        console.error('Initialization Error:', error);
+        setLocationVerified(true);
+      }
+    };
+
+    initializeApp();
   }, []);
 
   if (!user) {

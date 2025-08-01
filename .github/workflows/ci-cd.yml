@@ -74,6 +74,6 @@ jobs:
           pnpm build
           
       - name: Deploy to Devin Apps Platform
-        run: |
-          echo "Frontend built successfully. Manual deployment to Devin Apps Platform required."
-          echo "Build artifacts are ready in frontend/dist/"
+        uses: devinapps/deploy-action@v1
+        with:
+          frontend_dir: frontend/dist

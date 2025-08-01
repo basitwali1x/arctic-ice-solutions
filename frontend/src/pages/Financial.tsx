@@ -58,12 +58,12 @@ export function Financial() {
         apiRequest('/api/quickbooks/status')
       ]);
 
-      const financialData = await financialResponse?.json();
-      const statusData = await statusResponse?.json();
-      const expensesData = await expensesResponse?.json();
-      const profitAnalysis = await profitResponse?.json();
-      const locationsData = await locationsResponse?.json();
-      const quickbooksData = await quickbooksResponse?.json();
+      const financialData = financialResponse ? await financialResponse.json() : null;
+      const statusData = statusResponse ? await statusResponse.json() : null;
+      const expensesData = expensesResponse ? await expensesResponse.json() : [];
+      const profitAnalysis = profitResponse ? await profitResponse.json() : null;
+      const locationsData = locationsResponse ? await locationsResponse.json() : [];
+      const quickbooksData = quickbooksResponse ? await quickbooksResponse.json() : { is_connected: false, last_sync: null };
 
       setFinancialData(financialData || null);
       setImportStatus(statusData || null);

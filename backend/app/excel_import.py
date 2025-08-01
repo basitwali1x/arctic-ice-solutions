@@ -213,6 +213,165 @@ def calculate_financial_metrics(df: pd.DataFrame) -> Dict[str, Any]:
         }
     }
 
+def extract_customers_from_customer_list(df: pd.DataFrame, location_id: str = "loc_3", location_name: str = "Lufkin") -> List[Dict[str, Any]]:
+    """Extract customers from customer list format (Customer, Address, Main Phone)"""
+    customers = []
+    
+    location_config = {
+        "loc_1": {  # Leesville HQ & Production
+            "area_code": "337",
+            "state": "Louisiana", 
+            "zip_base": 71446,
+            "city": "Leesville"
+        },
+        "loc_2": {  # Lake Charles Distribution
+            "area_code": "337",
+            "state": "Louisiana",
+            "zip_base": 70601,
+            "city": "Lake Charles"
+        },
+        "loc_3": {  # Lufkin Distribution
+            "area_code": "936", 
+            "state": "Texas",
+            "zip_base": 75901,
+            "city": "Lufkin"
+        },
+        "loc_4": {  # Jasper Warehouse
+            "area_code": "903",
+            "state": "Texas", 
+            "zip_base": 75951,
+            "city": "Jasper"
+        }
+    }
+    
+    config = location_config.get(location_id, location_config["loc_3"])
+    
+    for i, row in df.iterrows():
+        if pd.isna(row.get('Customer')) or str(row.get('Customer')).strip() == '':
+            continue
+            
+        customer_name = str(row['Customer']).strip()
+        address = str(row.get('Address', '')).strip() if pd.notna(row.get('Address')) else f"{100 + i} Customer St"
+        phone = str(row.get('Main Phone', '')).strip() if pd.notna(row.get('Main Phone')) else f"({config['area_code']}) 555-{1000 + i:04d}"
+        
+        if phone and phone != 'nan':
+            phone = re.sub(r'[^\d\-\(\)\s\+ext]', '', phone)
+            if not phone or phone == '':
+                phone = f"({config['area_code']}) 555-{1000 + i:04d}"
+        else:
+            phone = f"({config['area_code']}) 555-{1000 + i:04d}"
+        
+        city = config['city']
+        state = config['state']
+        zip_code = str(config['zip_base'])
+        
+        if address and ', ' in address:
+            parts = address.split(', ')
+            if len(parts) >= 2:
+                street_address = parts[0]
+                city_state_zip = parts[-1]
+                if ' ' in city_state_zip:
+                    city_parts = city_state_zip.split(' ')
+                    if len(city_parts) >= 2:
+                        city = ' '.join(city_parts[:-2]) if len(city_parts) > 2 else city_parts[0]
+                        if len(city_parts) >= 2:
+                            state_zip = city_parts[-2:]
+                            if len(state_zip) == 2:
+                                state = state_zip[0]
+                                zip_code = state_zip[1]
+                address = street_address
+        
+        email_base = re.sub(r'[^a-zA-Z0-9]', '', customer_name.lower())
+        email = f"{email_base}@email.com"
+        
+        customers.append({
+            "name": customer_name,
+            "contact_person": "",
+            "phone": phone,
+            "email": email,
+            "address": address,
+            "city": city,
+            "state": state,
+            "zip_code": zip_code,
+            "location_id": location_id,
+            "credit_limit": 5000.0,
+            "payment_terms": 30,
+            "is_active": True
+        })
+    
+    return customers
+
+def process_customer_excel_files(file_paths: List[str], location_id: str = "loc_3", location_name: str = "Lufkin") -> Dict[str, Any]:
+    """Process customer list Excel files and return customer data"""
+    all_customers = []
+    
+    location_sheet_map = {
+        "loc_1": ["leesville", "leesville "],  # Note the space variant
+        "loc_2": ["lake charles", "lakecharles", "lake_charles"],
+        "loc_3": ["lufkin"],
+        "loc_4": ["jasper"]
+    }
+    
+    for file_path in file_paths:
+        try:
+            logger.info(f"Processing customer Excel file: {file_path}")
+            
+            xl_file = pd.ExcelFile(file_path)
+            logger.info(f"Available sheets: {xl_file.sheet_names}")
+            
+            customers_found = False
+            
+            target_sheets = location_sheet_map.get(location_id, [])
+            for sheet_name in xl_file.sheet_names:
+                if sheet_name.lower().strip() in [s.lower() for s in target_sheets]:
+                    try:
+                        df = pd.read_excel(file_path, sheet_name=sheet_name)
+                        if not df.empty and 'Customer' in df.columns:
+                            customers = extract_customers_from_customer_list(df, location_id, location_name)
+                            all_customers.extend(customers)
+                            customers_found = True
+                            logger.info(f"Processed {len(customers)} customers from {sheet_name} sheet")
+                            break
+                    except Exception as e:
+                        logger.warning(f"Failed to process {sheet_name} sheet: {e}")
+            
+            if not customers_found and 'all' in xl_file.sheet_names:
+                try:
+                    df = pd.read_excel(file_path, sheet_name='all')
+                    if not df.empty and 'Customer' in df.columns:
+                        customers = extract_customers_from_customer_list(df, location_id, location_name)
+                        all_customers.extend(customers)
+                        customers_found = True
+                        logger.info(f"Processed {len(customers)} customers from 'all' sheet")
+                except Exception as e:
+                    logger.warning(f"Failed to process 'all' sheet: {e}")
+            
+            if not customers_found:
+                try:
+                    df = pd.read_excel(file_path, sheet_name=0)
+                    if not df.empty and 'Customer' in df.columns:
+                        customers = extract_customers_from_customer_list(df, location_id, location_name)
+                        all_customers.extend(customers)
+                        customers_found = True
+                        logger.info(f"Processed {len(customers)} customers from first sheet")
+                except Exception as e:
+                    logger.warning(f"Failed to process first sheet: {e}")
+            
+            if not customers_found:
+                logger.warning(f"No valid customer data found in {file_path}")
+                
+        except Exception as e:
+            logger.error(f"Error processing {file_path}: {e}")
+            continue
+    
+    if not all_customers:
+        raise ValueError("No valid customer data found in any Excel files. Please ensure files contain customer data with 'Customer' column.")
+    
+    return {
+        "customers": all_customers,
+        "total_records": len(all_customers)
+    }
+
 def process_excel_files(file_paths: List[str], location_id: str = "loc_3", location_name: str = "Lufkin") -> Dict[str, Any]:
     """Process multiple Excel files and return consolidated data"""
     all_data = []

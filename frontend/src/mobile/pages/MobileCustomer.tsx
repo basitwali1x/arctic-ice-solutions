@@ -36,15 +36,9 @@ export function MobileCustomer({
     specialInstructions: '',
     requestedDeliveryDate: ''
   });
-  const [newFeedback, setNewFeedback] = useState<{
-    type: 'delivery' | 'product' | 'service' | 'complaint' | 'suggestion';
-    rating: 1 | 2 | 3 | 4 | 5;
-    subject: string;
-    message: string;
-    orderId: string;
-  }>({
-    type: 'delivery',
-    rating: 5,
+  const [newFeedback, setNewFeedback] = useState({
+    type: 'delivery' as 'delivery' | 'product' | 'service' | 'complaint' | 'suggestion',
+    rating: 5 as 1 | 2 | 3 | 4 | 5,
     subject: '',
     message: '',
     orderId: ''
@@ -240,7 +234,7 @@ export function MobileCustomer({
               variant={currentView === key ? "default" : "ghost"}
               size="sm"
               className="flex-shrink-0"
-              onClick={() => setCurrentView(key as 'home' | 'orders' | 'track' | 'billing' | 'feedback')}
+              onClick={() => setCurrentView(key as typeof currentView)}
             >
               <Icon className="w-4 h-4 mr-1" />
               {label}
@@ -510,7 +504,7 @@ export function MobileCustomer({
                   <label className="block text-sm font-medium mb-1">Feedback Type</label>
                   <select
                     value={newFeedback.type}
-                    onChange={(e) => setNewFeedback(prev => ({ ...prev, type: e.target.value as 'delivery' | 'product' | 'service' | 'complaint' | 'suggestion' }))}
+                    onChange={(e) => setNewFeedback(prev => ({ ...prev, type: e.target.value as typeof newFeedback.type }))}
                     className="w-full p-2 border rounded-md"
                   >
                     <option value="delivery">Delivery</option>
@@ -529,7 +523,7 @@ export function MobileCustomer({
                         key={rating}
                         variant={newFeedback.rating >= rating ? "default" : "outline"}
                         size="sm"
-                        onClick={() => setNewFeedback(prev => ({ ...prev, rating: rating as 1 | 2 | 3 | 4 | 5 }))}
+                        onClick={() => setNewFeedback(prev => ({ ...prev, rating: rating as typeof newFeedback.rating }))}
                       >
                         <Star className="w-4 h-4" />
                       </Button>

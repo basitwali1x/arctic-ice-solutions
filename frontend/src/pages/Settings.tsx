@@ -77,7 +77,7 @@ export function Settings() {
       username: '',
       email: '',
       full_name: '',
-      role: role as any,
+      role: role as 'manager' | 'dispatcher' | 'accountant' | 'driver' | 'customer',
       location_id: '',
       password: '',
       is_active: true
@@ -96,8 +96,9 @@ export function Settings() {
       await fetchUsers();
       setShowUserModal(false);
       resetForm();
-    } catch (error: any) {
-      setError(error.apiError?.message || 'Failed to create user');
+    } catch (error: unknown) {
+      const apiError = error as { apiError?: { message: string } };
+      setError(apiError.apiError?.message || 'Failed to create user');
     } finally {
       setLoading(false);
     }
@@ -119,8 +120,9 @@ export function Settings() {
       await fetchUsers();
       setShowUserModal(false);
       resetForm();
-    } catch (error: any) {
-      setError(error.apiError?.message || 'Failed to update user');
+    } catch (error: unknown) {
+      const apiError = error as { apiError?: { message: string } };
+      setError(apiError.apiError?.message || 'Failed to update user');
     } finally {
       setLoading(false);
     }
@@ -131,8 +133,9 @@ export function Settings() {
     try {
       await apiRequest(`/api/users/${userId}`, { method: 'DELETE' });
       await fetchUsers();
-    } catch (error: any) {
-      setError(error.apiError?.message || 'Failed to delete user');
+    } catch (error: unknown) {
+      const apiError = error as { apiError?: { message: string } };
+      setError(apiError.apiError?.message || 'Failed to delete user');
     }
   };
 
@@ -191,8 +194,9 @@ export function Settings() {
       await fetchLocations();
       setShowLocationModal(false);
       resetLocationForm();
-    } catch (error: any) {
-      setError(error.apiError?.message || 'Failed to update location');
+    } catch (error: unknown) {
+      const apiError = error as { apiError?: { message: string } };
+      setError(apiError.apiError?.message || 'Failed to update location');
     } finally {
       setLoading(false);
     }
@@ -440,7 +444,7 @@ export function Settings() {
                 <Button onClick={() => {
                   setEditingUser(null);
                   resetForm();
-                  setFormData(prev => ({ ...prev, role: selectedRole as any }));
+                  setFormData(prev => ({ ...prev, role: selectedRole as 'manager' | 'dispatcher' | 'accountant' | 'driver' | 'customer' }));
                 }}>
                   <Plus className="h-4 w-4 mr-2" />
                   Add New User

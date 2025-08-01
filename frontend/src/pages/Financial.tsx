@@ -23,7 +23,7 @@ export function Financial() {
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedLocation, setSelectedLocation] = useState('loc_3');
-  const [locations, setLocations] = useState<any[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
   const [googleSheetsUrl, setGoogleSheetsUrl] = useState('');
   const [googleSheetsConnecting, setGoogleSheetsConnecting] = useState(false);
   const [googleSheetsStatus, setGoogleSheetsStatus] = useState('Setup Required');

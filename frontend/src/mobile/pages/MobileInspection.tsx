@@ -6,6 +6,7 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
 import { Camera, CheckCircle, AlertTriangle, FileText, PenTool } from 'lucide-react';
+import { takePhoto } from '../../utils/capacitor';
 
 interface InspectionItem {
   id: string;
@@ -79,33 +80,18 @@ export function MobileInspection() {
     }));
   };
 
-  const takePhoto = async (itemId: string) => {
+  const capturePhoto = async (itemId: string) => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      const video = document.createElement('video');
-      video.srcObject = stream;
-      video.play();
-
-      const canvas = document.createElement('canvas');
-      const context = canvas.getContext('2d');
-      
-      setTimeout(() => {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        context?.drawImage(video, 0, 0);
-        
-        const photoData = canvas.toDataURL('image/jpeg');
+      const photoData = await takePhoto();
+      if (photoData) {
         setInspection(prev => ({
           ...prev,
           items: prev.items.map(item => 
             item.id === itemId ? { ...item, photo: photoData } : item
           )
         }));
-        
-        stream.getTracks().forEach(track => track.stop());
         alert('Photo captured successfully!');
-      }, 3000);
-      
+      }
     } catch (error) {
       console.error('Camera error:', error);
       alert('Camera not available. Please check permissions.');
@@ -289,7 +275,7 @@ export function MobileInspection() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => takePhoto(item.id)}
+                      onClick={() => capturePhoto(item.id)}
                     >
                       <Camera className="h-3 w-3 mr-1" />
                       Photo

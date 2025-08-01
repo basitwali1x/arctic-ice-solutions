@@ -6,6 +6,7 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { MapPin, Navigation, Package, DollarSign, Fuel, Clock, Bluetooth } from 'lucide-react';
+import { getCurrentPosition, watchPosition, clearWatch } from '../../utils/capacitor';
 
 interface RouteStop {
   id: string;
@@ -49,6 +50,7 @@ export function MobileDriver() {
     odometer: 125430
   });
   const [isTracking, setIsTracking] = useState(false);
+  const [watchId, setWatchId] = useState<string | number | null>(null);
 
   useEffect(() => {
     setCurrentRoute({
@@ -103,37 +105,47 @@ export function MobileDriver() {
       ]
     });
 
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setCurrentLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          });
-        },
-        (error) => console.error('GPS Error:', error)
-      );
-    }
+    const initializeLocation = async () => {
+      try {
+        const position = await getCurrentPosition();
+        setCurrentLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        });
+      } catch (error) {
+        console.error('GPS Error:', error);
+      }
+    };
+
+    initializeLocation();
   }, []);
 
-  const startGPSTracking = () => {
-    setIsTracking(true);
-    if (navigator.geolocation) {
-      navigator.geolocation.watchPosition(
-        (position) => {
-          setCurrentLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          });
-        },
-        (error) => console.error('GPS Tracking Error:', error),
-        { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
-      );
+  const startGPSTracking = async () => {
+    try {
+      setIsTracking(true);
+      const id = await watchPosition((position) => {
+        setCurrentLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        });
+      });
+      setWatchId(id);
+    } catch (error) {
+      console.error('GPS Tracking Error:', error);
+      setIsTracking(false);
     }
   };
 
-  const stopGPSTracking = () => {
-    setIsTracking(false);
+  const stopGPSTracking = async () => {
+    try {
+      setIsTracking(false);
+      if (watchId !== null) {
+        await clearWatch(watchId);
+        setWatchId(null);
+      }
+    } catch (error) {
+      console.error('Error stopping GPS tracking:', error);
+    }
   };
 
   const handleDeliveryComplete = (stop: RouteStop) => {

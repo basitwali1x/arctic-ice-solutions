@@ -1,0 +1,79 @@
+name: CI/CD Pipeline
+
+on:
+  pull_request:
+    branches: [ main, devin/1752750425-arctic-ice-solutions-initial-commit ]
+  push:
+    branches: [ main, devin/1752750425-arctic-ice-solutions-initial-commit ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+          
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          pnpm install
+          
+      - name: Lint frontend
+        run: |
+          cd frontend
+          pnpm lint
+          
+      - name: Build frontend
+        run: |
+          cd frontend
+          pnpm build
+          
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+          
+      - name: Install Poetry
+        run: pip install poetry
+        
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          poetry install
+          
+  deploy:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devin/1752750425-arctic-ice-solutions-initial-commit'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+          
+      - name: Build frontend for production
+        run: |
+          cd frontend
+          pnpm install
+          pnpm build
+          
+      - name: Deploy to Devin Apps Platform
+        run: |
+          echo "Frontend built successfully. Manual deployment to Devin Apps Platform required."
+          echo "Build artifacts are ready in frontend/dist/"

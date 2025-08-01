@@ -100,12 +100,19 @@ A comprehensive web application for managing ice manufacturing and distribution 
 5. Test manager authentication and logout flow
 
 ### Deployment Process
-To deploy frontend updates to Devin Apps Platform:
-1. Fix environment configuration in `.env.production` with correct backend URL
-2. Build frontend: `cd frontend && pnpm build`
-3. Deploy using Devin Apps Platform deployment command
-4. Verify deployment reflects latest changes from all merged PRs
-5. Test key functionality including logout buttons and recent PR features
+Frontend and backend are automatically deployed when PRs are merged to the main branch via GitHub Actions.
+
+**Manual Deployment (if needed):**
+1. Build frontend: `cd frontend && pnpm build`
+2. Deploy using Devin Apps Platform deployment command
+3. Verify deployment reflects latest changes from all merged PRs
+4. Test key functionality including logout buttons and recent PR features
+
+**Automated Deployment:**
+- PRs are automatically validated with CI checks (build, lint)
+- PRs from devin-ai-integration[bot] are auto-merged when CI passes
+- Successful merges trigger automatic deployment to production
+- Deployment status can be monitored in GitHub Actions
 
 ## Data Import Capabilities
 

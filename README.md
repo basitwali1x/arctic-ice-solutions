@@ -99,6 +99,14 @@ A comprehensive web application for managing ice manufacturing and distribution 
 4. Verify Add Customer functionality works end-to-end
 5. Test manager authentication and logout flow
 
+### Deployment Process
+To deploy frontend updates to Devin Apps Platform:
+1. Fix environment configuration in `.env.production` with correct backend URL
+2. Build frontend: `cd frontend && pnpm build`
+3. Deploy using Devin Apps Platform deployment command
+4. Verify deployment reflects latest changes from all merged PRs
+5. Test key functionality including logout buttons and recent PR features
+
 ## Data Import Capabilities
 
 - **Excel Integration**: Import historical sales data

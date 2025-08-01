@@ -614,6 +614,7 @@ export function Financial() {
                   <div>
                     <Label htmlFor="category">Category</Label>
                     <Select value={newExpense.category} onValueChange={(value: 'fuel' | 'maintenance' | 'supplies' | 'utilities' | 'labor' | 'other') => setNewExpense({...newExpense, category: value})}>
+
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>

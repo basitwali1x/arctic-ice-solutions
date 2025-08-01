@@ -55,9 +55,15 @@ export function ProductionManager() {
       setProductionEntries(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching production data:', error);
-      setError('Failed to load production data');
+      let errorMessage = 'Failed to load production data. Please try again.';
+      
+      if (error instanceof Error) {
+        errorMessage = error.message || errorMessage;
+      }
+      
+      setError(errorMessage);
       setProductionEntries([]);
-      showError(error, 'Failed to load production data');
+      showError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -78,6 +84,7 @@ export function ProductionManager() {
       const response = await apiRequest('/api/production/entries', {
         method: 'POST',
         body: JSON.stringify({
+          date: new Date().toISOString().split('T')[0],
           shift: formData.shift,
           pallets_8lb,
           pallets_20lb,
@@ -97,7 +104,24 @@ export function ProductionManager() {
       }
     } catch (error) {
       console.error('Error submitting production data:', error);
-      showError(error, 'Failed to submit production data');
+      let errorMessage = 'Failed to submit production data. Please try again.';
+      
+      if (error instanceof Error) {
+        try {
+          const errorData = JSON.parse(error.message);
+          if (Array.isArray(errorData) && errorData.length > 0) {
+            errorMessage = errorData.map((err: any) => err.msg || err.message || 'Validation error').join(', ');
+          } else if (errorData.detail) {
+            errorMessage = Array.isArray(errorData.detail) 
+              ? errorData.detail.map((err: any) => err.msg || err.message || 'Validation error').join(', ')
+              : errorData.detail;
+          }
+        } catch {
+          errorMessage = error.message || errorMessage;
+        }
+      }
+      
+      showError(errorMessage);
     }
   };
 

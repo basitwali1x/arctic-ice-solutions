@@ -228,6 +228,14 @@ class WorkOrder(BaseModel):
     approved_by: Optional[str] = None
     approved_date: Optional[datetime] = None
 
+class ProductionEntryCreate(BaseModel):
+    date: date
+    shift: int
+    pallets_8lb: int
+    pallets_20lb: int
+    pallets_block_ice: int
+    total_pallets: int
+
 class ProductionEntry(BaseModel):
     id: str
     date: date
@@ -2145,12 +2153,20 @@ async def get_production_entries(current_user: UserInDB = Depends(get_current_us
     return sorted(entries, key=lambda x: x["submitted_at"], reverse=True)
 
 @app.post("/api/production/entries")
-async def create_production_entry(entry: ProductionEntry, current_user: UserInDB = Depends(get_current_user)):
-    entry.id = str(uuid.uuid4())
-    entry.submitted_at = datetime.now()
-    entry.submitted_by = current_user.full_name
+async def create_production_entry(entry_data: ProductionEntryCreate, current_user: UserInDB = Depends(get_current_user)):
+    entry = ProductionEntry(
+        id=str(uuid.uuid4()),
+        date=entry_data.date,
+        shift=entry_data.shift,
+        pallets_8lb=entry_data.pallets_8lb,
+        pallets_20lb=entry_data.pallets_20lb,
+        pallets_block_ice=entry_data.pallets_block_ice,
+        total_pallets=entry_data.total_pallets,
+        submitted_by=current_user.full_name,
+        submitted_at=datetime.now(),
+        location_id=current_user.location_id
+    )
     entry_dict = entry.dict()
-    entry_dict["location_id"] = current_user.location_id
     production_entries_db[entry.id] = entry_dict
     save_data_to_disk()
     return entry

@@ -22,7 +22,7 @@ export function Sidebar() {
     { path: '/fleet', icon: Truck, label: 'Fleet & Routes' },
     { path: '/customers', icon: Users, label: 'Customer Management' },
     { path: '/maintenance', icon: Wrench, label: 'Maintenance' },
-    { path: '/production-manager', icon: Factory, label: 'Production Manager' },
+    { path: '/production', icon: Factory, label: 'Production Manager' },
     { path: '/financial', icon: DollarSign, label: 'Financial' },
     { path: '/settings', icon: Settings, label: 'Settings' },
   ];

@@ -48,7 +48,27 @@ export function MobileCustomer({
     const user = customerUsers.find(u => u.id === customerId);
     if (user) {
       setCurrentUser(user);
-      setOrders(sampleOrders.filter(o => o.customerId === customerId));
+      
+      const fetchOrders = async () => {
+        try {
+          const response = await fetch(`/api/customers/${customerId}/orders`, {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+          });
+          if (response.ok) {
+            const backendOrders = await response.json();
+            setOrders(backendOrders);
+          } else {
+            setOrders(sampleOrders.filter(o => o.customerId === customerId));
+          }
+        } catch (error) {
+          console.error('Failed to fetch orders:', error);
+          setOrders(sampleOrders.filter(o => o.customerId === customerId));
+        }
+      };
+      
+      fetchOrders();
       setFeedback(sampleFeedback.filter(f => f.customerId === customerId));
       setInvoices(sampleInvoices.filter(i => i.customerId === customerId));
       setNewOrder(prev => ({
@@ -120,6 +140,29 @@ export function MobileCustomer({
     alert('Order submitted successfully!');
     setCurrentView('orders');
   };
+
+  useEffect(() => {
+    const refreshTracking = async () => {
+      if (currentView === 'track' && currentUser) {
+        try {
+          const response = await fetch(`/api/customers/${customerId}/orders`, {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+          });
+          if (response.ok) {
+            const updatedOrders = await response.json();
+            setOrders(updatedOrders);
+          }
+        } catch (error) {
+          console.error('Failed to refresh tracking data:', error);
+        }
+      }
+    };
+
+    const interval = setInterval(refreshTracking, 30000);
+    return () => clearInterval(interval);
+  }, [currentView, customerId, currentUser]);
 
   const submitFeedback = () => {
     if (!newFeedback.subject || !newFeedback.message) {

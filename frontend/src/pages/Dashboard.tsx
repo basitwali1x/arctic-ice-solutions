@@ -179,7 +179,6 @@ export function Dashboard() {
         const result = await response.json();
         setOptimizedRoutes(result.routes || []);
         if (result.routes && result.routes.length > 0) {
-          
         } else {
           showError(new Error('No routes generated'), result.message || 'No pending orders found for optimization');
         }

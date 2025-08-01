@@ -29,7 +29,7 @@ export function CustomerManagement() {
   const [sheetsUrl, setSheetsUrl] = useState('');
   const [selectedLocationId, setSelectedLocationId] = useState('');
   const [importing, setImporting] = useState(false);
-  const [importResult, setImportResult] = useState<any>(null);
+  const [importResult, setImportResult] = useState<{message: string; customers_imported?: number; total_records?: number} | null>(null);
   const [newCustomer, setNewCustomer] = useState({
     name: '',
     contact_person: '',
@@ -741,8 +741,7 @@ export function CustomerManagement() {
                 <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
                   <h4 className="font-medium text-green-800">Import Successful!</h4>
                   <p className="text-sm text-green-700">
-                    Imported {importResult.summary?.customers_imported || 0} customers
-                    {importResult.summary?.location_name && ` to ${importResult.summary.location_name}`}
+                    Imported {importResult.customers_imported || 0} customers
                   </p>
                 </div>
               )}

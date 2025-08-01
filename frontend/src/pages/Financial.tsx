@@ -17,9 +17,21 @@ export function Financial() {
   const [financialData, setFinancialData] = useState<FinancialDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [importStatus, setImportStatus] = useState<Record<string, unknown> | null>(null);
+  const [importStatus, setImportStatus] = useState<{
+    has_data?: boolean;
+    customers_count?: number;
+    orders_count?: number;
+    total_revenue?: number;
+  } | null>(null);
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [profitData, setProfitData] = useState<Record<string, unknown> | null>(null);
+  const [profitData, setProfitData] = useState<{
+    daily_expenses?: number;
+    profit_margin?: number;
+    expense_breakdown?: Record<string, number>;
+    total_revenue?: number;
+    total_expenses?: number;
+    profit?: number;
+  } | null>(null);
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedLocation, setSelectedLocation] = useState('loc_3');
@@ -449,7 +461,7 @@ export function Financial() {
       </div>
 
       {/* Import Status */}
-      {importStatus && (importStatus as { has_data: boolean; customers_count: number; orders_count: number; total_revenue: number }).has_data && (
+      {importStatus && importStatus.has_data && (
         <Card className="border-l-4 border-blue-500 bg-blue-50">
           <CardContent className="pt-4">
             <div className="flex items-center justify-between">
@@ -458,8 +470,8 @@ export function Financial() {
                 <span className="text-blue-700 font-medium">Real Data Loaded</span>
               </div>
               <div className="text-sm text-blue-600">
-                {(importStatus as { customers_count: number; orders_count: number; total_revenue: number }).customers_count} customers • {(importStatus as { customers_count: number; orders_count: number; total_revenue: number }).orders_count} orders •
-                ${(importStatus as { customers_count: number; orders_count: number; total_revenue: number }).total_revenue?.toLocaleString()} total revenue
+                {importStatus.customers_count} customers • {importStatus.orders_count} orders •
+                ${importStatus.total_revenue?.toLocaleString()} total revenue
               </div>
             </div>
           </CardContent>
@@ -601,7 +613,7 @@ export function Financial() {
                   </div>
                   <div>
                     <Label htmlFor="category">Category</Label>
-                    <Select value={newExpense.category} onValueChange={(value: "fuel" | "maintenance" | "supplies" | "utilities" | "labor" | "other") => setNewExpense({...newExpense, category: value})}>
+                    <Select value={newExpense.category} onValueChange={(value: 'fuel' | 'maintenance' | 'supplies' | 'utilities' | 'labor' | 'other') => setNewExpense({...newExpense, category: value})}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -653,7 +665,7 @@ export function Financial() {
               <div className="flex justify-between items-center">
                 <span className="font-medium">Today's Expenses</span>
                 <span className="text-lg font-bold text-red-600">
-                  ${(profitData as { daily_expenses?: number })?.daily_expenses?.toFixed(2) || '0.00'}
+                  ${profitData?.daily_expenses?.toFixed(2) || '0.00'}
                 </span>
               </div>
               <div className="flex justify-between items-center">
@@ -708,15 +720,15 @@ export function Financial() {
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm">Profit Margin</span>
-                <span className="font-medium">{(profitData as { profit_margin?: number })?.profit_margin?.toFixed(1) || '0'}%</span>
+                <span className="font-medium">{profitData?.profit_margin?.toFixed(1) || '0'}%</span>
               </div>
             </div>
 
-            {(profitData as { expense_breakdown?: Record<string, number> })?.expense_breakdown && (
+            {profitData?.expense_breakdown && (
               <div className="mt-6">
                 <h4 className="font-medium mb-3">Expense Breakdown</h4>
                 <div className="space-y-2">
-                  {Object.entries((profitData as { expense_breakdown: Record<string, number> }).expense_breakdown).map(([category, amount]) => (
+                  {Object.entries(profitData.expense_breakdown).map(([category, amount]) => (
                     <div key={category} className="flex justify-between items-center">
                       <span className="text-sm capitalize">{category}</span>
                       <span className="font-medium">${(amount as number).toFixed(2)}</span>
@@ -812,7 +824,7 @@ export function Financial() {
               <div className="flex items-center justify-between">
                 <span className="text-sm">Last Import</span>
                 <span className="text-sm text-gray-500">
-                  {(importStatus as { has_data?: boolean })?.has_data ? 'Just now' : 'Never'}
+                  {importStatus?.has_data ? 'Just now' : 'Never'}
                 </span>
               </div>
               <Button

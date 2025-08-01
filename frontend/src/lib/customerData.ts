@@ -75,7 +75,7 @@ export const sampleOrders: CustomerOrder[] = [
     customerId: 'cust-001',
     orderDate: '2025-01-20',
     requestedDeliveryDate: '2025-01-21',
-    status: 'confirmed',
+    status: 'out-for-delivery',
     items: [
       {
         productId: 'prod-001',
@@ -99,7 +99,51 @@ export const sampleOrders: CustomerOrder[] = [
     deliveryAddress: '100 Walmart Dr, Leesville, LA 71446',
     paymentMethod: 'credit',
     paymentStatus: 'pending',
-    invoiceNumber: 'INV-2025-001'
+    invoiceNumber: 'INV-2025-001',
+    trackingInfo: {
+      driverName: 'Mike Johnson',
+      vehicleId: 'VEH-001',
+      estimatedArrival: '2:30 PM',
+      currentLocation: {
+        lat: 31.1565,
+        lng: -93.2865,
+        timestamp: '2025-01-21T14:15:00Z'
+      }
+    }
+  },
+  {
+    id: 'order-002',
+    customerId: 'cust-001',
+    orderDate: '2025-01-19',
+    requestedDeliveryDate: '2025-01-20',
+    status: 'confirmed',
+    items: [
+      {
+        productId: 'prod-002',
+        productName: '20lb Ice Bags',
+        quantity: 50,
+        unitPrice: 5.00,
+        totalPrice: 250.00
+      }
+    ],
+    subtotal: 250.00,
+    tax: 22.50,
+    deliveryFee: 25.00,
+    totalAmount: 297.50,
+    deliveryAddress: '100 Walmart Dr, Leesville, LA 71446',
+    paymentMethod: 'credit',
+    paymentStatus: 'pending',
+    invoiceNumber: 'INV-2025-002',
+    trackingInfo: {
+      driverName: 'Sarah Williams',
+      vehicleId: 'VEH-002',
+      estimatedArrival: '10:00 AM',
+      currentLocation: {
+        lat: 31.2000,
+        lng: -93.3000,
+        timestamp: '2025-01-20T09:45:00Z'
+      }
+    }
   }
 ];
 

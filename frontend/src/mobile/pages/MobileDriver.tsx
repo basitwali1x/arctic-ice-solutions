@@ -194,7 +194,7 @@ export function MobileDriver() {
   const printReceipt = async (stop: RouteStop) => {
     if ('bluetooth' in navigator) {
       try {
-        await (navigator as Navigator & { bluetooth: { requestDevice: (options: { filters: Array<{ services: string[] }> }) => Promise<unknown> } }).bluetooth.requestDevice({
+        await (navigator as Navigator & { bluetooth: { requestDevice: (options: { filters: { services: string[] }[] }) => Promise<unknown> } }).bluetooth.requestDevice({
           filters: [{ services: ['000018f0-0000-1000-8000-00805f9b34fb'] }]
         });
         

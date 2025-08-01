@@ -17,9 +17,21 @@ export function Financial() {
   const [financialData, setFinancialData] = useState<FinancialDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [importStatus, setImportStatus] = useState<{ message: string; status: string; has_data?: boolean; customers_count?: number; orders_count?: number; total_revenue?: number } | null>(null);
+  const [importStatus, setImportStatus] = useState<{
+    has_data?: boolean;
+    customers_count?: number;
+    orders_count?: number;
+    total_revenue?: number;
+  } | null>(null);
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [profitData, setProfitData] = useState<{ daily_profit: number; monthly_profit: number; total_revenue: number; total_expenses: number; profit: number } | null>(null);
+  const [profitData, setProfitData] = useState<{
+    daily_expenses?: number;
+    profit_margin?: number;
+    expense_breakdown?: Record<string, number>;
+    total_revenue?: number;
+    total_expenses?: number;
+    profit?: number;
+  } | null>(null);
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedLocation, setSelectedLocation] = useState('loc_3');
@@ -601,7 +613,8 @@ export function Financial() {
                   </div>
                   <div>
                     <Label htmlFor="category">Category</Label>
-                    <Select value={newExpense.category} onValueChange={(value) => setNewExpense({...newExpense, category: value as typeof newExpense.category})}>
+                    <Select value={newExpense.category} onValueChange={(value: 'fuel' | 'maintenance' | 'supplies' | 'utilities' | 'labor' | 'other') => setNewExpense({...newExpense, category: value})}>
+
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -653,7 +666,7 @@ export function Financial() {
               <div className="flex justify-between items-center">
                 <span className="font-medium">Today's Expenses</span>
                 <span className="text-lg font-bold text-red-600">
-                  ${profitData && 'daily_expenses' in profitData ? (profitData as { daily_expenses?: number }).daily_expenses?.toFixed(2) : '0.00'}
+                  ${profitData?.daily_expenses?.toFixed(2) || '0.00'}
                 </span>
               </div>
               <div className="flex justify-between items-center">
@@ -708,15 +721,15 @@ export function Financial() {
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm">Profit Margin</span>
-                <span className="font-medium">{profitData && 'profit_margin' in profitData ? (profitData as { profit_margin?: number }).profit_margin?.toFixed(1) : '0'}%</span>
+                <span className="font-medium">{profitData?.profit_margin?.toFixed(1) || '0'}%</span>
               </div>
             </div>
 
-            {profitData && 'expense_breakdown' in profitData && (profitData as { expense_breakdown?: Record<string, number> }).expense_breakdown && (
+            {profitData?.expense_breakdown && (
               <div className="mt-6">
                 <h4 className="font-medium mb-3">Expense Breakdown</h4>
                 <div className="space-y-2">
-                  {Object.entries((profitData as { expense_breakdown: Record<string, number> }).expense_breakdown).map(([category, amount]) => (
+                  {Object.entries(profitData.expense_breakdown).map(([category, amount]) => (
                     <div key={category} className="flex justify-between items-center">
                       <span className="text-sm capitalize">{category}</span>
                       <span className="font-medium">${(amount as number).toFixed(2)}</span>

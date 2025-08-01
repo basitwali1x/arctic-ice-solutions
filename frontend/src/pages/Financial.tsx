@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { DollarSign, TrendingUp, FileText, RefreshCw, Download, Upload, CheckCircle, AlertCircle, Plus } from 'lucide-react';
-import { FinancialDashboard, Expense, QuickBooksStatus, QuickBooksSyncResult } from '../types/api';
+import { FinancialDashboard, Expense, QuickBooksStatus, QuickBooksSyncResult, Location } from '../types/api';
 import { apiRequest } from '../utils/api';
 import { useErrorToast } from '../hooks/useErrorToast';
 import { API_BASE_URL } from '../lib/constants';

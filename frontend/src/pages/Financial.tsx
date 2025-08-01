@@ -261,7 +261,7 @@ export function Financial() {
     try {
       const formData = new FormData();
       formData.append('sheets_url', googleSheetsUrl);
-      formData.append('location_id', 'loc_3');
+      formData.append('location_id', selectedLocation);
 
       const response = await fetch(`${API_BASE_URL}/api/import/google-sheets`, {
         method: 'POST',

@@ -384,9 +384,25 @@ def process_excel_files(file_paths: List[str], location_id: str = "loc_3", locat
             xl_file = pd.ExcelFile(file_path)
             logger.info(f"Available sheets: {xl_file.sheet_names}")
             
+            for sheet_name in xl_file.sheet_names:
+                try:
+                    df_sample = pd.read_excel(file_path, sheet_name=sheet_name, nrows=1)
+                    if len(df_sample.columns) > 100:
+                        logger.warning(f"Sheet {sheet_name} has {len(df_sample.columns)} columns, limiting to first 10 for memory efficiency")
+                        usecols = list(range(min(10, len(df_sample.columns))))
+                        df = pd.read_excel(file_path, sheet_name=sheet_name, usecols=usecols)
+                    else:
+                        df = pd.read_excel(file_path, sheet_name=sheet_name)
+                    break
+                except Exception as e:
+                    logger.warning(f"Failed to read sheet {sheet_name}: {e}")
+                    continue
+            else:
+                logger.error(f"Could not read any sheets from {file_path}")
+                continue
+            
             if 'Sheet1' in xl_file.sheet_names:
                 try:
-                    df = pd.read_excel(file_path, sheet_name='Sheet1')
                     df_clean = clean_excel_data(df)
                     if not df_clean.empty:
                         logger.info(f"Successfully processed as sales data from Sheet1")
@@ -395,7 +411,6 @@ def process_excel_files(file_paths: List[str], location_id: str = "loc_3", locat
             
             if df_clean is None or df_clean.empty:
                 try:
-                    df = pd.read_excel(file_path, sheet_name=0)
                     date_match = re.search(r'JULY\s*(\d{1,2})[+\s]*(\d{4})', file_path)
                     date_str = None
                     if date_match:
@@ -414,7 +429,12 @@ def process_excel_files(file_paths: List[str], location_id: str = "loc_3", locat
                 for sheet_name in xl_file.sheet_names:
                     if sheet_name.lower() in ['sales', 'daily sales', 'lc-daily sales sheet']:
                         try:
-                            df = pd.read_excel(file_path, sheet_name=sheet_name)
+                            df_sample = pd.read_excel(file_path, sheet_name=sheet_name, nrows=1)
+                            if len(df_sample.columns) > 100:
+                                usecols = list(range(min(10, len(df_sample.columns))))
+                                df = pd.read_excel(file_path, sheet_name=sheet_name, usecols=usecols)
+                            else:
+                                df = pd.read_excel(file_path, sheet_name=sheet_name)
                             df_clean = clean_excel_data(df)
                             if not df_clean.empty:
                                 logger.info(f"Successfully processed sales data from {sheet_name}")

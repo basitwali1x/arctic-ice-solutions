@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import List, Dict, Any
 import logging
 import re
+from fastapi import UploadFile
 
 logger = logging.getLogger(__name__)
 
@@ -381,6 +382,91 @@ def process_customer_excel_files(file_paths: List[str], location_id: str = "loc_
         "customers": deduplicated_customers,
         "total_records": len(deduplicated_customers),
         "duplicates_removed": len(all_customers) - len(deduplicated_customers)
+    }
+
+def process_route_excel_files(files: List[UploadFile], location_id: str) -> dict:
+    """Process route Excel files and create route data"""
+    import uuid
+    from datetime import datetime, date
+    
+    all_routes = []
+    total_records = 0
+    
+    for file in files:
+        try:
+            xl_file = pd.ExcelFile(file.file)
+            
+            for sheet_name in xl_file.sheet_names:
+                try:
+                    df = pd.read_excel(file.file, sheet_name=sheet_name)
+                    
+                    if df.empty:
+                        continue
+                    
+                    customer_column = None
+                    for col in df.columns:
+                        if 'customer' in str(col).lower() or col == df.columns[0]:
+                            customer_column = col
+                            break
+                    
+                    if customer_column is None:
+                        continue
+                    
+                    customer_data = df[customer_column].dropna().astype(str).str.strip()
+                    valid_customers = customer_data[
+                        (customer_data != '') & 
+                        (~customer_data.str.upper().isin(['CUSTOMER', 'NAN']))
+                    ].tolist()
+                    
+                    if not valid_customers:
+                        continue
+                    
+                    route_stops = []
+                    for i, customer_name in enumerate(valid_customers, 1):
+                        stop = {
+                            "id": str(uuid.uuid4()),
+                            "route_id": "",
+                            "customer_id": f"route_customer_{uuid.uuid4().hex[:8]}",
+                            "customer_name": customer_name,
+                            "order_id": f"route_order_{uuid.uuid4().hex[:8]}",
+                            "stop_number": i,
+                            "estimated_arrival": "",
+                            "status": "pending"
+                        }
+                        route_stops.append(stop)
+                    
+                    route_id = str(uuid.uuid4())
+                    route = {
+                        "id": route_id,
+                        "name": f"Route {sheet_name}",
+                        "driver_id": None,
+                        "vehicle_id": None,
+                        "location_id": location_id,
+                        "date": str(date.today()),
+                        "estimated_duration_hours": len(route_stops) * 0.5,
+                        "status": "planned",
+                        "created_at": datetime.now().isoformat(),
+                        "stops": route_stops
+                    }
+                    
+                    for stop in route_stops:
+                        stop["route_id"] = route_id
+                    
+                    all_routes.append(route)
+                    total_records += len(valid_customers)
+                    
+                except Exception as e:
+                    print(f"Error processing sheet {sheet_name}: {e}")
+                    continue
+                    
+        except Exception as e:
+            print(f"Error processing file {file.filename}: {e}")
+            continue
+    
+    return {
+        'routes': all_routes,
+        'total_records': total_records,
+        'routes_created': len(all_routes)
     }
 
 def process_excel_files(file_paths: List[str], location_id: str = "loc_3", location_name: str = "Lufkin") -> Dict[str, Any]:

@@ -5,9 +5,9 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Truck, MapPin, Plus, RefreshCw, Settings, Navigation, AlertCircle } from 'lucide-react';
+import { Truck, MapPin, Plus, RefreshCw, Settings, Navigation, AlertCircle, Upload } from 'lucide-react';
 import { Vehicle, Location, FleetDashboard, Route } from '../types/api';
 import { apiRequest } from '../utils/api';
 import { useErrorToast } from '../hooks/useErrorToast';
@@ -24,6 +24,10 @@ export function FleetManagement() {
   const { showError } = useErrorToast();
   const { toast } = useToast();
   const [showVehicleModal, setShowVehicleModal] = useState(false);
+  const [showRouteImportModal, setShowRouteImportModal] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importFiles, setImportFiles] = useState<FileList | null>(null);
+  const [selectedLocationId, setSelectedLocationId] = useState('');
   const [newVehicle, setNewVehicle] = useState({
     license_plate: '',
     vehicle_type: '53ft_reefer',
@@ -147,6 +151,60 @@ export function FleetManagement() {
     }
   };
 
+  const handleRouteImport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!importFiles || importFiles.length === 0) {
+      showError(new Error('No files selected'), 'Please select Excel files to import');
+      return;
+    }
+
+    if (!selectedLocationId) {
+      showError(new Error('No location selected'), 'Please select a target location');
+      return;
+    }
+
+    try {
+      setImporting(true);
+      
+      const formData = new FormData();
+      Array.from(importFiles).forEach(file => {
+        formData.append('files', file);
+      });
+      formData.append('location_id', selectedLocationId);
+
+      const response = await apiRequest('/api/routes/bulk-import', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (response && response.ok) {
+        const result = await response.json();
+        toast({
+          title: "Import Successful!",
+          description: `Imported ${result.routes_imported} routes with ${result.total_records} total stops`,
+        });
+        resetRouteImportModal();
+        fetchData();
+      } else if (response) {
+        const errorData = await response.json();
+        showError(new Error('Import failed'), errorData.detail || 'Unknown error occurred');
+      } else {
+        showError(new Error('Network error'), 'Failed to connect to server');
+      }
+    } catch (error) {
+      showError(error as Error, 'Failed to import routes');
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const resetRouteImportModal = () => {
+    setShowRouteImportModal(false);
+    setImportFiles(null);
+    setSelectedLocationId('');
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center h-64">Loading...</div>;
   }
@@ -180,9 +238,9 @@ export function FleetManagement() {
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
-          <Button variant="outline" size="sm">
-            <Navigation className="h-4 w-4 mr-2" />
-            Route Optimizer
+          <Button variant="outline" size="sm" onClick={() => setShowRouteImportModal(true)}>
+            <Upload className="h-4 w-4 mr-2" />
+            Import Routes
           </Button>
           <Button size="sm" onClick={() => setShowVehicleModal(true)}>
             <Plus className="h-4 w-4 mr-2" />
@@ -428,6 +486,68 @@ export function FleetManagement() {
               </Button>
               <Button type="submit">
                 Create Vehicle
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Route Import Modal */}
+      <Dialog open={showRouteImportModal} onOpenChange={setShowRouteImportModal}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Bulk Import Routes</DialogTitle>
+            <DialogDescription>
+              Import routes from Excel files. Each sheet will be treated as a separate route.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <form onSubmit={handleRouteImport} className="space-y-4">
+            <div>
+              <Label htmlFor="location_id">Target Location *</Label>
+              <Select value={selectedLocationId} onValueChange={setSelectedLocationId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select location" />
+                </SelectTrigger>
+                <SelectContent>
+                  {locations.map(location => (
+                    <SelectItem key={location.id} value={location.id}>
+                      {location.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="route_files">Excel Files *</Label>
+              <Input
+                id="route_files"
+                type="file"
+                accept=".xlsx,.xls"
+                multiple
+                onChange={(e) => setImportFiles(e.target.files)}
+                disabled={importing}
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                Select Excel files containing route data. Each sheet will become a separate route.
+              </p>
+            </div>
+
+            <DialogFooter>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={resetRouteImportModal}
+                disabled={importing}
+              >
+                Cancel
+              </Button>
+              <Button 
+                type="submit" 
+                disabled={importing || !importFiles || !selectedLocationId}
+              >
+                {importing ? 'Importing...' : 'Import Routes'}
               </Button>
             </DialogFooter>
           </form>

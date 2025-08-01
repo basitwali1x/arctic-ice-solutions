@@ -15,7 +15,7 @@ import logging
 import json
 from pathlib import Path
 from dotenv import load_dotenv
-from .excel_import import process_excel_files, process_customer_excel_files
+from .excel_import import process_excel_files, process_customer_excel_files, process_route_excel_files
 from .google_sheets_import import process_google_sheets_data, test_google_sheets_connection
 from .quickbooks_integration import QuickBooksClient, map_arctic_customer_to_qb, map_arctic_order_to_qb_invoice, map_arctic_payment_to_qb
 from jose import JWTError, jwt
@@ -2352,6 +2352,53 @@ async def bulk_import_customers_excel(
             except:
                 pass
 
+@app.post("/api/routes/bulk-import")
+async def bulk_import_routes(
+    files: List[UploadFile] = File(...),
+    location_id: str = Form(...),
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """Bulk import routes from Excel files"""
+    global routes_db
+    
+    if not files:
+        raise HTTPException(status_code=400, detail="No files provided")
+    
+    # Validate location_id
+    valid_locations = ["loc_1", "loc_2", "loc_3", "loc_4"]
+    if location_id not in valid_locations:
+        raise HTTPException(status_code=400, detail=f"Invalid location_id. Must be one of: {valid_locations}")
+    
+    if current_user.role != UserRole.MANAGER and location_id != current_user.location_id:
+        raise HTTPException(status_code=403, detail="Cannot import routes for different location")
+    
+    location_names = {
+        "loc_1": "Leesville",
+        "loc_2": "Lake Charles", 
+        "loc_3": "Lufkin",
+        "loc_4": "Jasper"
+    }
+    location_name = location_names[location_id]
+    
+    try:
+        result = process_route_excel_files(files, location_id)
+        
+        for route in result["routes"]:
+            routes_db[route["id"]] = route
+        
+        save_data_to_disk()
+        
+        logger.info(f"Successfully imported {len(result['routes'])} routes to {location_name}")
+        return {
+            "message": f"Successfully imported {len(result['routes'])} routes to {location_name}",
+            "routes_imported": len(result['routes']),
+            "total_records": result['total_records']
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in route bulk import: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/api/customers/bulk-import-sheets")
 async def bulk_import_customers_sheets(
     sheets_url: str = Form(...),
@@ -2700,6 +2747,47 @@ async def update_route_status(route_id: str, status: str, current_user: UserInDB
     routes_db[route_id]["status"] = status
     save_data_to_disk()
     return {"success": True, "message": f"Route status updated to {status}"}
+
+@app.post("/api/routes/bulk-import")
+async def bulk_import_routes_excel(
+    files: List[UploadFile] = File(...),
+    location_id: str = Form(...),
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """Bulk import routes from Excel files"""
+    from app.excel_import import process_route_excel_files
+    
+    if current_user.role not in [UserRole.MANAGER, UserRole.DISPATCHER]:
+        raise HTTPException(status_code=403, detail="Only managers and dispatchers can import routes")
+    
+    if not files:
+        raise HTTPException(status_code=400, detail="No files provided")
+    
+    if location_id not in locations_db:
+        raise HTTPException(status_code=400, detail="Invalid location ID")
+    
+    try:
+        result = process_route_excel_files(files, location_id)
+        routes_data = result.get('routes', [])
+        
+        imported_count = 0
+        for route_data in routes_data:
+            routes_db[route_data['id']] = route_data
+            imported_count += 1
+        
+        save_data_to_disk()
+        
+        return {
+            "success": True,
+            "message": f"Successfully imported {imported_count} routes",
+            "routes_imported": imported_count,
+            "total_records": result.get('total_records', 0),
+            "summary": f"Imported {imported_count} routes with {result.get('total_records', 0)} total stops"
+        }
+        
+    except Exception as e:
+        logger.error(f"Route import failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Import failed: {str(e)}")
 
 @app.post("/api/quickbooks/auth")
 async def quickbooks_auth(auth_request: QuickBooksAuthRequest, current_user: UserInDB = Depends(get_current_user)):

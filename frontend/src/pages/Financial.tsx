@@ -131,7 +131,11 @@ export function Financial() {
       }
     } catch (error) {
       console.error('File upload error:', error);
-      showError(error, 'Failed to upload files');
+      if (error instanceof Error && error.message.includes('400')) {
+        showError(error, 'Invalid file format or data. Please check your Excel files and try again.');
+      } else {
+        showError(error, 'Failed to upload files');
+      }
     } finally {
       setUploading(false);
       if (fileInputRef.current) {
@@ -305,7 +309,11 @@ export function Financial() {
     } catch (error) {
       console.error('Error connecting to Google Sheets:', error);
       setGoogleSheetsStatus('Connection Failed');
-      alert('Error connecting to Google Sheets. Please check your URL and try again.');
+      if (error instanceof Error && error.message.includes('400')) {
+        alert(`Google Sheets import failed: ${error.message}`);
+      } else {
+        alert('Error connecting to Google Sheets. Please check your URL and try again.');
+      }
     } finally {
       setGoogleSheetsConnecting(false);
     }

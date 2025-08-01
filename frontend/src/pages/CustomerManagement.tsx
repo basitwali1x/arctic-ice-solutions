@@ -287,12 +287,24 @@ export function CustomerManagement() {
         const result = await response.json();
         setImportResult(result);
         await fetchData();
+        
+        const summary = result.summary || {};
+        let message = `Import successful!\n• ${summary.customers_imported || 0} customers imported\n• Location: ${summary.location_name || 'Unknown'}`;
+        if (summary.duplicates_removed && summary.duplicates_removed > 0) {
+          message += `\n• ${summary.duplicates_removed} duplicates removed`;
+        }
+        alert(message);
       } else {
-        throw new Error('Import failed');
+        const errorData = response ? await response.json().catch(() => ({})) : {};
+        throw new Error(errorData.detail || 'Import failed');
       }
     } catch (error) {
       console.error('Failed to import customers:', error);
-      showError(error, 'Failed to import customers');
+      if (error instanceof Error && error.message.includes('400')) {
+        showError(error, 'Invalid data format. Please check your files and try again.');
+      } else {
+        showError(error, 'Failed to import customers');
+      }
     } finally {
       setImporting(false);
     }

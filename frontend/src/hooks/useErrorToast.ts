@@ -22,6 +22,10 @@ export const useErrorToast = () => {
           title = 'Server Error';
           description = 'A server error occurred. Please try again later.';
           break;
+        case 400:
+          title = 'Invalid Data';
+          description = error.apiError.message || 'The data provided is invalid or malformed.';
+          break;
         default:
           description = error.apiError.message;
       }

@@ -37,7 +37,12 @@ security = HTTPBearer()
 # Disable CORS. Do not remove this for full-stack development.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
+    allow_origins=[
+        "*",  # Allows all origins for development
+        "https://pr-merge-deployer-jm3kbgq1.devinapps.com",  # Deployed frontend
+        "http://localhost:5173",  # Local frontend
+        "http://localhost:3000",  # Alternative local frontend
+    ],
     allow_credentials=True,
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers

@@ -2010,7 +2010,10 @@ async def import_excel_data(
             }
         }
         
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
+        logger.error(f"Unexpected error processing Excel files: {e}")
         raise HTTPException(status_code=500, detail=f"Error processing Excel files: {str(e)}")
     
     finally:
@@ -2080,7 +2083,10 @@ async def import_google_sheets_data(
             }
         }
         
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
+        logger.error(f"Unexpected error processing Google Sheets data: {e}")
         raise HTTPException(status_code=500, detail=f"Error processing Google Sheets data: {str(e)}")
 
 @app.post("/api/customers/bulk-import")
@@ -2157,11 +2163,15 @@ async def bulk_import_customers_excel(
                 "customers_imported": customers_imported,
                 "total_records": processed_data["total_records"],
                 "location_id": location_id,
-                "location_name": location_name
+                "location_name": location_name,
+                "duplicates_removed": processed_data.get("duplicates_removed", 0)
             }
         }
         
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
+        logger.error(f"Unexpected error processing Excel files: {e}")
         raise HTTPException(status_code=500, detail=f"Error processing Excel files: {str(e)}")
     
     finally:
@@ -2235,11 +2245,15 @@ async def bulk_import_customers_sheets(
                 "total_records": processed_data["total_records"],
                 "location_id": location_id,
                 "location_name": location_name,
-                "sheets_url": sheets_url
+                "sheets_url": sheets_url,
+                "duplicates_removed": processed_data.get("duplicates_removed", 0)
             }
         }
         
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
+        logger.error(f"Unexpected error processing Google Sheets: {e}")
         raise HTTPException(status_code=500, detail=f"Error processing Google Sheets: {str(e)}")
 
 @app.get("/api/google-sheets/test-connection")

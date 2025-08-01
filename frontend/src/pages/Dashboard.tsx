@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -32,7 +32,7 @@ export function Dashboard() {
   const [isOptimizing, setIsOptimizing] = useState(false);
   const { showError } = useErrorToast();
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -69,11 +69,11 @@ export function Dashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [setLoading, setError, setDashboardData, setLocations, showError]);
 
   useEffect(() => {
     fetchDashboardData();
-  }, []);
+  }, [fetchDashboardData]);
 
   const productionData = [
     { name: 'Shift 1', pallets: dashboardData.production?.shift_1_pallets || 45 },

@@ -2132,13 +2132,13 @@ async def get_dashboard_overview(current_user: UserInDB = Depends(get_current_us
         filtered_customers = filter_by_location(imported_customers, current_user)
         filtered_orders = filter_by_location(imported_orders, current_user)
         total_customers = len(filtered_customers)
-        total_orders_today = len([o for o in filtered_orders if o.get("date", "").startswith(str(date.today()))])
+        total_orders_today = len([o for o in filtered_orders if o.get("order_date", "") and datetime.fromisoformat(o["order_date"].replace('Z', '+00:00')).date() == date.today()])
         total_revenue = imported_financial_data.get("total_revenue", 0) if imported_financial_data else 0
     else:
         filtered_customers = filter_by_location(list(customers_db.values()), current_user)
         filtered_orders = filter_by_location(list(orders_db.values()), current_user)
         total_customers = len(filtered_customers)
-        total_orders_today = len([o for o in filtered_orders if datetime.fromisoformat(o["order_date"].replace('Z', '+00:00')).date() == date.today()])
+        total_orders_today = len([o for o in filtered_orders if o.get("order_date") and datetime.fromisoformat(o["order_date"].replace('Z', '+00:00')).date() == date.today()])
         total_revenue = 125000.0
     
     filtered_vehicles = filter_by_location(list(vehicles_db.values()), current_user)

@@ -110,10 +110,10 @@ export function ProductionManager() {
         try {
           const errorData = JSON.parse(error.message);
           if (Array.isArray(errorData) && errorData.length > 0) {
-            errorMessage = errorData.map((err: any) => err.msg || err.message || 'Validation error').join(', ');
+            errorMessage = errorData.map((err: { msg?: string; message?: string }) => err.msg || err.message || 'Validation error').join(', ');
           } else if (errorData.detail) {
             errorMessage = Array.isArray(errorData.detail) 
-              ? errorData.detail.map((err: any) => err.msg || err.message || 'Validation error').join(', ')
+              ? errorData.detail.map((err: { msg?: string; message?: string }) => err.msg || err.message || 'Validation error').join(', ')
               : errorData.detail;
           }
         } catch {

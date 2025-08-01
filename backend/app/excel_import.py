@@ -2,6 +2,7 @@ import pandas as pd
 from datetime import datetime
 from typing import List, Dict, Any
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -10,6 +11,7 @@ def clean_excel_data(df: pd.DataFrame) -> pd.DataFrame:
     required_cols = ['Type', 'Date', 'Name', 'Amount']
     missing_cols = [col for col in required_cols if col not in df.columns]
     if missing_cols:
+        logger.warning(f"Missing required columns for sales data format: {missing_cols}")
         return pd.DataFrame()
     
     df_clean = df.dropna(subset=['Type', 'Date', 'Name', 'Amount'], how='any')
@@ -30,6 +32,51 @@ def clean_excel_data(df: pd.DataFrame) -> pd.DataFrame:
     df_clean = df_clean[df_clean['Amount'] > 0]  # Remove negative/zero amounts
     
     return df_clean
+
+def extract_timesheet_sales_data(df: pd.DataFrame, date_from_filename: str = None) -> pd.DataFrame:
+    """Extract sales data from timesheet format and convert to standard format"""
+    sales_data = []
+    
+    for i, row in df.iterrows():
+        if pd.isna(row.iloc[0]) or str(row.iloc[0]).strip() == '':
+            continue
+            
+        customer_name = str(row.iloc[0]).strip()
+        
+        if customer_name in ['Account Name', 'TICKETS:', 'MISSING TICKETS:', 'C.P.', 'JAMIE'] or 'DRIVER:' in customer_name or 'ROUTE:' in customer_name or 'CHECK IN SHEETS' in customer_name or 'CASH SALES' in customer_name:
+            continue
+        
+        qty_8lb = pd.to_numeric(row.iloc[2] if len(row) > 2 else 0, errors='coerce') or 0
+        qty_20lb = pd.to_numeric(row.iloc[3] if len(row) > 3 else 0, errors='coerce') or 0
+        
+        if qty_8lb > 0:
+            sales_data.append({
+                'Type': 'Sales Receipt',
+                'Date': date_from_filename or datetime.now().strftime('%Y-%m-%d'),
+                'Name': customer_name,
+                'Item': '8lb Ice Bag',
+                'Qty': qty_8lb,
+                'Sales Price': 1.25,
+                'Amount': qty_8lb * 1.25,
+                'Num': f'TS-{i}-8LB'
+            })
+        
+        if qty_20lb > 0:
+            sales_data.append({
+                'Type': 'Sales Receipt', 
+                'Date': date_from_filename or datetime.now().strftime('%Y-%m-%d'),
+                'Name': customer_name,
+                'Item': '20lb Ice Bag',
+                'Qty': qty_20lb,
+                'Sales Price': 2.00,
+                'Amount': qty_20lb * 2.00,
+                'Num': f'TS-{i}-20LB'
+            })
+    
+    if sales_data:
+        return pd.DataFrame(sales_data)
+    else:
+        return pd.DataFrame()
 
 def extract_customers_from_excel(df: pd.DataFrame, location_id: str = "loc_3", location_name: str = "Lufkin") -> List[Dict[str, Any]]:
     """Extract unique customers from Excel data with proper location mapping"""
@@ -173,19 +220,62 @@ def process_excel_files(file_paths: List[str], location_id: str = "loc_3", locat
     for file_path in file_paths:
         try:
             logger.info(f"Processing Excel file: {file_path}")
-            if file_path.endswith('.xlsm'):
-                df = pd.read_excel(file_path, engine='openpyxl', sheet_name='Sheet1')
+            df_clean = None
+            
+            xl_file = pd.ExcelFile(file_path)
+            logger.info(f"Available sheets: {xl_file.sheet_names}")
+            
+            if 'Sheet1' in xl_file.sheet_names:
+                try:
+                    df = pd.read_excel(file_path, sheet_name='Sheet1')
+                    df_clean = clean_excel_data(df)
+                    if not df_clean.empty:
+                        logger.info(f"Successfully processed as sales data from Sheet1")
+                except Exception as e:
+                    logger.warning(f"Failed to process Sheet1 as sales data: {e}")
+            
+            if df_clean is None or df_clean.empty:
+                try:
+                    df = pd.read_excel(file_path, sheet_name=0)
+                    date_match = re.search(r'JULY\s*(\d{1,2})[+\s]*(\d{4})', file_path)
+                    date_str = None
+                    if date_match:
+                        day, year = date_match.groups()
+                        date_str = f"{year}-07-{day.zfill(2)}"
+                    
+                    df_timesheet = extract_timesheet_sales_data(df, date_str)
+                    if not df_timesheet.empty:
+                        df_clean = clean_excel_data(df_timesheet)
+                        if not df_clean.empty:
+                            logger.info(f"Successfully processed as timesheet data")
+                except Exception as e:
+                    logger.warning(f"Failed to process as timesheet data: {e}")
+            
+            if df_clean is None or df_clean.empty:
+                for sheet_name in xl_file.sheet_names:
+                    if sheet_name.lower() in ['sales', 'daily sales', 'lc-daily sales sheet']:
+                        try:
+                            df = pd.read_excel(file_path, sheet_name=sheet_name)
+                            df_clean = clean_excel_data(df)
+                            if not df_clean.empty:
+                                logger.info(f"Successfully processed sales data from {sheet_name}")
+                                break
+                        except Exception as e:
+                            logger.warning(f"Failed to process {sheet_name}: {e}")
+                            continue
+            
+            if df_clean is not None and not df_clean.empty:
+                all_data.append(df_clean)
+                logger.info(f"Processed {len(df_clean)} records from {file_path}")
             else:
-                df = pd.read_excel(file_path, sheet_name='Sheet1')
-            df_clean = clean_excel_data(df)
-            all_data.append(df_clean)
-            logger.info(f"Processed {len(df_clean)} records from {file_path}")
+                logger.warning(f"No valid data found in {file_path}")
+                
         except Exception as e:
             logger.error(f"Error processing {file_path}: {e}")
             continue
     
     if not all_data:
-        raise ValueError("No valid data found in Excel files")
+        raise ValueError("No valid sales data found in any Excel files. Please ensure files contain either standard sales data (Type, Date, Name, Amount columns) or timesheet format with customer names and quantities.")
     
     combined_df = pd.concat(all_data, ignore_index=True)
     

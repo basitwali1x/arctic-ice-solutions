@@ -15,7 +15,7 @@ import {
   Download,
   Send
 } from 'lucide-react';
-import { CustomerUser, CustomerOrder, CustomerFeedback, Invoice } from '../../types/api';
+import { CustomerUser, CustomerOrder, CustomerFeedback, Invoice, OrderItem } from '../../types/api';
 import { customerUsers, products, sampleOrders, sampleFeedback, sampleInvoices } from '../../lib/customerData';
 
 interface CustomerAppProps {
@@ -31,7 +31,7 @@ export function MobileCustomer({
   const [feedback, setFeedback] = useState<CustomerFeedback[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [newOrder, setNewOrder] = useState({
-    items: [] as any[],
+    items: [] as OrderItem[],
     deliveryAddress: '',
     specialInstructions: '',
     requestedDeliveryDate: ''
@@ -66,13 +66,13 @@ export function MobileCustomer({
   }, [customerId]);
 
   const calculateOrderTotal = () => {
-    return newOrder.items.reduce((total: number, item: any) => total + item.totalPrice, 0);
+    return newOrder.items.reduce((total: number, item: OrderItem) => total + item.totalPrice, 0);
   };
 
   const updateOrderItem = (productId: string, quantity: number) => {
     setNewOrder(prev => ({
       ...prev,
-      items: prev.items.map((item: any) => 
+      items: prev.items.map((item: OrderItem) => 
         item.productId === productId 
           ? { ...item, quantity, totalPrice: quantity * item.unitPrice }
           : item
@@ -81,7 +81,7 @@ export function MobileCustomer({
   };
 
   const submitOrder = () => {
-    const orderItems = newOrder.items.filter((item: any) => item.quantity > 0);
+    const orderItems = newOrder.items.filter((item: OrderItem) => item.quantity > 0);
     if (orderItems.length === 0) {
       alert('Please add at least one item to your order');
       return;
@@ -112,7 +112,7 @@ export function MobileCustomer({
     setOrders(prev => [order, ...prev]);
     setNewOrder(prev => ({
       ...prev,
-      items: prev.items.map((item: any) => ({ ...item, quantity: 0, totalPrice: 0 })),
+      items: prev.items.map((item: OrderItem) => ({ ...item, quantity: 0, totalPrice: 0 })),
       specialInstructions: '',
       requestedDeliveryDate: ''
     }));
@@ -219,7 +219,7 @@ export function MobileCustomer({
               variant={currentView === key ? "default" : "ghost"}
               size="sm"
               className="flex-shrink-0"
-              onClick={() => setCurrentView(key as any)}
+              onClick={() => setCurrentView(key as 'home' | 'orders' | 'track' | 'billing' | 'feedback')}
             >
               <Icon className="w-4 h-4 mr-1" />
               {label}
@@ -313,7 +313,7 @@ export function MobileCustomer({
 
                 <div className="space-y-3">
                   <h4 className="font-medium">Products</h4>
-                  {newOrder.items.map((item: any) => (
+                  {newOrder.items.map((item: OrderItem) => (
                     <div key={item.productId} className="flex items-center justify-between p-3 border rounded-lg">
                       <div className="flex-1">
                         <p className="font-medium">{item.productName}</p>
@@ -489,7 +489,7 @@ export function MobileCustomer({
                   <label className="block text-sm font-medium mb-1">Feedback Type</label>
                   <select
                     value={newFeedback.type}
-                    onChange={(e) => setNewFeedback(prev => ({ ...prev, type: e.target.value as any }))}
+                    onChange={(e) => setNewFeedback(prev => ({ ...prev, type: e.target.value as typeof prev.type }))}
                     className="w-full p-2 border rounded-md"
                   >
                     <option value="delivery">Delivery</option>
@@ -508,7 +508,7 @@ export function MobileCustomer({
                         key={rating}
                         variant={newFeedback.rating >= rating ? "default" : "outline"}
                         size="sm"
-                        onClick={() => setNewFeedback(prev => ({ ...prev, rating: rating as any }))}
+                        onClick={() => setNewFeedback(prev => ({ ...prev, rating: rating as typeof prev.rating }))}
                       >
                         <Star className="w-4 h-4" />
                       </Button>

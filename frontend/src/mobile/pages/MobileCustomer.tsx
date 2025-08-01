@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Input } from '../../components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { 
   ShoppingCart, 
   Package,
@@ -43,6 +44,8 @@ export function MobileCustomer({
     message: '',
     orderId: ''
   });
+  const [showOrderDetail, setShowOrderDetail] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<CustomerOrder | null>(null);
 
   useEffect(() => {
     const user = customerUsers.find(u => u.id === customerId);
@@ -149,6 +152,11 @@ export function MobileCustomer({
     });
     
     alert('Feedback submitted successfully!');
+  };
+
+  const viewOrderDetails = (order: CustomerOrder) => {
+    setSelectedOrder(order);
+    setShowOrderDetail(true);
   };
 
   if (!currentUser) {
@@ -355,7 +363,7 @@ export function MobileCustomer({
                         <p className="text-sm text-gray-600 mb-2">{order.items.length} items</p>
                         <div className="flex justify-between items-center">
                           <span className="font-medium">${order.totalAmount.toFixed(2)}</span>
-                          <Button size="sm" variant="outline">
+                          <Button size="sm" variant="outline" onClick={() => viewOrderDetails(order)}>
                             <Eye className="w-4 h-4 mr-1" />
                             View
                           </Button>
@@ -557,6 +565,139 @@ export function MobileCustomer({
           </div>
         )}
       </main>
+      
+      {/* Order Detail Modal */}
+      <Dialog open={showOrderDetail} onOpenChange={setShowOrderDetail}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Order Details</DialogTitle>
+          </DialogHeader>
+          
+          {selectedOrder && (
+            <div className="space-y-4">
+              {/* Order Header */}
+              <div className="flex justify-between items-start">
+                <div>
+                  <h3 className="text-lg font-semibold">Order #{selectedOrder.invoiceNumber || selectedOrder.id}</h3>
+                  <p className="text-sm text-gray-600">Placed on {selectedOrder.orderDate}</p>
+                </div>
+                <Badge variant={selectedOrder.status === 'delivered' ? 'default' : 'secondary'}>
+                  {selectedOrder.status}
+                </Badge>
+              </div>
+              
+              {/* Order Items */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Items Ordered</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {selectedOrder.items.map((item, index) => (
+                      <div key={index} className="flex justify-between items-center py-2 border-b last:border-b-0">
+                        <div>
+                          <p className="font-medium">{item.productName}</p>
+                          <p className="text-sm text-gray-600">Qty: {item.quantity} @ ${item.unitPrice.toFixed(2)} each</p>
+                        </div>
+                        <p className="font-medium">${item.totalPrice.toFixed(2)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+              
+              {/* Delivery Information */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Delivery Information</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <div>
+                    <p className="text-sm font-medium">Delivery Address:</p>
+                    <p className="text-sm text-gray-600">{selectedOrder.deliveryAddress}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Requested Delivery Date:</p>
+                    <p className="text-sm text-gray-600">{selectedOrder.requestedDeliveryDate}</p>
+                  </div>
+                  {selectedOrder.actualDeliveryDate && (
+                    <div>
+                      <p className="text-sm font-medium">Actual Delivery Date:</p>
+                      <p className="text-sm text-gray-600">{selectedOrder.actualDeliveryDate}</p>
+                    </div>
+                  )}
+                  {selectedOrder.specialInstructions && (
+                    <div>
+                      <p className="text-sm font-medium">Special Instructions:</p>
+                      <p className="text-sm text-gray-600">{selectedOrder.specialInstructions}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+              
+              {/* Tracking Information */}
+              {selectedOrder.trackingInfo && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Tracking Information</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div>
+                      <p className="text-sm font-medium">Driver:</p>
+                      <p className="text-sm text-gray-600">{selectedOrder.trackingInfo.driverName}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Estimated Arrival:</p>
+                      <p className="text-sm text-gray-600">{selectedOrder.trackingInfo.estimatedArrival}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Vehicle ID:</p>
+                      <p className="text-sm text-gray-600">{selectedOrder.trackingInfo.vehicleId}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+              
+              {/* Payment & Billing */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Payment & Billing</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm">Subtotal:</span>
+                    <span className="text-sm">${selectedOrder.subtotal.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm">Tax:</span>
+                    <span className="text-sm">${selectedOrder.tax.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm">Delivery Fee:</span>
+                    <span className="text-sm">${selectedOrder.deliveryFee.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between font-medium border-t pt-2">
+                    <span>Total:</span>
+                    <span>${selectedOrder.totalAmount.toFixed(2)}</span>
+                  </div>
+                  <div className="mt-3 space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-sm">Payment Method:</span>
+                      <span className="text-sm capitalize">{selectedOrder.paymentMethod || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm">Payment Status:</span>
+                      <Badge variant={selectedOrder.paymentStatus === 'paid' ? 'default' : 'secondary'} className="text-xs">
+                        {selectedOrder.paymentStatus}
+                      </Badge>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

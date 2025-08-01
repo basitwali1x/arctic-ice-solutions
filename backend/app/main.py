@@ -827,19 +827,6 @@ def initialize_sample_data():
             "status": "active"
         },
         {
-            "id": "lufkin_customer_4",
-            "name": "Stephen F. Austin University",
-            "contact_person": "Dr. Mark Stevens",
-            "email": "mark@sfasu.edu",
-            "phone": "(936) 555-1004",
-            "address": "1936 North St, Nacogdoches, TX 75962",
-            "location_id": "loc_3",
-            "credit_limit": 12000.0,
-            "current_balance": 0.0,
-            "payment_terms": "Net 30",
-            "status": "active"
-        },
-        {
             "id": "jasper_customer_1",
             "name": "Jasper Memorial Hospital",
             "contact_person": "Dr. Lisa Chen",
@@ -879,16 +866,29 @@ def initialize_sample_data():
             "status": "active"
         },
         {
-            "id": "jasper_customer_4",
-            "name": "Jasper County Fair",
-            "contact_person": "Betty Sue Walker",
-            "email": "betty@jasperfair.com",
-            "phone": "(409) 555-4004",
-            "address": "1100 Fair Park Rd, Jasper, TX 75951",
-            "location_id": "loc_4",
-            "credit_limit": 6000.0,
+            "id": "leesville_customer_5",
+            "name": "Vernon Parish Recreation Center",
+            "contact_person": "Amanda Johnson",
+            "email": "amanda@vernonrec.com",
+            "phone": "(337) 555-2005",
+            "address": "2100 Recreation Blvd, Leesville, LA 71446",
+            "location_id": "loc_1",
+            "credit_limit": 7000.0,
             "current_balance": 0.0,
             "payment_terms": "Net 15",
+            "status": "active"
+        },
+        {
+            "id": "leesville_customer_6",
+            "name": "Sabine Parish Emergency Services",
+            "contact_person": "Chief Robert Martinez",
+            "email": "robert@sabineems.gov",
+            "phone": "(337) 555-2006",
+            "address": "500 Emergency Dr, Many, LA 71449",
+            "location_id": "loc_1",
+            "credit_limit": 5000.0,
+            "current_balance": 0.0,
+            "payment_terms": "Net 30",
             "status": "active"
         }
     ]

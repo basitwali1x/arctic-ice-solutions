@@ -39,7 +39,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "*",  # Allows all origins for development
-        "https://pr-merge-deployer-jm3kbgq1.devinapps.com",  # Deployed frontend
+        "https://pr-merge-deployer-jm3kbgq1.devinapps.com",  # Previous deployed frontend
+        "https://pr-merge-deploy-app-hi61mlhf.devinapps.com",  # Current deployed frontend
+        "https://ice-management-app-4r16aafs.devinapps.com",  # Original deployment URL
         "http://localhost:5173",  # Local frontend
         "http://localhost:3000",  # Alternative local frontend
     ],

@@ -2032,6 +2032,11 @@ async def get_financial_dashboard(current_user: UserInDB = Depends(get_current_u
     if imported_financial_data:
         total_revenue = imported_financial_data.get("total_revenue", 0)
         daily_revenue_data = imported_financial_data.get("daily_revenue", {})
+        
+        from datetime import date
+        today = str(date.today())
+        today_revenue = daily_revenue_data.get(today, 0)
+        
         recent_daily = list(daily_revenue_data.values())[-7:] if daily_revenue_data else [0]
         avg_daily = sum(recent_daily) / len(recent_daily) if recent_daily else 0
         
@@ -2040,11 +2045,12 @@ async def get_financial_dashboard(current_user: UserInDB = Depends(get_current_u
         current_monthly = recent_monthly[0] if recent_monthly else 0
         
         return {
-            "daily_revenue": avg_daily,
+            "daily_revenue": today_revenue,
+            "daily_revenue_average": avg_daily,
             "monthly_revenue": current_monthly,
             "daily_expenses": total_expenses / 30,
             "monthly_expenses": total_expenses,
-            "daily_profit": avg_daily - (total_expenses / 30),
+            "daily_profit": today_revenue - (total_expenses / 30),
             "payment_breakdown": {
                 "cash": 60.0,
                 "check": 25.0,
@@ -2055,11 +2061,12 @@ async def get_financial_dashboard(current_user: UserInDB = Depends(get_current_u
         }
     else:
         return {
-            "daily_revenue": 12500.00,
+            "daily_revenue": 0.00,
+            "daily_revenue_average": 12500.00,
             "monthly_revenue": 375000.00,
             "daily_expenses": total_expenses / 30,
             "monthly_expenses": total_expenses,
-            "daily_profit": 12500.00 - (total_expenses / 30),
+            "daily_profit": 0.00 - (total_expenses / 30),
             "payment_breakdown": {
                 "cash": 45.2,
                 "check": 30.8,

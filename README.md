@@ -84,13 +84,13 @@ A comprehensive web application for managing ice manufacturing and distribution 
 - Deployed on Devin Apps Platform
 - URL: https://ice-management-app-4r16aafs.devinapps.com
 - Environment Variables:
-  - Production: `VITE_API_URL=https://app-rdnbxskz.fly.dev`
+  - Production: `VITE_API_URL=https://app-rawyclbe.fly.dev`
   - Local Development: `VITE_API_URL=http://localhost:8000`
 
 ### Backend
 - Deployed on Fly.io
-- URL: https://app-rdnbxskz.fly.dev
-- Health Check: https://app-rdnbxskz.fly.dev/healthz
+- URL: https://app-rawyclbe.fly.dev
+- Health Check: https://app-rawyclbe.fly.dev/healthz
 
 ### Deployment Verification Steps
 1. Verify frontend loads at https://ice-management-app-4r16aafs.devinapps.com
@@ -144,7 +144,7 @@ VITE_API_URL=http://localhost:8000
 ## Deployment URLs
 
 - **Frontend**: https://ice-management-app-4r16aafs.devinapps.com
-- **Backend API**: https://app-rdnbxskz.fly.dev
+- **Backend API**: https://app-rawyclbe.fly.dev
 
 ## Project Structure
 

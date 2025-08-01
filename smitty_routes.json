@@ -1,0 +1,756 @@
+{
+  "Churchpoint-Monday": [
+    [
+      "Customer",
+      "Charge",
+      "Cash",
+      "8#",
+      "20#",
+      "Tax",
+      "Address",
+      "City",
+      "Phone"
+    ]
+  ],
+  "Churchpoint-Tuesday": [
+    [
+      "Customer",
+      "Charge",
+      "Cash",
+      "8#",
+      "20#",
+      "Tax",
+      "Address",
+      "City",
+      "Phone"
+    ],
+    [
+      "Piggly Wiggly-Scott",
+      "\u221a",
+      "1.25",
+      "3",
+      "5525 Cameron Street",
+      "Scott",
+      "337-232.9877"
+    ],
+    [
+      "Savco",
+      "\u221a",
+      "1.25",
+      "620 West Canal Street",
+      "Churchpoint",
+      "337-684-3127"
+    ],
+    [
+      "Anthony's Feed Store",
+      "\u221a",
+      "1.25",
+      "102 North Bellard Street",
+      "Churchpoint",
+      "337-684-5403"
+    ],
+    [
+      "AJ's",
+      "\u221a",
+      "1.25",
+      "7009 Churchpoint HWY",
+      "Rayne",
+      "337-334-0288"
+    ],
+    [
+      "I-10 Chevron-Rayne",
+      "\u221a",
+      "1.25",
+      "1045 Churchpoint HWY",
+      "Rayne",
+      "337-334-9684"
+    ],
+    [
+      "I-10 Rayne Travel Center",
+      "\u221a",
+      "1.25",
+      "1044 Churchpoint HWY",
+      "Rayne",
+      "337-334-7233"
+    ],
+    [
+      "Nonc Kev Meat Market",
+      "\u221a",
+      "1.25",
+      "3",
+      "1421 The Blvd",
+      "Rayne",
+      "337-393-2750"
+    ],
+    [
+      "Champagne's-Rayne",
+      "\u221a",
+      "1.25",
+      "3",
+      "500 South Adams Avenue",
+      "Rayne",
+      "337-334-3869"
+    ],
+    [
+      "Piggly Wiggly-Rayne",
+      "\u221a",
+      "1.25",
+      "3",
+      "702 South Adams Avenue",
+      "Rayne",
+      "337-334-4233"
+    ],
+    [
+      "We Fair",
+      "\u221a",
+      "1.25",
+      "300 West Branche",
+      "Rayne",
+      "337-334-4620"
+    ],
+    [
+      "Lyon's Point",
+      "\u221a",
+      "1.25",
+      "2418 Muskrate Road",
+      "Crowley",
+      "337-783-4445"
+    ],
+    [
+      "Crawfish Nest",
+      "\u221a",
+      "1.25",
+      "805 West 2nd Street",
+      "Crowley",
+      "337-783-9900"
+    ],
+    [
+      "Cuccio's",
+      "\u221a",
+      "1.25",
+      "1025 North Avenue G",
+      "Crowley",
+      "337-783-2140"
+    ],
+    [
+      "CP Wholesale",
+      "\u221a",
+      "1.25",
+      "9684 Churchpoint HWY",
+      "Churchpoint",
+      "3373849363"
+    ],
+    [
+      "Henderson 1 Stop",
+      "\u221a",
+      "1.25",
+      "504 HENDERSON HWY",
+      "Breaux Bridge",
+      "337-434-4019"
+    ],
+    [
+      "Cash Saver",
+      "\u221a",
+      "1.25",
+      "1714 Main HWY Street",
+      "St. Martinville",
+      "337-394-2333"
+    ],
+    [
+      "Sea Safe",
+      "\u221a",
+      "1.25",
+      "209 Gaser Drive",
+      "Lafayette",
+      "337-406-2345"
+    ],
+    [
+      "Jubilee",
+      "\u221a",
+      "1.25",
+      "1734 North University Avenue",
+      "Lafayette",
+      "337-235-3249"
+    ],
+    [
+      "LA Scrap",
+      "\u221a",
+      "1.25",
+      "2200 Cameron Street",
+      "Lafayette",
+      "337-233-0112"
+    ],
+    [
+      "Adrien's Supermarket",
+      "\u221a",
+      "1.25",
+      "3842 West Congress",
+      "Lafayette",
+      "337-501-0673  Herb"
+    ],
+    [
+      "B & W Evangeline",
+      "\u221a",
+      "1.25",
+      "2013 Evangeline HWY",
+      "Jennings",
+      "337-824-6313"
+    ]
+  ],
+  "Lake Charles-Wednesday": [
+    [
+      "LAKE CHARLES ROUTE SHEET-SMITTY-CHURCHPOINT"
+    ],
+    [
+      "Customer",
+      "Charge",
+      "Cash",
+      "8#",
+      "20#",
+      "Tax",
+      "Address",
+      "City",
+      "Phone"
+    ],
+    [
+      "Starks Truck Stop",
+      "\u221a",
+      "1.25",
+      "3",
+      "4344 HWY 12",
+      "Starks",
+      "337-743-5471"
+    ],
+    [
+      "Glenn's Mart",
+      "\u221a",
+      "1.25",
+      "3",
+      "1312 Gum Cove Road",
+      "Vinton",
+      "337-589-3520"
+    ],
+    [
+      "M & K Pantry",
+      "\u221a",
+      "1.25",
+      "3",
+      "1601 HWY 90 West",
+      "Vinton",
+      "337-589-3333"
+    ],
+    [
+      "Bordertown",
+      "\u221a",
+      "1.25",
+      "3",
+      "2470 Toomey Road",
+      "Vinton",
+      "832-470-4315"
+    ],
+    [
+      "SMOKERS PARADISE",
+      "\u221a",
+      "1.25",
+      "3",
+      "2363 HWY 109",
+      "VINTON",
+      "346-538-3499"
+    ],
+    [
+      "CUSTOMER",
+      "BARN",
+      "BARN",
+      "PUT CUSTOMER NAME AND BARN # ON TICKET"
+    ],
+    [
+      "PHILLIP CALAIS",
+      "1",
+      "3.25",
+      "0.1075",
+      "NORTH SIDE/ROAD SIDE",
+      "1",
+      "337-377-8817"
+    ],
+    [
+      "KENNETH WEEKS",
+      "2",
+      "3.25",
+      "0.1075",
+      "LEAVE TICKET ON DESK/CK DEL",
+      "2",
+      "251-689-6789"
+    ],
+    [
+      "KENNETH ROBERTS-2BOXES",
+      "3",
+      "3.25",
+      "0.1075",
+      "SOUTH EAST/WEST ROAD SIDE",
+      "3",
+      "(337-802-9706)"
+    ],
+    [
+      "TREY ELLIS",
+      "4",
+      "3.25",
+      "0.1075",
+      "WEST END ROAD SIDE",
+      "4",
+      "251-209-7385"
+    ],
+    [
+      "G. MARTINEZ",
+      "8",
+      "3.25",
+      "0.1075",
+      "EAST SIDE/ROAD SIDE",
+      "8",
+      "979-215-0031"
+    ],
+    [
+      "ORLANDO OROZCO",
+      "9",
+      "3.25",
+      "0.1075",
+      "EAST END/ROAD SIDE",
+      "9",
+      "979-482-6153"
+    ],
+    [
+      "TREVOR SOILEAU",
+      "9",
+      "3.25",
+      "0.1075",
+      "WEST SIDE / TRACK SIDE",
+      "9",
+      "337-459-8490"
+    ],
+    [
+      "JOSE ESTRADA",
+      "10",
+      "3.25",
+      "0.1075",
+      "NEEDS NEW CUSTOMER FORM",
+      "10",
+      "601-813-4763"
+    ],
+    [
+      "BUDDY DEVILLE",
+      "14",
+      "3.25",
+      "0.1075",
+      "CUSTOMER HAS ALL OF BARN",
+      "14",
+      "225-235-1654"
+    ],
+    [
+      "GAYLA BUSTAMONTE",
+      "18",
+      "3.25",
+      "0.1075",
+      "NORTH END/ EAST SIDE",
+      "18",
+      "337-661-1879"
+    ],
+    [
+      "L. HERNANDEZ",
+      "19",
+      "3.25",
+      "0.1075",
+      "FACING ROAD SIDE",
+      "19",
+      "469-236-3593"
+    ],
+    [
+      "Missies",
+      "\u221a",
+      "1.25",
+      "3",
+      "106 E. Lincoln Street",
+      "Sulphur",
+      "337-527-6924"
+    ],
+    [
+      "Conoco 5th Wheel",
+      "\u221a",
+      "1.25",
+      "3",
+      "500 N. BEGLIS PARKWAY",
+      "Sulphur",
+      "337-274-1532"
+    ],
+    [
+      "KINGSPOINT #4",
+      "\u221a",
+      "1.38",
+      "3.03",
+      "3610 E. HWY 90 (NAPOLEAN)",
+      "Sulphur",
+      "337-244-6692"
+    ],
+    [
+      "Super Saver 4",
+      "\u221a",
+      "1.25",
+      "3",
+      "1600 Maplewood Drive",
+      "Sulphur",
+      "337-625-8628"
+    ],
+    [
+      "THIBODEAUXS",
+      "\u221a",
+      "1.38",
+      "3.05",
+      "909 BEGLIS PARKWAY",
+      "Sulphur"
+    ],
+    [
+      "Delta Food 4",
+      "\u221a",
+      "1.25",
+      "3",
+      "309 City Service Highway",
+      "Sulphur",
+      "337-499-7172"
+    ],
+    [
+      "MORE 4 LESS",
+      "1.4",
+      "3350 MAPLEWOOD DR.",
+      "Sulphur"
+    ]
+  ],
+  "Churchpoint-Thursday": [
+    [
+      "Customer",
+      "Charge",
+      "Cash",
+      "8#",
+      "20#",
+      "Tax",
+      "Address",
+      "City",
+      "Phone"
+    ],
+    [
+      "Dirty Rice",
+      "\u221a",
+      "1.25",
+      "0.1075",
+      "608 East HWY 90",
+      "Iowa",
+      "337-391-9663/337-582-2333"
+    ],
+    [
+      "Kerry A Sac",
+      "\u221a",
+      "1.25",
+      "3",
+      "103 HWY 90 East",
+      "Iowa",
+      "337-582-6678"
+    ],
+    [
+      "Dollar General-REEVES-11635",
+      "\u221a",
+      "1.25",
+      "0.1075",
+      "18208 HWY 190",
+      "REEVES",
+      "337-419-2065"
+    ],
+    [
+      "Ted's Quick Stop",
+      "\u221a",
+      "1.25",
+      "708 1st Street",
+      "Kinder",
+      "337-738-4765"
+    ],
+    [
+      "Feather's",
+      "\u221a",
+      "1.25",
+      "121 Panther Trail Drive",
+      "Kinder",
+      "337-738-7150"
+    ],
+    [
+      "Kinder Quick Stop",
+      "\u221a",
+      "1.25",
+      "13916 HWY 154",
+      "Kinder",
+      "337-738-7896"
+    ],
+    [
+      "Chadeaux's",
+      "\u221a",
+      "1.25",
+      "14440 HWY 165",
+      "Kinder",
+      "337-738-3040"
+    ],
+    [
+      "Hanson Super Foods",
+      "\u221a",
+      "1.25",
+      "401 West Plaquemine Street",
+      "Jennings",
+      "337-824-6463"
+    ],
+    [
+      "Hanson Super Foods",
+      "\u221a",
+      "1.25",
+      "401 West Plaquemine Street",
+      "Jennings",
+      "337-824-6463"
+    ],
+    [
+      "B & W Evangeline",
+      "\u221a",
+      "1.25",
+      "2013 Evangeline HWY",
+      "Jennings",
+      "337-824-6313"
+    ],
+    [
+      "Aladdin Construction",
+      "\u221a",
+      "1.45",
+      "0.1075",
+      "777 COUSHATTA",
+      "Kinder",
+      "228-348-1889"
+    ],
+    [
+      "The Buzz",
+      "\u221a",
+      "1.25",
+      "1222 3rd Avenue",
+      "Kinder",
+      "337-292-2007"
+    ],
+    [
+      "Dollar General-03480-KINDER",
+      "\u221a",
+      "1.25",
+      "0.1075",
+      "14612 HWY 165",
+      "Kinder",
+      "985-589-7618"
+    ],
+    [
+      "Ponda's",
+      "\u221a",
+      "1.25",
+      "20005 HWY 165",
+      "Fenton",
+      "337-756-2222"
+    ],
+    [
+      "TP's Grocery",
+      "\u221a",
+      "1.25",
+      "1519 HWY 165",
+      "Fenton",
+      "337-756-2227"
+    ],
+    [
+      "Dollar General-Hayes  20369",
+      "\u221a",
+      "1.25",
+      "0.1075",
+      "8110 Jone Primeaux Road",
+      "Hayes",
+      "337-347-6708"
+    ],
+    [
+      "Cajun Grocery",
+      "\u221a",
+      "1.25",
+      "3",
+      "7744 East HWY 14",
+      "Hayes",
+      "337-662-3348"
+    ],
+    [
+      "Cajun Lunch Box",
+      "\u221a",
+      "1.25",
+      "605 North Adams Street",
+      "Welsh",
+      "337-734-4661"
+    ],
+    [
+      "ELTON EXPRESS",
+      "\u221a",
+      "1.25",
+      "1807 HWY 190",
+      "Elton",
+      "337-584-2032"
+    ],
+    [
+      "Elton Rice Dryer",
+      "\u221a",
+      "1.25",
+      "706 Yokum Drive",
+      "Elton",
+      "337-220-2230"
+    ],
+    [
+      "S & W",
+      "\u221a",
+      "1.25",
+      "3955 HWY 190",
+      "Elton",
+      "337-584-3663"
+    ],
+    [
+      "Circle R",
+      "\u221a",
+      "1.25",
+      "413 Adams Street",
+      "Welsh",
+      "337-496-4367"
+    ],
+    [
+      "Dirty Rice",
+      "\u221a",
+      "1.25",
+      "0.1075",
+      "608 Ease HWY 90",
+      "Iowa",
+      "337-391-9663/337-582-2333"
+    ],
+    [
+      "Kerry A Sac",
+      "\u221a",
+      "1.25",
+      "3",
+      "103 HWY 90 East",
+      "IOWA",
+      "337-582-6678"
+    ]
+  ],
+  "Churchpoint-Friday": [
+    [
+      "Customer",
+      "Charge",
+      "Cash",
+      "8#",
+      "20#",
+      "Tax",
+      "Address",
+      "City",
+      "Phone"
+    ],
+    [
+      "Smoker's Express",
+      "\u221a",
+      "1.25",
+      "3501 Gerstner Memorial Drive",
+      "Lake Charles",
+      "337-474-6585"
+    ],
+    [
+      "JONES GROCERY",
+      "\u221a",
+      "1.25",
+      "3",
+      "1843 Gerstner Memorial Drive",
+      "Lake Charles",
+      "337-436-2810"
+    ],
+    [
+      "GX Louisiana **HOP-IN",
+      "\u221a",
+      "1.25",
+      "1717 Gerstner Memorial Dr.",
+      "Lake Charles",
+      "337-494-5902"
+    ],
+    [
+      "BAYOU FOOD MART",
+      "\u221a",
+      "1.4",
+      "3.25",
+      "2631 KIRKMAN ST.",
+      "Lake Charles",
+      "337-431-4100-"
+    ],
+    [
+      "CHEVRON",
+      "\u221a",
+      "1.4",
+      "3.25",
+      "2211 RYAN ST",
+      "Lake Charles",
+      "337-240-8143"
+    ],
+    [
+      "Crying Eagle Brewing Co.",
+      "\u221a",
+      "3",
+      "1165 E. McNeese st",
+      "Lake Charles",
+      "337-564-9210"
+    ],
+    [
+      "Sunshine Liquor (BROAD)",
+      "\u221a",
+      "1.25",
+      "1824 Broad Street",
+      "Lake Charles",
+      "337-491-0507"
+    ],
+    [
+      "More 4 Less 10",
+      "\u221a",
+      "1.25",
+      "3",
+      "4119 Louisiana Avenue",
+      "Lake Charles",
+      "337-562-2191"
+    ],
+    [
+      "Lewing Construction",
+      "\u221a",
+      "1.25",
+      "0.1075",
+      "1214 Country Club Road",
+      "Lake Charles",
+      "337-477-4092"
+    ],
+    [
+      "JF Peto",
+      "\u221a",
+      "1.25",
+      "0.1075",
+      "1848 1st Street",
+      "Lake Charles",
+      "337-433-5272"
+    ],
+    [
+      "HD Trucking",
+      "\u221a",
+      "1.25",
+      "0.1075",
+      "5501 Oplelousas Street",
+      "Lake Charles",
+      "337-439-9710"
+    ],
+    [
+      "System Service Broadband",
+      "\u221a",
+      "1.4",
+      "0.1075",
+      "201 Fred Road",
+      "Lake Charles",
+      "337-278-3058"
+    ]
+  ]
+}

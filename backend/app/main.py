@@ -484,6 +484,9 @@ def load_data_from_disk():
 
 load_data_from_disk()
 
+# In-memory storage for current driver locations
+driver_locations = {}
+
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
@@ -1746,7 +1749,7 @@ async def get_customer_orders(customer_id: str, current_user: UserInDB = Depends
             "customerId": customer_id,
             "orderDate": "2025-01-20",
             "requestedDeliveryDate": "2025-01-21",
-            "status": "delivered",
+            "status": "out-for-delivery",
             "items": [
                 {
                     "productId": "prod_1",
@@ -1762,8 +1765,52 @@ async def get_customer_orders(customer_id: str, current_user: UserInDB = Depends
             "totalAmount": get_customer_price_for_product(customer_id, "prod_1") * 100 * 1.09 + 25.00,
             "deliveryAddress": "Customer Address",
             "paymentMethod": "credit",
-            "paymentStatus": "paid",
-            "invoiceNumber": f"INV-{customer_id}-001"
+            "paymentStatus": "pending",
+            "invoiceNumber": f"INV-{customer_id}-001",
+            "trackingInfo": {
+                "driverName": "Mike Johnson",
+                "vehicleId": "VEH-001",
+                "estimatedArrival": "2:30 PM",
+                "currentLocation": {
+                    "lat": 31.1565,
+                    "lng": -93.2865,
+                    "timestamp": "2025-01-21T14:15:00Z"
+                }
+            }
+        },
+        {
+            "id": f"order-{customer_id}-002",
+            "customerId": customer_id,
+            "orderDate": "2025-01-19",
+            "requestedDeliveryDate": "2025-01-20",
+            "status": "confirmed",
+            "items": [
+                {
+                    "productId": "prod_2",
+                    "productName": "20lb Ice Bags",
+                    "quantity": 50,
+                    "unitPrice": get_customer_price_for_product(customer_id, "prod_2"),
+                    "totalPrice": get_customer_price_for_product(customer_id, "prod_2") * 50
+                }
+            ],
+            "subtotal": get_customer_price_for_product(customer_id, "prod_2") * 50,
+            "tax": get_customer_price_for_product(customer_id, "prod_2") * 50 * 0.09,
+            "deliveryFee": 25.00,
+            "totalAmount": get_customer_price_for_product(customer_id, "prod_2") * 50 * 1.09 + 25.00,
+            "deliveryAddress": "Customer Address",
+            "paymentMethod": "credit",
+            "paymentStatus": "pending",
+            "invoiceNumber": f"INV-{customer_id}-002",
+            "trackingInfo": {
+                "driverName": "Sarah Williams",
+                "vehicleId": "VEH-002",
+                "estimatedArrival": "10:00 AM",
+                "currentLocation": {
+                    "lat": 31.2000,
+                    "lng": -93.3000,
+                    "timestamp": "2025-01-20T09:45:00Z"
+                }
+            }
         }
     ]
     return sample_orders
@@ -1919,6 +1966,123 @@ async def get_invoices(customer_id: Optional[str] = None, current_user: UserInDB
         return [inv for inv in sample_invoices if inv["customerId"] == customer_id]
     return sample_invoices
 
+@app.get("/api/invoices/{invoice_id}/download")
+async def download_invoice_pdf(invoice_id: str, current_user: UserInDB = Depends(get_current_user)):
+    from reportlab.lib.pagesizes import letter
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.lib import colors
+    from io import BytesIO
+    from fastapi.responses import StreamingResponse
+    
+    invoice_data = {
+        "invoiceNumber": "INV-2025-001",
+        "issueDate": "2025-01-20",
+        "dueDate": "2025-02-19",
+        "customerName": "Sample Customer",
+        "customerAddress": "123 Main St, City, State 12345",
+        "items": [
+            {"description": "8lb Ice Bags", "quantity": 50, "unitPrice": 2.50, "total": 125.00},
+            {"description": "20lb Ice Bags", "quantity": 25, "unitPrice": 5.00, "total": 125.00}
+        ],
+        "subtotal": 250.00,
+        "tax": 22.50,
+        "totalAmount": 297.50,
+        "paymentTerms": "Net 30"
+    }
+    
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
+    
+    elements = []
+    
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=24,
+        spaceAfter=30,
+        textColor=colors.HexColor('#1f2937')
+    )
+    
+    elements.append(Paragraph("Arctic Ice Solutions", title_style))
+    elements.append(Paragraph("Ice Manufacturing & Distribution", styles['Normal']))
+    elements.append(Spacer(1, 20))
+    
+    elements.append(Paragraph(f"INVOICE #{invoice_data['invoiceNumber']}", styles['Heading2']))
+    elements.append(Spacer(1, 12))
+    
+    invoice_details = [
+        ['Issue Date:', invoice_data['issueDate']],
+        ['Due Date:', invoice_data['dueDate']],
+        ['Payment Terms:', invoice_data['paymentTerms']]
+    ]
+    
+    details_table = Table(invoice_details, colWidths=[2*inch, 3*inch])
+    details_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+    ]))
+    elements.append(details_table)
+    elements.append(Spacer(1, 20))
+    
+    elements.append(Paragraph("Bill To:", styles['Heading3']))
+    elements.append(Paragraph(invoice_data['customerName'], styles['Normal']))
+    elements.append(Paragraph(invoice_data['customerAddress'], styles['Normal']))
+    elements.append(Spacer(1, 20))
+    
+    items_data = [['Description', 'Quantity', 'Unit Price', 'Total']]
+    for item in invoice_data['items']:
+        items_data.append([
+            item['description'],
+            str(item['quantity']),
+            f"${item['unitPrice']:.2f}",
+            f"${item['total']:.2f}"
+        ])
+    
+    items_table = Table(items_data, colWidths=[3*inch, 1*inch, 1*inch, 1*inch])
+    items_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('ALIGN', (0, 1), (0, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+    ]))
+    elements.append(items_table)
+    elements.append(Spacer(1, 20))
+    
+    totals_data = [
+        ['Subtotal:', f"${invoice_data['subtotal']:.2f}"],
+        ['Tax:', f"${invoice_data['tax']:.2f}"],
+        ['Total Amount:', f"${invoice_data['totalAmount']:.2f}"]
+    ]
+    
+    totals_table = Table(totals_data, colWidths=[4*inch, 2*inch])
+    totals_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
+        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('LINEABOVE', (0, -1), (-1, -1), 2, colors.black),
+    ]))
+    elements.append(totals_table)
+    
+    doc.build(elements)
+    buffer.seek(0)
+    
+    return StreamingResponse(
+        BytesIO(buffer.read()),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=invoice_{invoice_data['invoiceNumber']}.pdf"}
+    )
+
 @app.post("/api/payments")
 async def process_payment(payment_data: dict, current_user: UserInDB = Depends(get_current_user)):
     import time
@@ -1969,11 +2133,11 @@ async def get_dashboard_overview(current_user: UserInDB = Depends(get_current_us
     
     if imported_orders is not None and len(imported_orders) > 0:
         filtered_orders = filter_by_location(imported_orders, current_user)
-        total_orders_today = len([o for o in filtered_orders if o.get("date", "").startswith(str(date.today()))])
+        total_orders_today = len([o for o in filtered_orders if o.get("order_date", "") and datetime.fromisoformat(o["order_date"].replace('Z', '+00:00')).date() == date.today()])
         total_revenue = imported_financial_data.get("total_revenue", 0) if imported_financial_data else 0
     else:
         filtered_orders = filter_by_location(list(orders_db.values()), current_user)
-        total_orders_today = len([o for o in filtered_orders if datetime.fromisoformat(o["order_date"].replace('Z', '+00:00')).date() == date.today()])
+        total_orders_today = len([o for o in filtered_orders if o.get("order_date") and datetime.fromisoformat(o["order_date"].replace('Z', '+00:00')).date() == date.today()])
         total_revenue = 125000.0
     
     filtered_vehicles = filter_by_location(list(vehicles_db.values()), current_user)
@@ -2889,6 +3053,22 @@ async def quickbooks_disconnect(current_user: UserInDB = Depends(get_current_use
     save_data_to_disk()
     
     return {"message": "QuickBooks disconnected successfully"}
+
+@app.post("/api/drivers/{driver_id}/location")
+async def update_driver_location(driver_id: str, location_data: dict, current_user: UserInDB = Depends(get_current_user)):
+    driver_locations[driver_id] = {
+        "lat": location_data.get("lat"),
+        "lng": location_data.get("lng"),
+        "timestamp": location_data.get("timestamp"),
+        "route_id": location_data.get("route_id")
+    }
+    return {"status": "success", "message": "Location updated"}
+
+@app.get("/api/drivers/{driver_id}/location")
+async def get_driver_location(driver_id: str, current_user: UserInDB = Depends(get_current_user)):
+    if driver_id in driver_locations:
+        return driver_locations[driver_id]
+    return {"error": "Driver location not found"}
 
 @app.get("/{full_path:path}")
 async def serve_spa(full_path: str):

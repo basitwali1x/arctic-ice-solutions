@@ -21,6 +21,7 @@ google-auth = "^2.34.0"
 requests-oauthlib = "^2.0.0"
 python-dotenv = "^1.0.0"
 xlrd = "^2.0.2"
+reportlab = "^4.4.3"
 
 
 [build-system]

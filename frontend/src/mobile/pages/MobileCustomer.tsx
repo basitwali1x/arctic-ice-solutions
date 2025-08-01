@@ -15,7 +15,7 @@ import {
   Download,
   Send
 } from 'lucide-react';
-import { CustomerUser, CustomerOrder, CustomerFeedback, Invoice } from '../../types/api';
+import { CustomerUser, CustomerOrder, CustomerFeedback, Invoice, OrderItem } from '../../types/api';
 import { customerUsers, products, sampleOrders, sampleFeedback, sampleInvoices } from '../../lib/customerData';
 
 interface CustomerAppProps {
@@ -31,7 +31,7 @@ export function MobileCustomer({
   const [feedback, setFeedback] = useState<CustomerFeedback[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [newOrder, setNewOrder] = useState({
-    items: [] as any[],
+    items: [] as OrderItem[],
     deliveryAddress: '',
     specialInstructions: '',
     requestedDeliveryDate: ''
@@ -48,7 +48,27 @@ export function MobileCustomer({
     const user = customerUsers.find(u => u.id === customerId);
     if (user) {
       setCurrentUser(user);
-      setOrders(sampleOrders.filter(o => o.customerId === customerId));
+      
+      const fetchOrders = async () => {
+        try {
+          const response = await fetch(`/api/customers/${customerId}/orders`, {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+          });
+          if (response.ok) {
+            const backendOrders = await response.json();
+            setOrders(backendOrders);
+          } else {
+            setOrders(sampleOrders.filter(o => o.customerId === customerId));
+          }
+        } catch (error) {
+          console.error('Failed to fetch orders:', error);
+          setOrders(sampleOrders.filter(o => o.customerId === customerId));
+        }
+      };
+      
+      fetchOrders();
       setFeedback(sampleFeedback.filter(f => f.customerId === customerId));
       setInvoices(sampleInvoices.filter(i => i.customerId === customerId));
       setNewOrder(prev => ({
@@ -66,13 +86,13 @@ export function MobileCustomer({
   }, [customerId]);
 
   const calculateOrderTotal = () => {
-    return newOrder.items.reduce((total: number, item: any) => total + item.totalPrice, 0);
+    return newOrder.items.reduce((total: number, item: OrderItem) => total + item.totalPrice, 0);
   };
 
   const updateOrderItem = (productId: string, quantity: number) => {
     setNewOrder(prev => ({
       ...prev,
-      items: prev.items.map((item: any) => 
+      items: prev.items.map((item: OrderItem) => 
         item.productId === productId 
           ? { ...item, quantity, totalPrice: quantity * item.unitPrice }
           : item
@@ -81,7 +101,7 @@ export function MobileCustomer({
   };
 
   const submitOrder = () => {
-    const orderItems = newOrder.items.filter((item: any) => item.quantity > 0);
+    const orderItems = newOrder.items.filter((item: OrderItem) => item.quantity > 0);
     if (orderItems.length === 0) {
       alert('Please add at least one item to your order');
       return;
@@ -112,7 +132,7 @@ export function MobileCustomer({
     setOrders(prev => [order, ...prev]);
     setNewOrder(prev => ({
       ...prev,
-      items: prev.items.map((item: any) => ({ ...item, quantity: 0, totalPrice: 0 })),
+      items: prev.items.map((item: OrderItem) => ({ ...item, quantity: 0, totalPrice: 0 })),
       specialInstructions: '',
       requestedDeliveryDate: ''
     }));
@@ -120,6 +140,29 @@ export function MobileCustomer({
     alert('Order submitted successfully!');
     setCurrentView('orders');
   };
+
+  useEffect(() => {
+    const refreshTracking = async () => {
+      if (currentView === 'track' && currentUser) {
+        try {
+          const response = await fetch(`/api/customers/${customerId}/orders`, {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+          });
+          if (response.ok) {
+            const updatedOrders = await response.json();
+            setOrders(updatedOrders);
+          }
+        } catch (error) {
+          console.error('Failed to refresh tracking data:', error);
+        }
+      }
+    };
+
+    const interval = setInterval(refreshTracking, 30000);
+    return () => clearInterval(interval);
+  }, [currentView, customerId, currentUser]);
 
   const submitFeedback = () => {
     if (!newFeedback.subject || !newFeedback.message) {
@@ -149,6 +192,34 @@ export function MobileCustomer({
     });
     
     alert('Feedback submitted successfully!');
+  };
+
+  const handleDownloadInvoice = async (invoiceId: string) => {
+    try {
+      const response = await fetch(`/api/invoices/${invoiceId}/download`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to download invoice');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `invoice_${invoiceId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading invoice:', error);
+      alert('Failed to download invoice. Please try again.');
+    }
   };
 
   if (!currentUser) {
@@ -191,7 +262,7 @@ export function MobileCustomer({
               variant={currentView === key ? "default" : "ghost"}
               size="sm"
               className="flex-shrink-0"
-              onClick={() => setCurrentView(key as any)}
+              onClick={() => setCurrentView(key as 'home' | 'orders' | 'track' | 'billing' | 'feedback')}
             >
               <Icon className="w-4 h-4 mr-1" />
               {label}
@@ -285,7 +356,7 @@ export function MobileCustomer({
 
                 <div className="space-y-3">
                   <h4 className="font-medium">Products</h4>
-                  {newOrder.items.map((item: any) => (
+                  {newOrder.items.map((item: OrderItem) => (
                     <div key={item.productId} className="flex items-center justify-between p-3 border rounded-lg">
                       <div className="flex-1">
                         <p className="font-medium">{item.productName}</p>
@@ -436,7 +507,7 @@ export function MobileCustomer({
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="font-medium">${invoice.totalAmount.toFixed(2)}</span>
-                          <Button size="sm" variant="outline">
+                          <Button size="sm" variant="outline" onClick={() => handleDownloadInvoice(invoice.id)}>
                             <Download className="w-4 h-4 mr-1" />
                             Download
                           </Button>
@@ -461,7 +532,7 @@ export function MobileCustomer({
                   <label className="block text-sm font-medium mb-1">Feedback Type</label>
                   <select
                     value={newFeedback.type}
-                    onChange={(e) => setNewFeedback(prev => ({ ...prev, type: e.target.value as any }))}
+                    onChange={(e) => setNewFeedback(prev => ({ ...prev, type: e.target.value as typeof prev.type }))}
                     className="w-full p-2 border rounded-md"
                   >
                     <option value="delivery">Delivery</option>
@@ -480,7 +551,7 @@ export function MobileCustomer({
                         key={rating}
                         variant={newFeedback.rating >= rating ? "default" : "outline"}
                         size="sm"
-                        onClick={() => setNewFeedback(prev => ({ ...prev, rating: rating as any }))}
+                        onClick={() => setNewFeedback(prev => ({ ...prev, rating: rating as typeof prev.rating }))}
                       >
                         <Star className="w-4 h-4" />
                       </Button>

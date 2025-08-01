@@ -484,6 +484,9 @@ def load_data_from_disk():
 
 load_data_from_disk()
 
+# In-memory storage for current driver locations
+driver_locations = {}
+
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
@@ -1746,7 +1749,7 @@ async def get_customer_orders(customer_id: str, current_user: UserInDB = Depends
             "customerId": customer_id,
             "orderDate": "2025-01-20",
             "requestedDeliveryDate": "2025-01-21",
-            "status": "delivered",
+            "status": "out-for-delivery",
             "items": [
                 {
                     "productId": "prod_1",
@@ -1762,8 +1765,52 @@ async def get_customer_orders(customer_id: str, current_user: UserInDB = Depends
             "totalAmount": get_customer_price_for_product(customer_id, "prod_1") * 100 * 1.09 + 25.00,
             "deliveryAddress": "Customer Address",
             "paymentMethod": "credit",
-            "paymentStatus": "paid",
-            "invoiceNumber": f"INV-{customer_id}-001"
+            "paymentStatus": "pending",
+            "invoiceNumber": f"INV-{customer_id}-001",
+            "trackingInfo": {
+                "driverName": "Mike Johnson",
+                "vehicleId": "VEH-001",
+                "estimatedArrival": "2:30 PM",
+                "currentLocation": {
+                    "lat": 31.1565,
+                    "lng": -93.2865,
+                    "timestamp": "2025-01-21T14:15:00Z"
+                }
+            }
+        },
+        {
+            "id": f"order-{customer_id}-002",
+            "customerId": customer_id,
+            "orderDate": "2025-01-19",
+            "requestedDeliveryDate": "2025-01-20",
+            "status": "confirmed",
+            "items": [
+                {
+                    "productId": "prod_2",
+                    "productName": "20lb Ice Bags",
+                    "quantity": 50,
+                    "unitPrice": get_customer_price_for_product(customer_id, "prod_2"),
+                    "totalPrice": get_customer_price_for_product(customer_id, "prod_2") * 50
+                }
+            ],
+            "subtotal": get_customer_price_for_product(customer_id, "prod_2") * 50,
+            "tax": get_customer_price_for_product(customer_id, "prod_2") * 50 * 0.09,
+            "deliveryFee": 25.00,
+            "totalAmount": get_customer_price_for_product(customer_id, "prod_2") * 50 * 1.09 + 25.00,
+            "deliveryAddress": "Customer Address",
+            "paymentMethod": "credit",
+            "paymentStatus": "pending",
+            "invoiceNumber": f"INV-{customer_id}-002",
+            "trackingInfo": {
+                "driverName": "Sarah Williams",
+                "vehicleId": "VEH-002",
+                "estimatedArrival": "10:00 AM",
+                "currentLocation": {
+                    "lat": 31.2000,
+                    "lng": -93.3000,
+                    "timestamp": "2025-01-20T09:45:00Z"
+                }
+            }
         }
     ]
     return sample_orders
@@ -2890,6 +2937,22 @@ async def quickbooks_disconnect(current_user: UserInDB = Depends(get_current_use
     save_data_to_disk()
     
     return {"message": "QuickBooks disconnected successfully"}
+
+@app.post("/api/drivers/{driver_id}/location")
+async def update_driver_location(driver_id: str, location_data: dict, current_user: UserInDB = Depends(get_current_user)):
+    driver_locations[driver_id] = {
+        "lat": location_data.get("lat"),
+        "lng": location_data.get("lng"),
+        "timestamp": location_data.get("timestamp"),
+        "route_id": location_data.get("route_id")
+    }
+    return {"status": "success", "message": "Location updated"}
+
+@app.get("/api/drivers/{driver_id}/location")
+async def get_driver_location(driver_id: str, current_user: UserInDB = Depends(get_current_user)):
+    if driver_id in driver_locations:
+        return driver_locations[driver_id]
+    return {"error": "Driver location not found"}
 
 @app.get("/{full_path:path}")
 async def serve_spa(full_path: str):

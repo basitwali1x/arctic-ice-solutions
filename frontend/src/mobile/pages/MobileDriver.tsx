@@ -124,10 +124,27 @@ export function MobileDriver() {
     try {
       setIsTracking(true);
       const id = await watchPosition((position) => {
-        setCurrentLocation({
+        const newLocation = {
           lat: position.coords.latitude,
           lng: position.coords.longitude
-        });
+        };
+        setCurrentLocation(newLocation);
+        
+        if (currentRoute) {
+          fetch('/api/drivers/driver-001/location', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify({
+              lat: newLocation.lat,
+              lng: newLocation.lng,
+              timestamp: new Date().toISOString(),
+              route_id: currentRoute.route_number
+            })
+          }).catch(error => console.error('Failed to update location:', error));
+        }
       });
       setWatchId(id);
     } catch (error) {

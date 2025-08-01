@@ -8,6 +8,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { MapPin, Navigation, Package, DollarSign, Fuel, Clock, Bluetooth } from 'lucide-react';
 import { getCurrentPosition, watchPosition, clearWatch } from '../../utils/capacitor';
 
+interface BluetoothNavigator extends Navigator {
+  bluetooth: {
+    requestDevice(options: { filters: { services: string[] }[] }): Promise<unknown>;
+  };
+}
+
 interface RouteStop {
   id: string;
   address: string;
@@ -177,7 +183,7 @@ export function MobileDriver() {
   const printReceipt = async (stop: RouteStop) => {
     if ('bluetooth' in navigator) {
       try {
-        await (navigator as any).bluetooth.requestDevice({
+        await (navigator as BluetoothNavigator).bluetooth.requestDevice({
           filters: [{ services: ['000018f0-0000-1000-8000-00805f9b34fb'] }]
         });
         

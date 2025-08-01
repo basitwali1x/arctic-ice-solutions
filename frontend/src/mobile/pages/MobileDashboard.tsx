@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { Badge } from '../../components/ui/badge';
 import { Truck, AlertTriangle, CheckCircle, Clock, Wrench } from 'lucide-react';
 import { API_BASE_URL } from '../../lib/constants';
+import { WorkOrder } from '../../types/api';
 
 interface DashboardData {
   total_vehicles: number;
@@ -54,7 +55,7 @@ export function MobileDashboard() {
       setFleetData(fleetData);
       
       const summary = Array.isArray(workOrders) 
-        ? workOrders.reduce((acc: WorkOrderSummary, order: any) => {
+        ? workOrders.reduce((acc: WorkOrderSummary, order: WorkOrder) => {
             acc[order.status as keyof WorkOrderSummary]++;
             return acc;
           }, { pending: 0, approved: 0, in_progress: 0, completed: 0 })

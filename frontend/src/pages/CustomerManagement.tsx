@@ -5,8 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Users, Search, Plus, RefreshCw, MapPin, Phone, Mail, AlertCircle, Star, MessageSquare, DollarSign, FileText, Edit, Save, X } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Users, Search, Plus, RefreshCw, MapPin, Phone, Mail, AlertCircle, Star, MessageSquare, DollarSign, FileText, Edit, Save, X, Upload } from 'lucide-react';
 import { Customer, Location, CustomerPricingDisplay } from '../types/api';
 import { apiRequest } from '../utils/api';
 import { useErrorToast } from '../hooks/useErrorToast';
@@ -23,6 +23,13 @@ export function CustomerManagement() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [showCustomerDetails, setShowCustomerDetails] = useState(false);
   const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
+  const [showBulkImportModal, setShowBulkImportModal] = useState(false);
+  const [importType, setImportType] = useState<'excel' | 'google-sheets'>('excel');
+  const [importFiles, setImportFiles] = useState<FileList | null>(null);
+  const [sheetsUrl, setSheetsUrl] = useState('');
+  const [selectedLocationId, setSelectedLocationId] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<any>(null);
   const [newCustomer, setNewCustomer] = useState({
     name: '',
     contact_person: '',
@@ -231,6 +238,76 @@ export function CustomerManagement() {
     setPricingChanges({});
   };
 
+  const handleBulkImport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!selectedLocationId) {
+      showError(new Error('Please select a location'), 'Location required');
+      return;
+    }
+
+    if (importType === 'excel' && (!importFiles || importFiles.length === 0)) {
+      showError(new Error('Please select Excel files to import'), 'Files required');
+      return;
+    }
+
+    if (importType === 'google-sheets' && !sheetsUrl.trim()) {
+      showError(new Error('Please enter a Google Sheets URL'), 'URL required');
+      return;
+    }
+
+    try {
+      setImporting(true);
+      setImportResult(null);
+
+      let response;
+      if (importType === 'excel') {
+        const formData = new FormData();
+        Array.from(importFiles!).forEach(file => {
+          formData.append('files', file);
+        });
+        formData.append('location_id', selectedLocationId);
+
+        response = await apiRequest('/api/customers/bulk-import', {
+          method: 'POST',
+          body: formData,
+        });
+      } else {
+        const formData = new FormData();
+        formData.append('sheets_url', sheetsUrl);
+        formData.append('location_id', selectedLocationId);
+
+        response = await apiRequest('/api/customers/bulk-import-sheets', {
+          method: 'POST',
+          body: formData,
+        });
+      }
+
+      if (response?.ok) {
+        const result = await response.json();
+        setImportResult(result);
+        await fetchData();
+      } else {
+        throw new Error('Import failed');
+      }
+    } catch (error) {
+      console.error('Failed to import customers:', error);
+      showError(error, 'Failed to import customers');
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const resetBulkImportModal = () => {
+    setShowBulkImportModal(false);
+    setImportType('excel');
+    setImportFiles(null);
+    setSheetsUrl('');
+    setSelectedLocationId('');
+    setImporting(false);
+    setImportResult(null);
+  };
+
   const isManager = user?.role === 'manager';
 
   if (loading) {
@@ -265,6 +342,10 @@ export function CustomerManagement() {
           <Button variant="outline" size="sm">
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setShowBulkImportModal(true)}>
+            <Upload className="h-4 w-4 mr-2" />
+            Bulk Import
           </Button>
           <Button size="sm" onClick={() => setShowAddCustomerModal(true)}>
             <Plus className="h-4 w-4 mr-2" />
@@ -553,6 +634,118 @@ export function CustomerManagement() {
                 </Button>
                 <Button type="submit" disabled={submitting}>
                   {submitting ? 'Creating...' : 'Create Customer'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Bulk Import Modal */}
+      {showBulkImportModal && (
+        <Dialog open={showBulkImportModal} onOpenChange={setShowBulkImportModal}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Bulk Import Customers</DialogTitle>
+              <DialogDescription>
+                Import multiple customers from Excel files or Google Sheets
+              </DialogDescription>
+            </DialogHeader>
+            
+            <form onSubmit={handleBulkImport} className="space-y-4">
+              <div>
+                <Label htmlFor="location_id">Target Location *</Label>
+                <Select value={selectedLocationId} onValueChange={setSelectedLocationId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select location for imported customers" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {locations.map((location) => (
+                      <SelectItem key={location.id} value={location.id}>
+                        {location.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label>Import Type</Label>
+                <div className="flex space-x-4 mt-2">
+                  <label className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      value="excel"
+                      checked={importType === 'excel'}
+                      onChange={(e) => setImportType(e.target.value as 'excel')}
+                    />
+                    <span>Excel Files</span>
+                  </label>
+                  <label className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      value="google-sheets"
+                      checked={importType === 'google-sheets'}
+                      onChange={(e) => setImportType(e.target.value as 'google-sheets')}
+                    />
+                    <span>Google Sheets</span>
+                  </label>
+                </div>
+              </div>
+
+              {importType === 'excel' ? (
+                <div>
+                  <Label htmlFor="files">Excel Files *</Label>
+                  <Input
+                    id="files"
+                    type="file"
+                    multiple
+                    accept=".xlsx,.xls,.xlsm"
+                    onChange={(e) => setImportFiles(e.target.files)}
+                    required
+                  />
+                  <p className="text-sm text-gray-600 mt-1">
+                    Select one or more Excel files containing customer data
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <Label htmlFor="sheets_url">Google Sheets URL *</Label>
+                  <Input
+                    id="sheets_url"
+                    type="url"
+                    value={sheetsUrl}
+                    onChange={(e) => setSheetsUrl(e.target.value)}
+                    placeholder="https://docs.google.com/spreadsheets/d/..."
+                    required
+                  />
+                  <p className="text-sm text-gray-600 mt-1">
+                    Enter the URL of a Google Sheets document with customer data
+                  </p>
+                </div>
+              )}
+
+              {importResult && (
+                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <h4 className="font-medium text-green-800">Import Successful!</h4>
+                  <p className="text-sm text-green-700">
+                    Imported {importResult.summary?.customers_imported || 0} customers
+                    {importResult.summary?.location_name && ` to ${importResult.summary.location_name}`}
+                  </p>
+                </div>
+              )}
+
+              <DialogFooter>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={resetBulkImportModal}
+                  disabled={importing}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={importing}>
+                  {importing ? 'Importing...' : 'Import Customers'}
                 </Button>
               </DialogFooter>
             </form>

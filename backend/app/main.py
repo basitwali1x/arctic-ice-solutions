@@ -15,7 +15,7 @@ import logging
 import json
 from pathlib import Path
 from dotenv import load_dotenv
-from .excel_import import process_excel_files
+from .excel_import import process_excel_files, process_customer_excel_files
 from .google_sheets_import import process_google_sheets_data, test_google_sheets_connection
 from .quickbooks_integration import QuickBooksClient, map_arctic_customer_to_qb, map_arctic_order_to_qb_invoice, map_arctic_payment_to_qb
 from jose import JWTError, jwt
@@ -2082,6 +2082,165 @@ async def import_google_sheets_data(
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing Google Sheets data: {str(e)}")
+
+@app.post("/api/customers/bulk-import")
+async def bulk_import_customers_excel(
+    files: List[UploadFile] = File(...), 
+    location_id: str = Form("loc_3"),
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """Bulk import customers from Excel files and add to customers database"""
+    global customers_db
+    
+    if not files:
+        raise HTTPException(status_code=400, detail="No files provided")
+    
+    # Validate location_id
+    valid_locations = ["loc_1", "loc_2", "loc_3", "loc_4"]
+    if location_id not in valid_locations:
+        raise HTTPException(status_code=400, detail=f"Invalid location_id. Must be one of: {valid_locations}")
+    
+    if current_user.role != UserRole.MANAGER and location_id != current_user.location_id:
+        raise HTTPException(status_code=403, detail="Cannot import customers for different location")
+    
+    location_names = {
+        "loc_1": "Leesville",
+        "loc_2": "Lake Charles", 
+        "loc_3": "Lufkin",
+        "loc_4": "Jasper"
+    }
+    location_name = location_names[location_id]
+    
+    temp_files = []
+    try:
+        for file in files:
+            if not file.filename.endswith(('.xlsx', '.xls', '.xlsm')):
+                raise HTTPException(status_code=400, detail=f"Invalid file type: {file.filename}")
+            
+            file_ext = os.path.splitext(file.filename)[1] if file.filename else '.xlsx'
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=file_ext)
+            content = await file.read()
+            temp_file.write(content)
+            temp_file.close()
+            temp_files.append(temp_file.name)
+        
+        processed_data = process_customer_excel_files(temp_files, location_id, location_name)
+        
+        # Add customers to customers_db instead of imported_customers
+        customers_imported = 0
+        for customer_data in processed_data["customers"]:
+            customer_id = str(uuid.uuid4())
+            customer_record = {
+                "id": customer_id,
+                "name": customer_data["name"],
+                "contact_person": customer_data.get("contact_person", ""),
+                "phone": customer_data["phone"],
+                "email": customer_data.get("email", ""),
+                "address": customer_data["address"],
+                "city": customer_data.get("city", ""),
+                "state": customer_data.get("state", ""),
+                "zip_code": customer_data.get("zip_code", ""),
+                "location_id": location_id,
+                "credit_limit": customer_data.get("credit_limit", 5000.0),
+                "payment_terms": 30,
+                "is_active": True
+            }
+            customers_db[customer_id] = customer_record
+            customers_imported += 1
+        
+        save_data_to_disk()
+        
+        return {
+            "success": True,
+            "message": f"Customers imported successfully to {location_name}",
+            "summary": {
+                "customers_imported": customers_imported,
+                "total_records": processed_data["total_records"],
+                "location_id": location_id,
+                "location_name": location_name
+            }
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing Excel files: {str(e)}")
+    
+    finally:
+        for temp_file in temp_files:
+            try:
+                os.unlink(temp_file)
+            except:
+                pass
+
+@app.post("/api/customers/bulk-import-sheets")
+async def bulk_import_customers_sheets(
+    sheets_url: str = Form(...),
+    location_id: str = Form("loc_3"),
+    worksheet_name: str = Form(None),
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """Bulk import customers from Google Sheets and add to customers database"""
+    global customers_db
+    
+    if not sheets_url:
+        raise HTTPException(status_code=400, detail="Google Sheets URL is required")
+    
+    # Validate location_id
+    valid_locations = ["loc_1", "loc_2", "loc_3", "loc_4"]
+    if location_id not in valid_locations:
+        raise HTTPException(status_code=400, detail=f"Invalid location_id. Must be one of: {valid_locations}")
+    
+    if current_user.role != UserRole.MANAGER and location_id != current_user.location_id:
+        raise HTTPException(status_code=403, detail="Cannot import customers for different location")
+    
+    location_names = {
+        "loc_1": "Leesville",
+        "loc_2": "Lake Charles", 
+        "loc_3": "Lufkin",
+        "loc_4": "Jasper"
+    }
+    location_name = location_names[location_id]
+    
+    try:
+        processed_data = process_google_sheets_data(sheets_url, location_id, location_name, worksheet_name)
+        
+        # Add customers to customers_db instead of imported_customers
+        customers_imported = 0
+        for customer_data in processed_data["customers"]:
+            customer_id = str(uuid.uuid4())
+            customer_record = {
+                "id": customer_id,
+                "name": customer_data["name"],
+                "contact_person": customer_data.get("contact_person", ""),
+                "phone": customer_data["phone"],
+                "email": customer_data.get("email", ""),
+                "address": customer_data["address"],
+                "city": customer_data.get("city", ""),
+                "state": customer_data.get("state", ""),
+                "zip_code": customer_data.get("zip_code", ""),
+                "location_id": location_id,
+                "credit_limit": customer_data.get("credit_limit", 5000.0),
+                "payment_terms": 30,
+                "is_active": True
+            }
+            customers_db[customer_id] = customer_record
+            customers_imported += 1
+        
+        save_data_to_disk()
+        
+        return {
+            "success": True,
+            "message": f"Customers imported successfully to {location_name}",
+            "summary": {
+                "customers_imported": customers_imported,
+                "total_records": processed_data["total_records"],
+                "location_id": location_id,
+                "location_name": location_name,
+                "sheets_url": sheets_url
+            }
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing Google Sheets: {str(e)}")
 
 @app.get("/api/google-sheets/test-connection")
 async def test_google_sheets_connection_endpoint(current_user: UserInDB = Depends(get_current_user)):

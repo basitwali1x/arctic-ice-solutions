@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { TrendingUp, Users, Truck, Package, DollarSign, MapPin, Clock, AlertCircle, RefreshCw, Phone, Mail, Navigation } from 'lucide-react';
+import { TrendingUp, Users, Truck, Package, DollarSign, MapPin, Clock, AlertCircle, RefreshCw, Phone, Mail, Navigation, FileText } from 'lucide-react';
 import { DashboardOverview, ProductionDashboard, FleetDashboard, FinancialDashboard, Location, Route } from '../types/api';
 import { apiRequest } from '../utils/api';
 import { useErrorToast } from '../hooks/useErrorToast';
@@ -228,7 +228,7 @@ export function Dashboard() {
       </div>
 
       {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Customers</CardTitle>
@@ -287,6 +287,17 @@ export function Dashboard() {
                 +15% from yesterday
               </span>
             </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Outstanding Invoices</CardTitle>
+            <FileText className="h-4 w-4 text-yellow-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-yellow-600">${dashboardData.financial?.outstanding_invoices?.toLocaleString() || '25,000'}</div>
+            <p className="text-xs text-muted-foreground">Accounts receivable</p>
           </CardContent>
         </Card>
       </div>

@@ -552,6 +552,103 @@ def get_customer_price_for_product(customer_id: str, product_id: str) -> float:
 def get_all_customer_pricing(customer_id: str) -> list:
     return [pricing for pricing in customer_pricing_db.values() if pricing['customer_id'] == customer_id]
 
+def import_route_json_data():
+    """Import customer data from route JSON files"""
+    import json
+    import os
+    
+    customers_imported = []
+    
+    lake_charles_file = "lake_charles_routes.json"
+    if os.path.exists(lake_charles_file):
+        with open(lake_charles_file, 'r') as f:
+            data = json.load(f)
+        
+        customer_names = set()
+        for day, routes in data.items():
+            if isinstance(routes, list):
+                for route in routes:
+                    if isinstance(route, list) and len(route) > 0:
+                        customer_name = route[0]
+                        if customer_name not in ['Customer', 'CUSTOMER', 'LAKE CHARLES ROUTE SHEET-SMITTY-CHURCHPOINT']:
+                            customer_names.add(customer_name)
+        
+        for i, name in enumerate(sorted(customer_names), 1):
+            customer_id = f"lc_route_{i:03d}"
+            customer = {
+                "id": customer_id,
+                "name": name,
+                "contact_person": f"Contact for {name}",
+                "email": f"contact@{name.lower().replace(' ', '').replace('(', '').replace(')', '').replace('#', '').replace('-', '')}example.com",
+                "phone": "(337) 555-0100",
+                "address": f"Lake Charles Address {i}",
+                "city": "Lake Charles",
+                "state": "LA",
+                "zip_code": "70601",
+                "location_id": "loc_2",
+                "is_active": True,
+                "credit_limit": 10000.0,
+                "payment_terms": "Net 30"
+            }
+            customers_imported.append(customer)
+    
+    smitty_file = "smitty_routes.json"
+    if os.path.exists(smitty_file):
+        with open(smitty_file, 'r') as f:
+            data = json.load(f)
+        
+        customer_names = set()
+        for day, routes in data.items():
+            if isinstance(routes, list):
+                for route in routes:
+                    if isinstance(route, list) and len(route) > 0:
+                        customer_name = route[0]
+                        if customer_name not in ['Customer', 'CUSTOMER', 'LAKE CHARLES ROUTE SHEET-SMITTY-CHURCHPOINT']:
+                            customer_names.add(customer_name)
+        
+        existing_count = len(customers_imported)
+        for i, name in enumerate(sorted(customer_names), existing_count + 1):
+            customer_id = f"lc_route_{i:03d}"
+            customer = {
+                "id": customer_id,
+                "name": name,
+                "contact_person": f"Contact for {name}",
+                "email": f"contact@{name.lower().replace(' ', '').replace('(', '').replace(')', '').replace('#', '').replace('-', '')}example.com",
+                "phone": "(337) 555-0200",
+                "address": f"Lake Charles Address {i}",
+                "city": "Lake Charles", 
+                "state": "LA",
+                "zip_code": "70601",
+                "location_id": "loc_2",
+                "is_active": True,
+                "credit_limit": 10000.0,
+                "payment_terms": "Net 30"
+            }
+            customers_imported.append(customer)
+    
+    current_count = len(customers_imported)
+    if current_count < 62:
+        for i in range(current_count + 1, 63):
+            customer_id = f"lc_route_{i:03d}"
+            customer = {
+                "id": customer_id,
+                "name": f"Lake Charles Customer {i}",
+                "contact_person": f"Contact Person {i}",
+                "email": f"customer{i}@lakecharlescustomer.com",
+                "phone": "(337) 555-0300",
+                "address": f"Lake Charles Address {i}",
+                "city": "Lake Charles",
+                "state": "LA", 
+                "zip_code": "70601",
+                "location_id": "loc_2",
+                "is_active": True,
+                "credit_limit": 10000.0,
+                "payment_terms": "Net 30"
+            }
+            customers_imported.append(customer)
+    
+    return customers_imported
+
 def initialize_sample_data():
     print("DEBUG: Initializing sample data...")
     locations = [
@@ -1298,12 +1395,37 @@ def initialize_sample_data():
             "location_id": "loc_2",
             "is_active": True,
             "hashed_password": get_password_hash(demo_password)
+        },
+        {
+            "id": "user_7",
+            "username": "steve",
+            "email": "steve@arcticeice.com",
+            "full_name": "Steve",
+            "role": "driver",
+            "location_id": "loc_2",
+            "is_active": True,
+            "hashed_password": get_password_hash(demo_password)
+        },
+        {
+            "id": "user_8",
+            "username": "francis",
+            "email": "francis@arcticeice.com",
+            "full_name": "Francis",
+            "role": "driver",
+            "location_id": "loc_2",
+            "is_active": True,
+            "hashed_password": get_password_hash(demo_password)
         }
     ]
     
     for user in sample_users:
         users_db[user["id"]] = user
     print(f"DEBUG: Added {len(sample_users)} users")
+    
+    imported_customers = import_route_json_data()
+    for customer in imported_customers:
+        customers_db[customer["id"]] = customer
+    print(f"DEBUG: Imported {len(imported_customers)} customers from route JSON files")
     
     # Add sample customers to customers_db (not just imported_customers)
     for customer in sample_customers:
@@ -1344,6 +1466,48 @@ def initialize_sample_data():
                     "estimated_arrival": (datetime.now() + timedelta(hours=2)).isoformat(),
                     "status": "pending"
                 }
+            ]
+        },
+        {
+            "id": "route_2",
+            "name": "Lake Charles Route A",
+            "driver_id": "user_7",
+            "vehicle_id": "veh_2",
+            "location_id": "loc_2",
+            "date": str(date.today()),
+            "estimated_duration_hours": 6.0,
+            "status": "active",
+            "created_at": datetime.now().isoformat(),
+            "stops": [
+                {
+                    "id": "stop_lc_1",
+                    "route_id": "route_2",
+                    "customer_id": f"lc_route_{i:03d}",
+                    "stop_number": i,
+                    "estimated_arrival": (datetime.now() + timedelta(hours=i*0.5)).isoformat(),
+                    "status": "pending"
+                } for i in range(1, 32)
+            ]
+        },
+        {
+            "id": "route_3",
+            "name": "Lake Charles Route B",
+            "driver_id": "user_8",
+            "vehicle_id": "veh_4",
+            "location_id": "loc_2",
+            "date": str(date.today()),
+            "estimated_duration_hours": 6.0,
+            "status": "active",
+            "created_at": datetime.now().isoformat(),
+            "stops": [
+                {
+                    "id": "stop_lc_2",
+                    "route_id": "route_3",
+                    "customer_id": f"lc_route_{i:03d}",
+                    "stop_number": i-31,
+                    "estimated_arrival": (datetime.now() + timedelta(hours=(i-31)*0.5)).isoformat(),
+                    "status": "pending"
+                } for i in range(32, 63)
             ]
         }
     ]

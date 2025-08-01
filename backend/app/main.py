@@ -2011,17 +2011,40 @@ async def get_fleet_dashboard(current_user: UserInDB = Depends(get_current_user)
     vehicles = list(vehicles_db.values())
     filtered_vehicles = filter_by_location(vehicles, current_user)
     
+    active_vehicles = [v for v in filtered_vehicles if v.get("is_active", True)]
+    total_vehicles = len(active_vehicles)
+    
+    work_orders = list(work_orders_db.values())
+    vehicles_in_maintenance = set()
+    for wo in work_orders:
+        if wo.get("status") in ["pending", "approved"]:
+            vehicles_in_maintenance.add(wo.get("vehicle_id"))
+    
+    routes = list(routes_db.values())
+    today_str = str(date.today())
+    vehicles_in_use = set()
+    for route in routes:
+        if route.get("date") == today_str and route.get("status") in ["planned", "in_progress"]:
+            vehicles_in_use.add(route.get("vehicle_id"))
+    
+    maintenance_count = len([vid for vid in vehicles_in_maintenance if any(v["id"] == vid for v in active_vehicles)])
+    in_use_count = len([vid for vid in vehicles_in_use if any(v["id"] == vid for v in active_vehicles)])
+    
+    available_count = max(0, total_vehicles - in_use_count - maintenance_count)
+    
+    fleet_utilization = (in_use_count / total_vehicles * 100) if total_vehicles > 0 else 0.0
+    
     return {
-        "total_vehicles": len(filtered_vehicles),
-        "vehicles_in_use": min(6, len(filtered_vehicles)),
-        "vehicles_available": max(0, len(filtered_vehicles) - 6),
-        "vehicles_maintenance": 0,
-        "fleet_utilization": 75.0,
+        "total_vehicles": total_vehicles,
+        "vehicles_in_use": in_use_count,
+        "vehicles_available": available_count,
+        "vehicles_maintenance": maintenance_count,
+        "fleet_utilization": round(fleet_utilization, 1),
         "vehicles_by_location": {
-            "Leesville": len([v for v in filtered_vehicles if v["location_id"] == "loc_1"]),
-            "Lake Charles": len([v for v in filtered_vehicles if v["location_id"] == "loc_2"]),
-            "Lufkin": len([v for v in filtered_vehicles if v["location_id"] == "loc_3"]),
-            "Jasper": len([v for v in filtered_vehicles if v["location_id"] == "loc_4"])
+            "Leesville": len([v for v in active_vehicles if v["location_id"] == "loc_1"]),
+            "Lake Charles": len([v for v in active_vehicles if v["location_id"] == "loc_2"]),
+            "Lufkin": len([v for v in active_vehicles if v["location_id"] == "loc_3"]),
+            "Jasper": len([v for v in active_vehicles if v["location_id"] == "loc_4"])
         }
     }
 

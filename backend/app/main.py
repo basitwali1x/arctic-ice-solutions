@@ -2748,46 +2748,6 @@ async def update_route_status(route_id: str, status: str, current_user: UserInDB
     save_data_to_disk()
     return {"success": True, "message": f"Route status updated to {status}"}
 
-@app.post("/api/routes/bulk-import")
-async def bulk_import_routes_excel(
-    files: List[UploadFile] = File(...),
-    location_id: str = Form(...),
-    current_user: UserInDB = Depends(get_current_user)
-):
-    """Bulk import routes from Excel files"""
-    from app.excel_import import process_route_excel_files
-    
-    if current_user.role not in [UserRole.MANAGER, UserRole.DISPATCHER]:
-        raise HTTPException(status_code=403, detail="Only managers and dispatchers can import routes")
-    
-    if not files:
-        raise HTTPException(status_code=400, detail="No files provided")
-    
-    if location_id not in locations_db:
-        raise HTTPException(status_code=400, detail="Invalid location ID")
-    
-    try:
-        result = process_route_excel_files(files, location_id)
-        routes_data = result.get('routes', [])
-        
-        imported_count = 0
-        for route_data in routes_data:
-            routes_db[route_data['id']] = route_data
-            imported_count += 1
-        
-        save_data_to_disk()
-        
-        return {
-            "success": True,
-            "message": f"Successfully imported {imported_count} routes",
-            "routes_imported": imported_count,
-            "total_records": result.get('total_records', 0),
-            "summary": f"Imported {imported_count} routes with {result.get('total_records', 0)} total stops"
-        }
-        
-    except Exception as e:
-        logger.error(f"Route import failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Import failed: {str(e)}")
 
 @app.post("/api/quickbooks/auth")
 async def quickbooks_auth(auth_request: QuickBooksAuthRequest, current_user: UserInDB = Depends(get_current_user)):

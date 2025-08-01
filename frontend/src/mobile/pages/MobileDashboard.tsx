@@ -54,7 +54,7 @@ export function MobileDashboard() {
       setFleetData(fleetData);
       
       const summary = Array.isArray(workOrders) 
-        ? workOrders.reduce((acc: WorkOrderSummary, order: any) => {
+        ? workOrders.reduce((acc: WorkOrderSummary, order: { status: string }) => {
             acc[order.status as keyof WorkOrderSummary]++;
             return acc;
           }, { pending: 0, approved: 0, in_progress: 0, completed: 0 })

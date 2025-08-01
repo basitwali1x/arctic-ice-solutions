@@ -41,7 +41,7 @@ export function MobileSettings() {
     }
   });
 
-  const updateSetting = (category: string, key: string, value: any) => {
+  const updateSetting = (category: string, key: string, value: string | number | boolean) => {
     setSettings(prev => ({
       ...prev,
       [category]: {

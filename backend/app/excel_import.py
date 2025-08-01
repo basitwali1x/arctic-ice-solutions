@@ -347,6 +347,17 @@ def process_customer_excel_files(file_paths: List[str], location_id: str = "loc_
                 except Exception as e:
                     logger.warning(f"Failed to process 'all' sheet: {e}")
 
+            if not customers_found and 'Sheet1' in xl_file.sheet_names:
+                try:
+                    df = pd.read_excel(file_path, sheet_name='Sheet1')
+                    if not df.empty and 'Customer' in df.columns:
+                        customers = extract_customers_from_customer_list(df, location_id, location_name)
+                        all_customers.extend(customers)
+                        customers_found = True
+                        logger.info(f"Processed {len(customers)} customers from Sheet1")
+                except Exception as e:
+                    logger.warning(f"Failed to process Sheet1: {e}")
+
             if not customers_found:
                 try:
                     df = pd.read_excel(file_path, sheet_name=0)

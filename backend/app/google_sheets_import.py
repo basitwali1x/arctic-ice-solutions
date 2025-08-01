@@ -14,52 +14,92 @@ def authenticate_google_sheets():
     try:
         service_account_json = os.getenv("GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON")
         if not service_account_json:
-            raise ValueError("GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON environment variable not set")
+            raise ValueError("GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON environment variable not set. Please configure your Google Sheets service account credentials in the .env file.")
         
-        service_account_info = json.loads(service_account_json)
+        if service_account_json.strip() == "":
+            raise ValueError("GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON is empty. Please add your Google Sheets service account JSON credentials.")
+        
+        try:
+            service_account_info = json.loads(service_account_json)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid JSON format in GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON: {e}")
+        
+        required_fields = ["type", "project_id", "private_key", "client_email"]
+        missing_fields = [field for field in required_fields if field not in service_account_info]
+        if missing_fields:
+            raise ValueError(f"Missing required fields in service account JSON: {missing_fields}")
+        
         gc = gspread.service_account_from_dict(service_account_info)
         return gc
+    except ValueError:
+        raise
     except Exception as e:
         logger.error(f"Failed to authenticate with Google Sheets: {e}")
-        raise
+        raise ValueError(f"Google Sheets authentication failed: {str(e)}")
 
 def get_google_sheets_data(sheets_url: str, worksheet_name: str = None) -> pd.DataFrame:
     """Read data from Google Sheets and convert to pandas DataFrame"""
     try:
         gc = authenticate_google_sheets()
         
-        if "/spreadsheets/d/" in sheets_url:
+        if not sheets_url or not sheets_url.strip():
+            raise ValueError("Google Sheets URL cannot be empty")
+        
+        if "/spreadsheets/d/" not in sheets_url:
+            raise ValueError("Invalid Google Sheets URL format. Expected format: https://docs.google.com/spreadsheets/d/SHEET_ID/...")
+        
+        try:
             sheet_id = sheets_url.split("/spreadsheets/d/")[1].split("/")[0]
-        else:
-            raise ValueError("Invalid Google Sheets URL format")
+            if not sheet_id:
+                raise ValueError("Could not extract sheet ID from URL")
+        except IndexError:
+            raise ValueError("Invalid Google Sheets URL format. Could not extract sheet ID.")
         
-        spreadsheet = gc.open_by_key(sheet_id)
+        try:
+            spreadsheet = gc.open_by_key(sheet_id)
+        except gspread.SpreadsheetNotFound:
+            raise ValueError("Spreadsheet not found. Please check the URL and ensure the service account has access to the sheet.")
+        except gspread.APIError as e:
+            raise ValueError(f"Google Sheets API error: {str(e)}")
         
-        if worksheet_name:
-            worksheet = spreadsheet.worksheet(worksheet_name)
-        else:
-            worksheet = spreadsheet.sheet1
+        try:
+            if worksheet_name:
+                worksheet = spreadsheet.worksheet(worksheet_name)
+            else:
+                worksheet = spreadsheet.sheet1
+        except gspread.WorksheetNotFound:
+            available_sheets = [ws.title for ws in spreadsheet.worksheets()]
+            raise ValueError(f"Worksheet '{worksheet_name}' not found. Available worksheets: {available_sheets}")
         
-        data = worksheet.get_all_records()
+        try:
+            data = worksheet.get_all_records()
+        except Exception as e:
+            raise ValueError(f"Failed to read data from worksheet: {str(e)}")
         
         if not data:
-            raise ValueError("No data found in Google Sheets")
+            raise ValueError("No data found in Google Sheets. Please ensure the sheet contains data with headers in the first row.")
         
         df = pd.DataFrame(data)
         
+        if df.empty:
+            raise ValueError("Google Sheets data is empty after processing")
+        
         data_format = detect_data_format(df)
         if data_format == "unknown":
-            raise ValueError("Unsupported data format. Expected either Customer/Address/Phone or Type/Date/Name/Amount columns")
+            available_columns = list(df.columns)
+            raise ValueError(f"Unsupported data format. Expected either Customer/Address/Phone columns or Type/Date/Name/Amount columns. Found columns: {available_columns}")
         
         logger.info(f"Successfully read {len(df)} rows from Google Sheets with format: {data_format}")
         return df
         
     except GoogleAuthError as e:
         logger.error(f"Google Sheets authentication error: {e}")
+        raise ValueError(f"Google Sheets authentication failed: {str(e)}")
+    except ValueError:
         raise
     except Exception as e:
         logger.error(f"Error reading Google Sheets data: {e}")
-        raise
+        raise ValueError(f"Failed to read Google Sheets data: {str(e)}")
 
 def process_google_sheets_data(sheets_url: str, location_id: str = "loc_3", location_name: str = "Lufkin", worksheet_name: str = None) -> Dict[str, Any]:
     """Process Google Sheets data and return consolidated customer/order data"""

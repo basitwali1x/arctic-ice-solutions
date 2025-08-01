@@ -37,8 +37,8 @@ export function MobileCustomer({
     requestedDeliveryDate: ''
   });
   const [newFeedback, setNewFeedback] = useState({
-    type: 'delivery' as const,
-    rating: 5 as const,
+    type: 'delivery' as 'delivery' | 'product' | 'service' | 'complaint' | 'suggestion',
+    rating: 5 as 1 | 2 | 3 | 4 | 5,
     subject: '',
     message: '',
     orderId: ''

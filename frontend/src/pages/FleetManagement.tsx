@@ -28,6 +28,8 @@ export function FleetManagement() {
   const [importing, setImporting] = useState(false);
   const [importFiles, setImportFiles] = useState<FileList | null>(null);
   const [selectedLocationId, setSelectedLocationId] = useState('');
+  const [selectedOptimizeLocation, setSelectedOptimizeLocation] = useState<string>('');
+  const [isOptimizing, setIsOptimizing] = useState(false);
   const [newVehicle, setNewVehicle] = useState({
     license_plate: '',
     vehicle_type: '53ft_reefer',
@@ -95,8 +97,14 @@ export function FleetManagement() {
   }));
 
   const handleOptimizeRoutes = async () => {
+    if (!selectedOptimizeLocation) {
+      showError(new Error('Please select a location'), 'Please select a location for route optimization');
+      return;
+    }
+
     try {
-      const response = await apiRequest('/api/routes/optimize?location_id=loc_1', {
+      setIsOptimizing(true);
+      const response = await apiRequest(`/api/routes/optimize?location_id=${selectedOptimizeLocation}`, {
         method: 'POST'
       });
       
@@ -111,6 +119,8 @@ export function FleetManagement() {
     } catch (error) {
       console.error('Error optimizing routes:', error);
       showError(error, 'Failed to optimize routes');
+    } finally {
+      setIsOptimizing(false);
     }
   };
 
@@ -393,13 +403,32 @@ export function FleetManagement() {
 
             <div className="space-y-4">
               <h3 className="font-semibold">Route Optimization</h3>
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-600 mb-3">
+              <div className="p-4 bg-gray-50 rounded-lg space-y-4">
+                <p className="text-sm text-gray-600">
                   Automatic route optimization considers traffic, customer time windows, and vehicle capacity.
                 </p>
-                <Button className="w-full" onClick={handleOptimizeRoutes}>
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">Select Location</label>
+                  <Select value={selectedOptimizeLocation} onValueChange={setSelectedOptimizeLocation}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose location for optimization" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {locations.map(location => (
+                        <SelectItem key={location.id} value={location.id}>
+                          {location.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button 
+                  className="w-full" 
+                  onClick={handleOptimizeRoutes}
+                  disabled={!selectedOptimizeLocation || isOptimizing}
+                >
                   <Navigation className="h-4 w-4 mr-2" />
-                  Optimize All Routes
+                  {isOptimizing ? 'Optimizing Routes...' : 'Optimize All Routes'}
                 </Button>
               </div>
             </div>

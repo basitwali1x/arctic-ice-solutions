@@ -57,7 +57,27 @@ export function MobileCustomer({
     const user = customerUsers.find(u => u.id === customerId);
     if (user) {
       setCurrentUser(user);
-      setOrders(sampleOrders.filter(o => o.customerId === customerId));
+      
+      const fetchOrders = async () => {
+        try {
+          const response = await fetch(`/api/customers/${customerId}/orders`, {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+          });
+          if (response.ok) {
+            const backendOrders = await response.json();
+            setOrders(backendOrders);
+          } else {
+            setOrders(sampleOrders.filter(o => o.customerId === customerId));
+          }
+        } catch (error) {
+          console.error('Failed to fetch orders:', error);
+          setOrders(sampleOrders.filter(o => o.customerId === customerId));
+        }
+      };
+      
+      fetchOrders();
       setFeedback(sampleFeedback.filter(f => f.customerId === customerId));
       setInvoices(sampleInvoices.filter(i => i.customerId === customerId));
       setNewOrder(prev => ({
@@ -130,6 +150,29 @@ export function MobileCustomer({
     setCurrentView('orders');
   };
 
+  useEffect(() => {
+    const refreshTracking = async () => {
+      if (currentView === 'track' && currentUser) {
+        try {
+          const response = await fetch(`/api/customers/${customerId}/orders`, {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+          });
+          if (response.ok) {
+            const updatedOrders = await response.json();
+            setOrders(updatedOrders);
+          }
+        } catch (error) {
+          console.error('Failed to refresh tracking data:', error);
+        }
+      }
+    };
+
+    const interval = setInterval(refreshTracking, 30000);
+    return () => clearInterval(interval);
+  }, [currentView, customerId, currentUser]);
+
   const submitFeedback = () => {
     if (!newFeedback.subject || !newFeedback.message) {
       alert('Please fill in all feedback fields');
@@ -165,6 +208,33 @@ export function MobileCustomer({
     setShowOrderDetail(true);
   };
 
+  const handleDownloadInvoice = async (invoiceId: string) => {
+    try {
+      const response = await fetch(`/api/invoices/${invoiceId}/download`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to download invoice');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `invoice_${invoiceId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading invoice:', error);
+      alert('Failed to download invoice. Please try again.');
+    }
+  };
   if (!currentUser) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -450,7 +520,7 @@ export function MobileCustomer({
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="font-medium">${invoice.totalAmount.toFixed(2)}</span>
-                          <Button size="sm" variant="outline">
+                          <Button size="sm" variant="outline" onClick={() => handleDownloadInvoice(invoice.id)}>
                             <Download className="w-4 h-4 mr-1" />
                             Download
                           </Button>

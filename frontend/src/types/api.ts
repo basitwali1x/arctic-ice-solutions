@@ -134,6 +134,7 @@ export interface Notification {
 
 export interface FinancialDashboard {
   daily_revenue: number;
+  daily_revenue_average: number;
   monthly_revenue: number;
   daily_expenses?: number;
   monthly_expenses?: number;

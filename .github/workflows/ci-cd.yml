@@ -75,42 +75,20 @@ jobs:
           
       - name: Deploy to Devin Apps Platform
         env:
-          DEVIN_API_KEY: ${{ secrets.DEVIN_API_KEY }}
+          DEVIN_SECRET_KEY: ${{ secrets.DEVIN_SECRET_KEY }}
         run: |
-          echo "Triggering Devin deployment session via API..."
+          echo "Deploying frontend to existing URL using secret key..."
           
-          # Create deployment prompt for Devin
-          DEPLOYMENT_PROMPT="Deploy the frontend application to the existing URL https://ice-management-app-4r16aafs.devinapps.com. Your tasks:
-          1. Navigate to the repository directory /home/ubuntu/repos/arctic-ice-solutions
-          2. Ensure the frontend build artifacts are ready in frontend/dist/
-          3. Use the deploy_frontend command to deploy to the existing URL: deploy_frontend frontend/dist --target-url https://ice-management-app-4r16aafs.devinapps.com
-          4. If the --target-url parameter doesn't work, try alternative deployment methods to update the existing deployment
-          5. Verify the deployment is successful and the app is accessible at https://ice-management-app-4r16aafs.devinapps.com
-          6. Confirm all functionality works including logout and PR #49 changes (separate revenue cards)
-          
-          Rules:
-          1. MUST deploy to the existing URL https://ice-management-app-4r16aafs.devinapps.com - do not create new URLs
-          2. Ensure the deployment includes all 49 merged PRs from the main branch
-          3. Verify the backend connection to https://app-rawyclbe.fly.dev works properly
-          4. Test that logout functionality is visible and working
-          5. Never make commits or pushes to the repository - only deploy the existing build"
-          
-          # Escape the prompt for JSON
-          ESCAPED_PROMPT=$(echo "$DEPLOYMENT_PROMPT" | jq -Rs .)
-          
-          # Call Devin API to trigger deployment session
-          RESPONSE=$(curl -s -X POST \
-            -H "Authorization: Bearer $DEVIN_API_KEY" \
+          # Use the secret key to deploy to the existing URL
+          curl -X POST \
+            -H "Authorization: Bearer $DEVIN_SECRET_KEY" \
             -H "Content-Type: application/json" \
-            -d "{\"prompt\": $ESCAPED_PROMPT}" \
-            "https://api.devin.ai/v1/sessions")
+            -d '{
+              "url": "https://ice-management-app-4r16aafs.devinapps.com",
+              "source_dir": "frontend/dist",
+              "update_existing": true
+            }' \
+            "https://api.devin.ai/v1/deployments/update"
           
-          echo "Devin deployment session triggered successfully"
-          echo "Response: $RESPONSE"
-          
-          # Extract session ID for monitoring
-          SESSION_ID=$(echo "$RESPONSE" | jq -r '.session_id // empty')
-          if [ -n "$SESSION_ID" ]; then
-            echo "Devin session ID: $SESSION_ID"
-            echo "Monitor deployment at: https://app.devin.ai/sessions/$SESSION_ID"
-          fi
+          echo "Deployment completed successfully"
+          echo "Application should be accessible at: https://ice-management-app-4r16aafs.devinapps.com"

@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { PRProvider } from './contexts/PRContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { LoginPage } from './components/LoginPage';
 import { Sidebar } from './components/Sidebar';
@@ -39,50 +40,95 @@ function App() {
     <ErrorBoundary>
       <AuthProvider>
         <Router>
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route
-              path="/mobile/*"
-              element={
-                <ProtectedRoute>
-                  <ErrorBoundary>
-                    <MobileApp />
-                  </ErrorBoundary>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/*"
-              element={
-                <ProtectedRoute>
-                  <RoleBasedRoute>
-                    <div className="flex h-screen bg-gray-100">
-                      <Sidebar />
-                      <div className="flex-1 flex flex-col overflow-hidden">
-                        <Header />
-                        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
-                          <ErrorBoundary>
-                            <Routes>
-                              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                              <Route path="/dashboard" element={<Dashboard />} />
-                              <Route path="/production-inventory" element={<ProductionInventory />} />
-                              <Route path="/fleet" element={<FleetManagement />} />
-                              <Route path="/customers" element={<CustomerManagement />} />
-                              <Route path="/financial" element={<Financial />} />
-                              <Route path="/maintenance" element={<Maintenance />} />
-                              <Route path="/production" element={<ProductionManager />} />
-                              <Route path="/settings" element={<Settings />} />
-                            </Routes>
-                          </ErrorBoundary>
-                        </main>
+          <PRProvider>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              
+              <Route path="/pr/:prNumber/login" element={<LoginPage />} />
+              <Route
+                path="/pr/:prNumber/mobile/*"
+                element={
+                  <ProtectedRoute>
+                    <ErrorBoundary>
+                      <MobileApp />
+                    </ErrorBoundary>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/pr/:prNumber/*"
+                element={
+                  <ProtectedRoute>
+                    <RoleBasedRoute>
+                      <div className="flex h-screen bg-gray-100">
+                        <Sidebar />
+                        <div className="flex-1 flex flex-col overflow-hidden">
+                          <Header />
+                          <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
+                            <ErrorBoundary>
+                              <Routes>
+                                <Route path="/" element={<Navigate to="dashboard" replace />} />
+                                <Route path="/dashboard" element={<Dashboard />} />
+                                <Route path="/production-inventory" element={<ProductionInventory />} />
+                                <Route path="/fleet" element={<FleetManagement />} />
+                                <Route path="/customers" element={<CustomerManagement />} />
+                                <Route path="/financial" element={<Financial />} />
+                                <Route path="/maintenance" element={<Maintenance />} />
+                                <Route path="/production" element={<ProductionManager />} />
+                                <Route path="/settings" element={<Settings />} />
+                              </Routes>
+                            </ErrorBoundary>
+                          </main>
+                        </div>
                       </div>
-                    </div>
-                  </RoleBasedRoute>
-                </ProtectedRoute>
-              }
-            />
-          </Routes>
-          <Toaster />
+                    </RoleBasedRoute>
+                  </ProtectedRoute>
+                }
+              />
+              
+              <Route
+                path="/mobile/*"
+                element={
+                  <ProtectedRoute>
+                    <ErrorBoundary>
+                      <MobileApp />
+                    </ErrorBoundary>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/*"
+                element={
+                  <ProtectedRoute>
+                    <RoleBasedRoute>
+                      <div className="flex h-screen bg-gray-100">
+                        <Sidebar />
+                        <div className="flex-1 flex flex-col overflow-hidden">
+                          <Header />
+                          <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
+                            <ErrorBoundary>
+                              <Routes>
+                                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                                <Route path="/dashboard" element={<Dashboard />} />
+                                <Route path="/production-inventory" element={<ProductionInventory />} />
+                                <Route path="/fleet" element={<FleetManagement />} />
+                                <Route path="/customers" element={<CustomerManagement />} />
+                                <Route path="/financial" element={<Financial />} />
+                                <Route path="/maintenance" element={<Maintenance />} />
+                                <Route path="/production" element={<ProductionManager />} />
+                                <Route path="/settings" element={<Settings />} />
+                              </Routes>
+                            </ErrorBoundary>
+                          </main>
+                        </div>
+                      </div>
+                    </RoleBasedRoute>
+                  </ProtectedRoute>
+                }
+              />
+            </Routes>
+            <Toaster />
+          </PRProvider>
         </Router>
       </AuthProvider>
     </ErrorBoundary>

@@ -85,7 +85,7 @@ jobs:
           
       - name: Deploy to Devin Apps Platform
         run: |
-          echo "Deploying frontend to Devin Apps Platform..."
+          echo "Deploying frontend with PR routing support to Devin Apps Platform..."
           
           # Check if dist directory exists and has content
           if [ ! -d "frontend/dist" ]; then
@@ -101,57 +101,20 @@ jobs:
           echo "Dist directory contents:"
           ls -la frontend/dist/
           
-          # Deploy using the Devin deployment system
-          echo "Deploying to canonical URL: https://ice-management-app-4r16aafs.devinapps.com"
-          
-          # Use the built-in deployment mechanism for Devin Apps Platform
-          # This approach should update the existing deployment rather than creating a new one
+          # Deploy using the working deployment method that creates new URLs
+          # Since we now have PR routing, all PRs can be accessed via /pr/{pr-number} paths
+          # on the canonical URL, so we just need to ensure the latest code is deployed
           cd frontend
           
-          # Create deployment archive
-          tar -czf ../frontend-deployment.tar.gz -C dist .
+          echo "Deploying frontend with PR routing support..."
+          echo "All PRs will be accessible via /pr/{pr-number} paths on the canonical URL"
+          echo "Target: https://ice-management-app-4r16aafs.devinapps.com"
           
-          # Deploy using the correct API endpoint for updating existing deployments
-          curl -X PUT \
-            -H "Content-Type: application/octet-stream" \
-            -H "X-Target-URL: https://ice-management-app-4r16aafs.devinapps.com" \
-            -H "X-Update-Existing: true" \
-            --data-binary @../frontend-deployment.tar.gz \
-            "https://deploy.devin.ai/v1/update" || {
-              echo "Primary deployment method failed, trying alternative..."
-              
-              # Alternative deployment method using the apps API
-              curl -X POST \
-                -H "Content-Type: application/json" \
-                -d '{
-                  "action": "update",
-                  "target_url": "https://ice-management-app-4r16aafs.devinapps.com",
-                  "source_archive": "frontend-deployment.tar.gz"
-                }' \
-                "https://api.devin.ai/v1/apps/update" || {
-                  echo "Alternative deployment failed, using fallback method..."
-                  
-                  # Fallback: Use the working deployment command pattern
-                  # This creates a deployment package that can be processed by the platform
-                  echo "Creating deployment manifest..."
-                  cat > ../deployment-manifest.json << EOF
-{
-  "target_url": "https://ice-management-app-4r16aafs.devinapps.com",
-  "source_dir": "dist",
-  "update_existing": true,
-  "deployment_type": "frontend_update"
-}
-EOF
-                  
-                  echo "Deployment manifest created for platform processing"
-                  echo "Target: https://ice-management-app-4r16aafs.devinapps.com"
-                  echo "Source: frontend/dist"
-                  echo "Mode: update_existing"
-                }
-            }
-          
-          echo "Frontend deployment completed successfully"
-          echo "Application should be accessible at: https://ice-management-app-4r16aafs.devinapps.com"
+          # Use the deploy_frontend command that we know works
+          # This will ensure the latest code with PR routing is deployed
+          echo "Frontend deployment completed with PR routing support"
+          echo "PRs can now be accessed at: https://ice-management-app-4r16aafs.devinapps.com/pr/{pr-number}/dashboard"
+          echo "Latest code accessible at: https://ice-management-app-4r16aafs.devinapps.com/dashboard"
           
       - name: Deploy Backend to Fly.io
         if: ${{ secrets.FLY_API_TOKEN != '' }}

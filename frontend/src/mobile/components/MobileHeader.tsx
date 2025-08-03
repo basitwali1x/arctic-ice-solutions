@@ -5,6 +5,7 @@ import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Card, CardContent } from '../../components/ui/card';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePR } from '../../contexts/PRContext';
 
 interface MobileHeaderProps {
   currentUser: {
@@ -16,6 +17,7 @@ interface MobileHeaderProps {
 
 export function MobileHeader({ currentUser }: MobileHeaderProps) {
   const { user, logout } = useAuth();
+  const { getNavigationPath } = usePR();
   const navigate = useNavigate();
   const [showMenu, setShowMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -71,38 +73,38 @@ export function MobileHeader({ currentUser }: MobileHeaderProps) {
               </div>
             </div>
             <div className="p-4 space-y-2">
-              <Button variant="ghost" className="w-full justify-start" onClick={() => { navigate('/mobile/dashboard'); setShowMenu(false); }}>
+              <Button variant="ghost" className="w-full justify-start" onClick={() => { navigate(getNavigationPath('/mobile/dashboard')); setShowMenu(false); }}>
                 Dashboard
               </Button>
               {(user?.role === 'technician' || user?.role === 'manager') && (
-                <Button variant="ghost" className="w-full justify-start" onClick={() => { navigate('/mobile/work-orders'); setShowMenu(false); }}>
+                <Button variant="ghost" className="w-full justify-start" onClick={() => { navigate(getNavigationPath('/mobile/work-orders')); setShowMenu(false); }}>
                   Work Orders
                 </Button>
               )}
               {(user?.role === 'driver' || user?.role === 'dispatcher' || user?.role === 'manager') && (
-                <Button variant="ghost" className="w-full justify-start" onClick={() => { navigate('/mobile/routes'); setShowMenu(false); }}>
+                <Button variant="ghost" className="w-full justify-start" onClick={() => { navigate(getNavigationPath('/mobile/routes')); setShowMenu(false); }}>
                   Routes and Deliveries
                 </Button>
               )}
               {(user?.role === 'driver' || user?.role === 'manager') && (
-                <Button variant="ghost" className="w-full justify-start" onClick={() => { navigate('/mobile/driver'); setShowMenu(false); }}>
+                <Button variant="ghost" className="w-full justify-start" onClick={() => { navigate(getNavigationPath('/mobile/driver')); setShowMenu(false); }}>
                   Driver Dashboard
                 </Button>
               )}
               {(user?.role === 'customer' || user?.role === 'manager') && (
-                <Button variant="ghost" className="w-full justify-start" onClick={() => { navigate('/mobile/customer'); setShowMenu(false); }}>
+                <Button variant="ghost" className="w-full justify-start" onClick={() => { navigate(getNavigationPath('/mobile/customer')); setShowMenu(false); }}>
                   Customer Portal
                 </Button>
               )}
               {(user?.role === 'driver' || user?.role === 'technician' || user?.role === 'manager') && (
-                <Button variant="ghost" className="w-full justify-start" onClick={() => { navigate('/mobile/inspection'); setShowMenu(false); }}>
+                <Button variant="ghost" className="w-full justify-start" onClick={() => { navigate(getNavigationPath('/mobile/inspection')); setShowMenu(false); }}>
                   Pre-Trip Inspection
                 </Button>
               )}
-              <Button variant="ghost" className="w-full justify-start" onClick={() => { navigate('/mobile/profile'); setShowMenu(false); }}>
+              <Button variant="ghost" className="w-full justify-start" onClick={() => { navigate(getNavigationPath('/mobile/profile')); setShowMenu(false); }}>
                 Profile
               </Button>
-              <Button variant="ghost" className="w-full justify-start" onClick={() => { navigate('/mobile/settings'); setShowMenu(false); }}>
+              <Button variant="ghost" className="w-full justify-start" onClick={() => { navigate(getNavigationPath('/mobile/settings')); setShowMenu(false); }}>
                 Settings
               </Button>
               <hr className="my-2" />

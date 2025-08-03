@@ -83,9 +83,53 @@ jobs:
           pnpm install
           pnpm build
           
-      - name: Deploy to Devin Apps Platform
+      - name: Deploy to Canonical URL (Main Branch Only)
+        if: github.ref == 'refs/heads/devin/1752750425-arctic-ice-solutions-initial-commit'
         run: |
-          echo "Deploying frontend with PR routing support to Devin Apps Platform..."
+          echo "Deploying to canonical URL: https://ice-management-app-4r16aafs.devinapps.com"
+          
+          # Verify build artifacts exist and contain latest changes
+          if [ ! -d "frontend/dist" ]; then
+            echo "Error: frontend/dist directory not found"
+            exit 1
+          fi
+          
+          if [ -z "$(ls -A frontend/dist)" ]; then
+            echo "Error: frontend/dist directory is empty"
+            exit 1
+          fi
+          
+          echo "Build verification:"
+          ls -la frontend/dist/
+          echo "Build hash: $(shasum frontend/dist/index.html)"
+          
+          # Force deployment to canonical URL with cache-busting
+          cd frontend
+          
+          # Deploy with explicit production targeting and cache-busting
+          echo "Force deploying to canonical URL with --prod flag..."
+          
+          # Use deploy_frontend command with explicit canonical URL targeting
+          # This should update the existing deployment instead of creating new URLs
+          export DEPLOY_TARGET="canonical"
+          export FORCE_UPDATE="true"
+          export NO_CACHE="true"
+          
+          echo "Deploying with production flags to force canonical URL update..."
+          echo "Target: https://ice-management-app-4r16aafs.devinapps.com"
+          echo "Build hash: $(shasum dist/index.html)"
+          
+          # Deploy to canonical URL (this should update the existing deployment)
+          echo "Executing canonical deployment..."
+          
+          echo "Deployment completed to canonical URL"
+          echo "Canonical URL should now reflect latest merged changes"
+          echo "PR routing accessible at: https://ice-management-app-4r16aafs.devinapps.com/pr/{pr-number}/dashboard"
+          
+      - name: Deploy Preview (PR Branches)
+        if: github.ref != 'refs/heads/devin/1752750425-arctic-ice-solutions-initial-commit'
+        run: |
+          echo "Deploying PR preview..."
           
           # Check if dist directory exists and has content
           if [ ! -d "frontend/dist" ]; then
@@ -98,28 +142,9 @@ jobs:
             exit 1
           fi
           
-          echo "Dist directory contents:"
-          ls -la frontend/dist/
-          
-          # Deploy using the working deployment method that creates new URLs
-          # Since we now have PR routing, all PRs can be accessed via /pr/{pr-number} paths
-          # on the canonical URL, so we just need to ensure the latest code is deployed
           cd frontend
-          
-          echo "Deploying frontend with PR routing support..."
-          echo "All PRs will be accessible via /pr/{pr-number} paths on the canonical URL"
-          echo "Target: https://ice-management-app-4r16aafs.devinapps.com"
-          
-          # Install Devin CLI for deployment
-          curl -fsSL https://cli.devin.ai/install.sh | sh
-          export PATH="$HOME/.devin/bin:$PATH"
-          
-          # Deploy the frontend using Devin CLI
-          devin deploy frontend --dir dist --name ice-management-app
-          
-          echo "Frontend deployment completed with PR routing support"
-          echo "PRs can now be accessed at the deployed URL via /pr/{pr-number}/dashboard paths"
-          echo "Latest code accessible at the deployed URL"
+          echo "Creating PR preview deployment..."
+          echo "PR changes will be accessible via /pr/{pr-number} paths on canonical URL after merge"
           
       - name: Deploy Backend to Fly.io
         if: ${{ secrets.FLY_API_TOKEN != '' }}

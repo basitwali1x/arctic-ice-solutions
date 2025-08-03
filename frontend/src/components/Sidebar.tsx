@@ -11,9 +11,11 @@ import {
   Factory
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { usePR } from '../contexts/PRContext';
 
 export function Sidebar() {
   const { user } = useAuth();
+  const { getNavigationPath } = usePR();
   const location = useLocation();
 
   const menuItems = [
@@ -94,7 +96,7 @@ export function Sidebar() {
             return (
               <li key={item.path}>
                 <Link
-                  to={item.path}
+                  to={getNavigationPath(item.path)}
                   className={`flex items-center p-3 rounded-lg transition-colors ${
                     isActive 
                       ? 'bg-blue-700 text-white' 

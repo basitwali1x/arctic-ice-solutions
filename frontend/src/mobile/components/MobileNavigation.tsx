@@ -2,11 +2,13 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Home, Wrench, User, Truck, Route, ClipboardCheck } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePR } from '../../contexts/PRContext';
 
 export function MobileNavigation() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { getNavigationPath } = usePR();
 
   const allNavItems = [
     { path: '/mobile/dashboard', icon: Home, label: 'Dashboard', roles: ['manager', 'dispatcher', 'driver', 'technician'] },
@@ -39,7 +41,7 @@ export function MobileNavigation() {
               key={item.path}
               variant="ghost"
               size="sm"
-              onClick={() => navigate(item.path)}
+              onClick={() => navigate(getNavigationPath(item.path))}
               className={`flex flex-col items-center space-y-1 p-2 min-w-0 flex-1 ${
                 isActive ? 'text-blue-600' : 'text-gray-500'
               }`}

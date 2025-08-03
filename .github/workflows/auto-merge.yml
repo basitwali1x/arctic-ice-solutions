@@ -12,10 +12,10 @@ jobs:
     if: github.event.pull_request.user.login == 'devin-ai-integration[bot]'
     steps:
       - name: Auto-merge PR
-        uses: pascalgn/merge-action@v0.15.6
+        uses: juliangruber/merge-pull-request-action@v1
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          merge_method: squash
-          merge_labels: "!no-auto-merge"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          number: ${{ github.event.pull_request.number }}
+          method: squash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

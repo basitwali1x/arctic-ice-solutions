@@ -37,9 +37,25 @@ The CI/CD workflow will automatically use the deploy key for:
 - This provides read-only or limited write access as configured
 - The key is only accessible during workflow execution
 
+## Auto-Merge Configuration
+The repository includes an auto-merge workflow for PRs created by `devin-ai-integration[bot]`. This workflow:
+- Uses `juliangruber/merge-pull-request-action@v1` for reliable merging
+- Automatically merges PRs using squash method
+- Triggers on PR open/sync and check suite completion
+
 ## Troubleshooting
 If deployment fails with authentication errors:
 1. Verify the deploy key is properly added to the repository
 2. Check that the `DEPLOY_KEY_PRIVATE` secret contains the correct private key
 3. Ensure the key has appropriate permissions (read/write as needed)
 4. Verify the SSH agent setup in the workflow is correct
+
+If auto-merge fails:
+1. Check that the GitHub token has appropriate permissions
+2. Verify the PR is created by `devin-ai-integration[bot]`
+3. Ensure all required checks are passing
+
+If deployment is skipped:
+1. Check that required secrets are configured: `DEPLOY_KEY_PRIVATE`, `FLY_API_TOKEN`
+2. The workflow will show warnings for missing secrets but continue with available deployments
+3. Frontend deployment requires `DEVIN_SECRET_KEY` (should already be configured)

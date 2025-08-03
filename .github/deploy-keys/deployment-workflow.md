@@ -19,11 +19,21 @@ This repository is configured for automatic deployment of both frontend and back
 
 ## Required GitHub Secrets
 
-The following secrets must be configured in the repository settings:
+The following secrets must be configured in the repository settings for full functionality:
 
-1. **DEPLOY_KEY_PRIVATE**: SSH private key for repository access
-2. **DEVIN_SECRET_KEY**: Authentication token for Devin Apps Platform
-3. **FLY_API_TOKEN**: Authentication token for Fly.io deployment
+1. **DEPLOY_KEY_PRIVATE**: SSH private key for repository access (optional - shows warning if missing)
+2. **DEVIN_SECRET_KEY**: Authentication token for Devin Apps Platform (required for frontend)
+3. **FLY_API_TOKEN**: Authentication token for Fly.io deployment (optional - backend deployment skipped if missing)
+
+## Conditional Deployment Behavior
+
+The workflow is designed to be resilient and will continue working even if some secrets are missing:
+
+- **Missing DEPLOY_KEY_PRIVATE**: Shows warning, SSH authentication unavailable
+- **Missing FLY_API_TOKEN**: Backend deployment skipped with warning message
+- **Missing DEVIN_SECRET_KEY**: Frontend deployment will fail (this should be configured)
+
+This allows the workflow to provide clear feedback about what needs to be configured while still running successfully.
 
 ## Deployment Triggers
 

@@ -58,9 +58,14 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Setup SSH Deploy Key
+        if: ${{ secrets.DEPLOY_KEY_PRIVATE != '' }}
         uses: webfactory/ssh-agent@v0.7.0
         with:
           ssh-private-key: ${{ secrets.DEPLOY_KEY_PRIVATE }}
+          
+      - name: Check Deploy Key Configuration
+        if: ${{ secrets.DEPLOY_KEY_PRIVATE == '' }}
+        run: echo "⚠️ DEPLOY_KEY_PRIVATE secret not configured. SSH authentication will not be available."
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -99,6 +104,7 @@ jobs:
           echo "Application should be accessible at: https://ice-management-app-4r16aafs.devinapps.com"
           
       - name: Deploy Backend to Fly.io
+        if: ${{ secrets.FLY_API_TOKEN != '' }}
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
@@ -115,3 +121,7 @@ jobs:
           
           echo "Backend deployment completed successfully"
           echo "Backend API should be accessible at: https://app-rawyclbe.fly.dev"
+          
+      - name: Check Backend Deployment Configuration
+        if: ${{ secrets.FLY_API_TOKEN == '' }}
+        run: echo "⚠️ FLY_API_TOKEN secret not configured. Backend deployment skipped."

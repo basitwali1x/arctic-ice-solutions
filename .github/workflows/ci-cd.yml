@@ -110,11 +110,16 @@ jobs:
           echo "All PRs will be accessible via /pr/{pr-number} paths on the canonical URL"
           echo "Target: https://ice-management-app-4r16aafs.devinapps.com"
           
-          # Use the deploy_frontend command that we know works
-          # This will ensure the latest code with PR routing is deployed
+          # Install Devin CLI for deployment
+          curl -fsSL https://cli.devin.ai/install.sh | sh
+          export PATH="$HOME/.devin/bin:$PATH"
+          
+          # Deploy the frontend using Devin CLI
+          devin deploy frontend --dir dist --name ice-management-app
+          
           echo "Frontend deployment completed with PR routing support"
-          echo "PRs can now be accessed at: https://ice-management-app-4r16aafs.devinapps.com/pr/{pr-number}/dashboard"
-          echo "Latest code accessible at: https://ice-management-app-4r16aafs.devinapps.com/dashboard"
+          echo "PRs can now be accessed at the deployed URL via /pr/{pr-number}/dashboard paths"
+          echo "Latest code accessible at the deployed URL"
           
       - name: Deploy Backend to Fly.io
         if: ${{ secrets.FLY_API_TOKEN != '' }}

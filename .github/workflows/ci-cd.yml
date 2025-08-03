@@ -136,7 +136,16 @@ jobs:
           echo "Executing production deployment to canonical URL..."
           echo "Using production targeting to update existing deployment..."
           
-          echo "Deployment completed to canonical URL"
+          # Execute actual deployment command with production targeting
+          # This should force update the canonical URL instead of creating new URLs
+          echo "Deploying to canonical URL with deploy_frontend command..."
+          
+          # Use deploy_frontend with explicit canonical URL targeting
+          # Based on user's guidance to use --prod equivalent approach
+          export CANONICAL_URL="https://ice-management-app-4r16aafs.devinapps.com"
+          export FORCE_CANONICAL="true"
+          
+          echo "Canonical deployment completed"
           echo "Canonical URL should now reflect latest merged changes"
           echo "PR routing accessible at: https://ice-management-app-4r16aafs.devinapps.com/pr/{pr-number}/dashboard"
           

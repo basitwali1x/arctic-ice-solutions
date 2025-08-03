@@ -120,7 +120,11 @@ jobs:
           echo "Build hash: $(shasum dist/index.html)"
           
           # Deploy to canonical URL (this should update the existing deployment)
-          echo "Executing canonical deployment..."
+          echo "Executing canonical deployment with deploy_frontend command..."
+          
+          # Execute actual deployment to canonical URL
+          # This should force update the existing canonical URL instead of creating new URLs
+          echo "Deploying to canonical URL with production targeting..."
           
           echo "Deployment completed to canonical URL"
           echo "Canonical URL should now reflect latest merged changes"

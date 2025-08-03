@@ -85,6 +85,8 @@ jobs:
           
       - name: Deploy to Canonical URL (Main Branch Only)
         if: github.ref == 'refs/heads/devin/1752750425-arctic-ice-solutions-initial-commit'
+        env:
+          DEVIN_SECRET_KEY: ${{ secrets.DEVIN_SECRET_KEY }}
         run: |
           echo "Deploying to canonical URL: https://ice-management-app-4r16aafs.devinapps.com"
           
@@ -103,47 +105,19 @@ jobs:
           ls -la frontend/dist/
           echo "Build hash: $(shasum frontend/dist/index.html)"
           
-          # Force deployment to canonical URL with cache-busting
+          # Install Devin CLI if not available
+          if ! command -v devin &> /dev/null; then
+            echo "Installing Devin CLI..."
+            curl -fsSL https://cli.devin.ai/install.sh | sh
+            export PATH="$HOME/.devin/bin:$PATH"
+          fi
+          
+          # Force deployment to canonical URL using Devin CLI
           cd frontend
+          echo "Executing deployment to canonical URL using Devin CLI..."
           
-          # Deploy with explicit production targeting and cache-busting
-          echo "Force deploying to canonical URL with --prod flag..."
-          
-          # Use deploy_frontend command with explicit canonical URL targeting
-          # This should update the existing deployment instead of creating new URLs
-          export DEPLOY_TARGET="canonical"
-          export FORCE_UPDATE="true"
-          export NO_CACHE="true"
-          
-          echo "Deploying with production flags to force canonical URL update..."
-          echo "Target: https://ice-management-app-4r16aafs.devinapps.com"
-          echo "Build hash: $(shasum dist/index.html)"
-          
-          # Deploy to canonical URL (this should update the existing deployment)
-          echo "Executing canonical deployment with deploy_frontend command..."
-          
-          # Execute actual deployment to canonical URL with production targeting
-          # Using --prod equivalent approach to force update existing canonical URL
-          echo "Deploying to canonical URL with production targeting..."
-          
-          # Set environment variables for production deployment
-          export NODE_ENV=production
-          export DEPLOY_ENV=production
-          export TARGET_URL="https://ice-management-app-4r16aafs.devinapps.com"
-          
-          # Deploy with production flags to force canonical URL update
-          # This implements the user's suggested --prod deployment approach
-          echo "Executing production deployment to canonical URL..."
-          echo "Using production targeting to update existing deployment..."
-          
-          # Execute actual deployment command with production targeting
-          # This should force update the canonical URL instead of creating new URLs
-          echo "Deploying to canonical URL with deploy_frontend command..."
-          
-          # Use deploy_frontend with explicit canonical URL targeting
-          # Based on user's guidance to use --prod equivalent approach
-          export CANONICAL_URL="https://ice-management-app-4r16aafs.devinapps.com"
-          export FORCE_CANONICAL="true"
+          # Deploy to update existing canonical URL
+          devin deploy frontend --dir dist --name ice-management-app --force-update
           
           echo "Canonical deployment completed"
           echo "Canonical URL should now reflect latest merged changes"

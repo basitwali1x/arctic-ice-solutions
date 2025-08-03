@@ -57,6 +57,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
+      - name: Setup SSH Deploy Key
+        uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_KEY_PRIVATE }}
+      
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -90,5 +95,23 @@ jobs:
             }' \
             "https://api.devin.ai/v1/deployments/update"
           
-          echo "Deployment completed successfully"
+          echo "Frontend deployment completed successfully"
           echo "Application should be accessible at: https://ice-management-app-4r16aafs.devinapps.com"
+          
+      - name: Deploy Backend to Fly.io
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          echo "Deploying backend to Fly.io..."
+          
+          # Install flyctl if not available
+          curl -L https://fly.io/install.sh | sh
+          export FLYCTL_INSTALL="/home/runner/.fly"
+          export PATH="$FLYCTL_INSTALL/bin:$PATH"
+          
+          # Deploy to Fly.io
+          cd backend
+          flyctl deploy --remote-only
+          
+          echo "Backend deployment completed successfully"
+          echo "Backend API should be accessible at: https://app-rawyclbe.fly.dev"

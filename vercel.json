@@ -4,8 +4,11 @@
   "outputDirectory": "frontend/dist",
   "builds": [
     {
-      "src": "frontend/dist/**",
-      "use": "@vercel/static"
+      "src": "frontend/package.json",
+      "use": "@vercel/node",
+      "config": {
+        "buildCommand": "pnpm build"
+      }
     }
   ],
   "routes": [
@@ -31,5 +34,8 @@
         }
       ]
     }
-  ]
+  ],
+  "env": {
+    "VITE_API_URL": "https://app-eueptojk.fly.dev"
+  }
 }

@@ -1,4 +1,4 @@
-app = "arctic-ice-backend"
+app = "app-rawyclbe"
 primary_region = "iad"
 
 [build]

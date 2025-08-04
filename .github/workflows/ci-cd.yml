@@ -83,12 +83,14 @@ jobs:
           pnpm install
           pnpm build
           
-      - name: Deploy to Canonical URL (Main Branch Only)
+      - name: Deploy to Vercel (Main Branch Only)
         if: github.ref == 'refs/heads/devin/1752750425-arctic-ice-solutions-initial-commit'
         env:
-          DEVIN_SECRET_KEY: ${{ secrets.DEVIN_SECRET_KEY }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
-          echo "Deploying to canonical URL: https://ice-management-app-4r16aafs.devinapps.com"
+          echo "Deploying to Vercel production..."
           
           # Verify build artifacts exist and contain latest changes
           if [ ! -d "frontend/dist" ]; then
@@ -105,28 +107,28 @@ jobs:
           ls -la frontend/dist/
           echo "Build hash: $(shasum frontend/dist/index.html)"
           
-          # Install Devin CLI if not available
-          if ! command -v devin &> /dev/null; then
-            echo "Installing Devin CLI..."
-            curl -fsSL https://cli.devin.ai/install.sh | sh
-            export PATH="$HOME/.devin/bin:$PATH"
-          fi
+          # Install Vercel CLI
+          npm install -g vercel@latest
           
-          # Force deployment to canonical URL using Devin CLI
+          # Deploy to Vercel production
           cd frontend
-          echo "Executing deployment to canonical URL using Devin CLI..."
+          echo "Executing deployment to Vercel production..."
           
-          # Deploy to update existing canonical URL
-          devin deploy frontend --dir dist --name ice-management-app --force-update
+          # Deploy with production flag
+          vercel --prod --token $VERCEL_TOKEN --yes
           
-          echo "Canonical deployment completed"
-          echo "Canonical URL should now reflect latest merged changes"
-          echo "PR routing accessible at: https://ice-management-app-4r16aafs.devinapps.com/pr/{pr-number}/dashboard"
+          echo "Vercel deployment completed"
+          echo "Production URL should now reflect latest merged changes"
+          echo "PR routing accessible at production URL/pr/{pr-number}/dashboard"
           
-      - name: Deploy Preview (PR Branches)
+      - name: Deploy Preview to Vercel (PR Branches)
         if: github.ref != 'refs/heads/devin/1752750425-arctic-ice-solutions-initial-commit'
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
-          echo "Deploying PR preview..."
+          echo "Deploying PR preview to Vercel..."
           
           # Check if dist directory exists and has content
           if [ ! -d "frontend/dist" ]; then
@@ -139,9 +141,18 @@ jobs:
             exit 1
           fi
           
+          # Install Vercel CLI
+          npm install -g vercel@latest
+          
+          # Deploy preview to Vercel
           cd frontend
-          echo "Creating PR preview deployment..."
-          echo "PR changes will be accessible via /pr/{pr-number} paths on canonical URL after merge"
+          echo "Executing PR preview deployment to Vercel..."
+          
+          # Deploy preview (non-production)
+          vercel --token $VERCEL_TOKEN --yes
+          
+          echo "Vercel preview deployment completed"
+          echo "Preview URL available in Vercel dashboard"
           
       - name: Deploy Backend to Fly.io
         if: ${{ secrets.FLY_API_TOKEN != '' }}

@@ -10,7 +10,7 @@ COPY backend/pyproject.toml backend/poetry.lock ./
 
 # Configure poetry and install dependencies
 RUN poetry config virtualenvs.create false \
-    && poetry install --no-dev
+    && poetry install --only=main
 
 # Copy application code
 COPY backend/app ./app

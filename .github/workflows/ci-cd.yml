@@ -78,6 +78,8 @@ jobs:
           version: 8
           
       - name: Build frontend for production
+        env:
+          VITE_API_URL: https://app-eueptojk.fly.dev
         run: |
           cd frontend
           pnpm install

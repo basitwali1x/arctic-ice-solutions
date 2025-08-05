@@ -16,6 +16,12 @@ export class ApiException extends Error {
 export const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
   const token = localStorage.getItem('token');
   
+  console.time(`API:${endpoint}`);
+  console.log(`API Request: ${endpoint}`, { 
+    method: options.method || 'GET',
+    baseUrl: API_BASE_URL 
+  });
+  
   const defaultHeaders: HeadersInit = {};
   
   if (!(options.body instanceof FormData)) {
@@ -36,6 +42,11 @@ export const apiRequest = async (endpoint: string, options: RequestInit = {}) =>
   
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+    console.timeEnd(`API:${endpoint}`);
+    console.log(`API Response: ${endpoint}`, { 
+      status: response.status, 
+      ok: response.ok 
+    });
     
     if (response.status === 401) {
       localStorage.removeItem('token');
@@ -66,6 +77,13 @@ export const apiRequest = async (endpoint: string, options: RequestInit = {}) =>
     
     return response;
   } catch (error) {
+    console.timeEnd(`API:${endpoint}`);
+    console.error(`API_FAIL:${endpoint}`, {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      baseUrl: API_BASE_URL,
+      endpoint
+    });
+    
     if (error instanceof ApiException) {
       throw error;
     }

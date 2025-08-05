@@ -20,7 +20,7 @@ export function Sidebar() {
 
   const menuItems = [
     { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { path: '/production', icon: Package, label: 'Production & Inventory' },
+    { path: '/production-inventory', icon: Package, label: 'Production & Inventory' },
     { path: '/fleet', icon: Truck, label: 'Fleet & Routes' },
     { path: '/customers', icon: Users, label: 'Customer Management' },
     { path: '/maintenance', icon: Wrench, label: 'Maintenance' },

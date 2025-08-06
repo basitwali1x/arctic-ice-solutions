@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +9,9 @@ import { TrendingUp, Users, Truck, Package, DollarSign, MapPin, Clock, AlertCirc
 import { DashboardOverview, ProductionDashboard, FleetDashboard, FinancialDashboard, Location, Route } from '../types/api';
 import { apiRequest } from '../utils/api';
 import { useErrorToast } from '../hooks/useErrorToast';
+import { DashboardSkeleton } from '../components/SkeletonLoader';
+import { DashboardProfiler } from '../utils/performanceProfiler';
+import { trackPageLoad } from '../utils/webVitals';
 
 export function Dashboard() {
   const [dashboardData, setDashboardData] = useState<{
@@ -75,12 +78,16 @@ export function Dashboard() {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  const productionData = [
+  useEffect(() => {
+    trackPageLoad();
+  }, []);
+
+  const productionData = useMemo(() => [
     { name: 'Shift 1', pallets: dashboardData.production?.shift_1_pallets || 45 },
     { name: 'Shift 2', pallets: dashboardData.production?.shift_2_pallets || 35 },
-  ];
+  ], [dashboardData.production]);
 
-  const paymentData = dashboardData.financial?.payment_breakdown ? [
+  const paymentData = useMemo(() => dashboardData.financial?.payment_breakdown ? [
     { name: 'Cash', value: dashboardData.financial.payment_breakdown.cash, color: '#0088FE' },
     { name: 'Check', value: dashboardData.financial.payment_breakdown.check, color: '#00C49F' },
     { name: 'Credit', value: dashboardData.financial.payment_breakdown.credit, color: '#FFBB28' }
@@ -88,12 +95,12 @@ export function Dashboard() {
     { name: 'Cash', value: 45, color: '#0088FE' },
     { name: 'Check', value: 30, color: '#00C49F' },
     { name: 'Credit', value: 25, color: '#FFBB28' }
-  ];
+  ], [dashboardData.financial]);
 
-  const fleetData = Object.entries(dashboardData.fleet?.vehicles_by_location || {}).map(([location, count]) => ({
+  const fleetData = useMemo(() => Object.entries(dashboardData.fleet?.vehicles_by_location || {}).map(([location, count]) => ({
     location,
     vehicles: count
-  }));
+  })), [dashboardData.fleet]);
 
   const handleLocationClick = (locationName: string) => {
     const location = locations.find(loc => 
@@ -194,7 +201,7 @@ export function Dashboard() {
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64">Loading dashboard...</div>;
+    return <DashboardSkeleton />;
   }
 
   if (error) {
@@ -218,7 +225,8 @@ export function Dashboard() {
   }
 
   return (
-    <div className="space-y-6">
+    <DashboardProfiler>
+      <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
         <div className="flex items-center space-x-2 text-sm text-gray-600">
@@ -650,5 +658,6 @@ export function Dashboard() {
         </DialogContent>
       </Dialog>
     </div>
+    </DashboardProfiler>
   );
 }

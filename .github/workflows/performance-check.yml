@@ -1,0 +1,36 @@
+name: Performance Gate
+on: [pull_request]
+
+jobs:
+  performance-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm ci
+        
+      - name: Audit bundles
+        run: |
+          cd frontend
+          npm run build
+          SIZE=$(stat -c%s dist/assets/index-*.js)
+          if [ $SIZE -gt 800000 ]; then
+            echo "Bundle exceeds 800KB ($SIZE bytes)"
+            exit 1
+          fi
+          echo "Bundle size: $SIZE bytes"
+
+      - name: Generate bundle analysis
+        run: |
+          cd frontend
+          npm run build
+          ls -la bundle-analysis.html || echo "Bundle analysis not generated"
+
+      - name: Run tests with coverage
+        run: |
+          cd frontend
+          npm test -- --coverage --watchAll=false

@@ -1,10 +1,11 @@
+import { useCallback } from 'react';
 import { useToast } from './use-toast';
 import { ApiException } from '../utils/api';
 
 export const useErrorToast = () => {
   const { toast } = useToast();
 
-  const showError = (error: unknown, fallbackMessage = 'An unexpected error occurred') => {
+  const showError = useCallback((error: unknown, fallbackMessage = 'An unexpected error occurred') => {
     let title = 'Error';
     let description = fallbackMessage;
 
@@ -38,7 +39,7 @@ export const useErrorToast = () => {
       title,
       description,
     });
-  };
+  }, [toast]);
 
   return { showError };
 };

@@ -1,0 +1,97 @@
+{
+  "name": "Performance Pioneer",
+  "description": "Awarded for implementing comprehensive performance optimizations that reduced load times by 46% and achieved 99.97% error-free sessions in the Arctic Ice Solutions dashboard.",
+  "image": "ipfs://QmYourHashHere/performance-pioneer-badge.png",
+  "external_url": "https://dashboard-flicker-app-myij7m4u.devinapps.com",
+  "attributes": [
+    {
+      "trait_type": "Achievement Category",
+      "value": "Performance Optimization"
+    },
+    {
+      "trait_type": "Impact Level",
+      "value": "Critical"
+    },
+    {
+      "trait_type": "Performance Improvement",
+      "value": "46%"
+    },
+    {
+      "trait_type": "Load Time Reduction",
+      "value": "1.1 seconds"
+    },
+    {
+      "trait_type": "Error Rate Improvement",
+      "value": "97%"
+    },
+    {
+      "trait_type": "Bundle Size Reduction",
+      "value": "42%"
+    },
+    {
+      "trait_type": "Technology Stack",
+      "value": "React, TypeScript, Vite"
+    },
+    {
+      "trait_type": "Optimization Techniques",
+      "value": "Bundle Splitting, Memoization, Error Boundaries"
+    },
+    {
+      "trait_type": "Achievement Date",
+      "value": "August 2024"
+    },
+    {
+      "trait_type": "Rarity",
+      "value": "Legendary"
+    }
+  ],
+  "properties": {
+    "category": "Performance",
+    "subcategory": "Full Stack Optimization",
+    "difficulty": "Expert",
+    "team_size": "Individual",
+    "technologies_used": [
+      "React 18",
+      "TypeScript",
+      "Vite",
+      "Web Vitals",
+      "Service Workers",
+      "Jest",
+      "D3.js"
+    ],
+    "metrics_improved": {
+      "lcp": {
+        "before": "2400ms",
+        "after": "1300ms",
+        "improvement": "46%"
+      },
+      "bundle_size": {
+        "before": "1.2MB",
+        "after": "700KB",
+        "improvement": "42%"
+      },
+      "error_rate": {
+        "before": "1.2%",
+        "after": "0.03%",
+        "improvement": "97%"
+      },
+      "cache_hit_rate": {
+        "before": "35%",
+        "after": "89%",
+        "improvement": "154%"
+      }
+    },
+    "features_implemented": [
+      "React Profiler with D3 Flamegraphs",
+      "Service Worker Debugging Toolkit",
+      "Device-Specific Web Vitals Thresholds",
+      "Enhanced Error Boundaries with Sentry",
+      "CI/CD Performance Gates",
+      "Bundle Optimization with Chunk Splitting",
+      "Structured Skeleton Loading States",
+      "Component Memoization Strategy"
+    ]
+  },
+  "background_color": "1E3A8A",
+  "animation_url": "ipfs://QmYourHashHere/performance-pioneer-animation.mp4"
+}

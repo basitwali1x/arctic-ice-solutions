@@ -1,0 +1,92 @@
+name: Optimization Anniversary Review
+on:
+  schedule:
+    - cron: "0 0 15 8 *" # Every August 15th at midnight UTC
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  anniversary-review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm ci
+      
+      - name: Run performance audit
+        run: |
+          cd frontend
+          npm run build
+          echo "Bundle sizes:" > anniversary-report.txt
+          ls -lh dist/assets/*.js >> anniversary-report.txt
+          echo "" >> anniversary-report.txt
+          echo "Performance metrics collected on $(date)" >> anniversary-report.txt
+      
+      - name: Generate anniversary stats
+        run: |
+          cd frontend
+          echo "🎉 Arctic Ice Solutions Dashboard - 1 Year Optimization Anniversary!" > stats.md
+          echo "" >> stats.md
+          echo "## Current Performance Stats" >> stats.md
+          echo "- Bundle analysis: $(ls -lh bundle-analysis.html | awk '{print $5}')" >> stats.md
+          echo "- Build time: $(date)" >> stats.md
+          echo "- Optimization files: $(find src/utils -name '*performance*' -o -name '*vitals*' -o -name '*profiler*' | wc -l) active" >> stats.md
+          echo "" >> stats.md
+          echo "## Key Achievements Since Implementation" >> stats.md
+          echo "- ✅ Bundle optimization with chunk splitting" >> stats.md
+          echo "- ✅ React Profiler with performance monitoring" >> stats.md
+          echo "- ✅ Error boundaries with Sentry integration" >> stats.md
+          echo "- ✅ Web Vitals monitoring with device-specific thresholds" >> stats.md
+          echo "- ✅ Service worker debugging toolkit" >> stats.md
+          echo "- ✅ CI/CD performance gates" >> stats.md
+      
+      - name: Create anniversary issue
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const stats = fs.readFileSync('frontend/stats.md', 'utf8');
+            
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🎉 Annual Performance Optimization Review - ' + new Date().getFullYear(),
+              body: stats + '\n\n---\n\n**Action Items:**\n- [ ] Review current performance metrics\n- [ ] Update optimization targets for next year\n- [ ] Schedule team retrospective\n- [ ] Update documentation\n\n**Automated by:** Anniversary Review Workflow'
+            });
+      
+      - name: Notify team via comment
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const stats = require('fs').readFileSync('frontend/stats.md', 'utf8');
+            
+            // Find the original optimization PR to comment on
+            const prs = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'closed',
+              sort: 'updated',
+              direction: 'desc'
+            });
+            
+            const optimizationPR = prs.data.find(pr => 
+              pr.title.includes('performance') || pr.title.includes('optimization')
+            );
+            
+            if (optimizationPR) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: optimizationPR.number,
+                body: '🎂 **Anniversary Update!**\n\n' + stats + '\n\nThanks to everyone who contributed to this optimization effort!'
+              });
+            }

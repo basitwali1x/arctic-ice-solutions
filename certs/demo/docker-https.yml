@@ -1,0 +1,22 @@
+version: '3.8'
+services:
+  frontend:
+    build: 
+      context: ../../frontend
+      dockerfile: Dockerfile
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./demo.key:/app/certs/demo.key:ro
+      - ./demo-san.crt:/app/certs/demo.crt:ro
+    environment:
+      - HTTPS=true
+      - SSL_CRT_FILE=/app/certs/demo.crt
+      - SSL_KEY_FILE=/app/certs/demo.key
+      - VITE_API_URL=https://app-gtgfifoe.fly.dev
+    command: >
+      sh -c "
+        npm run build &&
+        npx serve -s dist -l 443 --ssl-cert /app/certs/demo.crt --ssl-key /app/certs/demo.key
+      "

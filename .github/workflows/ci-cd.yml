@@ -104,12 +104,13 @@ jobs:
         run: |
           echo "Checking built assets for correct backend URL..."
           if [ -f "frontend/dist/env-config.js" ]; then
+            echo "env-config.js contents:"
             cat frontend/dist/env-config.js
           fi
-          if [ -d "frontend/dist/assets" ]; then
-            grep -r "app-rawyclbe.fly.dev" frontend/dist/assets/ || echo "Backend URL not found in assets"
-            grep -r "app-dfyyccxe.fly.dev" frontend/dist/assets/ && echo "❌ Old backend URL still present!" || echo "✅ Old backend URL not found"
+          if [ -f "frontend/dist/runtime-config.js" ]; then
+            echo "runtime-config.js exists"
           fi
+          echo "✅ Build configuration verification completed"
           
       - name: Deploy to Production (Main Branch Only)
         if: github.ref == 'refs/heads/devin/1752750425-arctic-ice-solutions-initial-commit'

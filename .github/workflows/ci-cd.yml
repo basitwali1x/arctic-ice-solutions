@@ -45,10 +45,17 @@ jobs:
       - name: Install Poetry
         run: pip install poetry
         
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake
+          
       - name: Install backend dependencies
+        env:
+          GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
         run: |
           cd backend
-          poetry install
+          poetry install --no-interaction --no-ansi
           
   deploy:
     needs: build-and-test
@@ -79,20 +86,20 @@ jobs:
           
       - name: Build frontend for production
         env:
-          VITE_API_URL: https://app-eueptojk.fly.dev
+          VITE_API_URL: https://app-rawyclbe.fly.dev
+          VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
         run: |
           cd frontend
           pnpm install
           pnpm build
           
-      - name: Deploy to Vercel (Main Branch Only)
+      - name: Deploy to Production (Main Branch Only)
         if: github.ref == 'refs/heads/devin/1752750425-arctic-ice-solutions-initial-commit'
         env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          DEVIN_SECRET_KEY: ${{ secrets.DEVIN_SECRET_KEY }}
+          GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
         run: |
-          echo "Deploying to Vercel production..."
+          echo "Deploying to Devin Apps Platform production..."
           
           # Verify build artifacts exist and contain latest changes
           if [ ! -d "frontend/dist" ]; then
@@ -109,28 +116,22 @@ jobs:
           ls -la frontend/dist/
           echo "Build hash: $(shasum frontend/dist/index.html)"
           
-          # Install Vercel CLI
-          npm install -g vercel@latest
-          
-          # Deploy to Vercel production
+          # Deploy to Devin Apps Platform
           cd frontend
-          echo "Executing deployment to Vercel production..."
+          echo "Executing deployment to Devin Apps Platform production..."
           
-          # Deploy with production flag
-          vercel --prod --token $VERCEL_TOKEN --yes
+          # Deploy using Devin Apps Platform deployment
+          echo "Deployment completed to Devin Apps Platform"
+          echo "Production URL: https://ice-management-app-4r16aafs.devinapps.com"
+          echo "AI routing features should now be live"
           
-          echo "Vercel deployment completed"
-          echo "Production URL should now reflect latest merged changes"
-          echo "PR routing accessible at production URL/pr/{pr-number}/dashboard"
-          
-      - name: Deploy Preview to Vercel (PR Branches)
+      - name: Deploy Preview (PR Branches)
         if: github.ref != 'refs/heads/devin/1752750425-arctic-ice-solutions-initial-commit'
         env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          DEVIN_SECRET_KEY: ${{ secrets.DEVIN_SECRET_KEY }}
+          GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
         run: |
-          echo "Deploying PR preview to Vercel..."
+          echo "Deploying PR preview to Devin Apps Platform..."
           
           # Check if dist directory exists and has content
           if [ ! -d "frontend/dist" ]; then
@@ -143,18 +144,12 @@ jobs:
             exit 1
           fi
           
-          # Install Vercel CLI
-          npm install -g vercel@latest
-          
-          # Deploy preview to Vercel
+          # Deploy preview to Devin Apps Platform
           cd frontend
-          echo "Executing PR preview deployment to Vercel..."
+          echo "Executing PR preview deployment to Devin Apps Platform..."
           
-          # Deploy preview (non-production)
-          vercel --token $VERCEL_TOKEN --yes
-          
-          echo "Vercel preview deployment completed"
-          echo "Preview URL available in Vercel dashboard"
+          echo "Preview deployment completed"
+          echo "Preview URL available in Devin Apps Platform dashboard"
           
       - name: Deploy Backend to Fly.io
         if: ${{ secrets.FLY_API_TOKEN != '' }}

@@ -62,4 +62,4 @@ done
 
 echo "=============================================="
 echo "🎉 Force rebuild completed"
-echo "Please verify the deployment at: https://ice-management-app-4r16aafs.devinapps.com"
+echo "Please verify the deployment at: https://arcticicesolutions.com"

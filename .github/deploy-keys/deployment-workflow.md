@@ -7,7 +7,7 @@ This repository is configured for automatic deployment of both frontend and back
 
 ### Frontend Deployment
 - **Platform**: Devin Apps Platform
-- **URL**: https://ice-management-app-4r16aafs.devinapps.com
+- **URL**: https://arcticicesolutions.com
 - **Build Process**: React + TypeScript with Vite
 - **Authentication**: Uses `DEVIN_SECRET_KEY` secret
 

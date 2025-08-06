@@ -118,10 +118,26 @@ jobs:
           
           # Deploy to Devin Apps Platform
           cd frontend
-          echo "Executing deployment to Devin Apps Platform production..."
           
-          # Deploy using Devin Apps Platform deployment
-          echo "Deployment completed to Devin Apps Platform"
+          # Install Devin CLI
+          npm install -g @devin/cli@latest
+          
+          # Authenticate with Devin Platform
+          devin auth login --api-key $DEVIN_SECRET_KEY
+          
+          # Deploy frontend build
+          devin apps deploy \
+            --app-id ice-management-app-4r16aafs \
+            --environment production \
+            --directory ./dist \
+            --force-rebuild \
+            --no-rollback
+          
+          # Verify deployment status
+          DEPLOYMENT_ID=$(devin apps last-deployment --app-id ice-management-app-4r16aafs --json | jq -r '.id')
+          devin apps wait-for-deployment --id $DEPLOYMENT_ID --timeout 300
+          
+          echo "✅ Deployment completed to Devin Apps Platform"
           echo "Production URL: https://ice-management-app-4r16aafs.devinapps.com"
           echo "AI routing features should now be live"
           
@@ -146,9 +162,21 @@ jobs:
           
           # Deploy preview to Devin Apps Platform
           cd frontend
-          echo "Executing PR preview deployment to Devin Apps Platform..."
           
-          echo "Preview deployment completed"
+          # Install Devin CLI
+          npm install -g @devin/cli@latest
+          
+          # Authenticate with Devin Platform
+          devin auth login --api-key $DEVIN_SECRET_KEY
+          
+          # Deploy preview build
+          devin apps deploy \
+            --app-id ice-management-app-4r16aafs \
+            --environment preview \
+            --directory ./dist \
+            --force-rebuild
+          
+          echo "✅ Preview deployment completed"
           echo "Preview URL available in Devin Apps Platform dashboard"
           
       - name: Deploy Backend to Fly.io

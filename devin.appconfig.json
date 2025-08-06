@@ -1,0 +1,30 @@
+{
+  "appId": "ice-management-app-4r16aafs",
+  "project": "arctic-ice-solutions",
+  "environments": {
+    "production": {
+      "autoScale": true,
+      "minInstances": 2,
+      "maxInstances": 5,
+      "envVars": {
+        "VITE_API_URL": "https://app-rawyclbe.fly.dev",
+        "VITE_GOOGLE_MAPS_API_KEY": "$GOOGLE_MAPS_API_KEY"
+      }
+    },
+    "preview": {
+      "autoScale": false,
+      "minInstances": 1,
+      "maxInstances": 2,
+      "envVars": {
+        "VITE_API_URL": "https://app-rawyclbe.fly.dev",
+        "VITE_GOOGLE_MAPS_API_KEY": "$GOOGLE_MAPS_API_KEY"
+      }
+    }
+  },
+  "deployHooks": {
+    "postDeploy": [
+      "echo 'Running post-deploy checks'",
+      "curl -s https://ice-management-app-4r16aafs.devinapps.com/api/health || echo 'Health check failed'"
+    ]
+  }
+}

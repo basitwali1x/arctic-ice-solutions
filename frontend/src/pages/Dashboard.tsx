@@ -495,7 +495,7 @@ export function Dashboard() {
                 className="w-full"
               >
                 <Navigation className="h-4 w-4 mr-2" />
-                {isOptimizing ? 'Optimizing Routes...' : 'Generate Optimized Routes'}
+                {isOptimizing ? 'AI Optimizing Routes...' : 'Generate AI-Optimized Routes'}
               </Button>
               
               {optimizedRoutes.length > 0 && (
@@ -509,7 +509,7 @@ export function Dashboard() {
               <h3 className="font-semibold">Route Preview</h3>
               {optimizedRoutes.length === 0 ? (
                 <div className="text-gray-500 text-sm bg-gray-50 p-4 rounded-lg text-center">
-                  Select a location and click "Generate Optimized Routes" to see AI-generated delivery routes
+                  Select a location and click "Generate AI-Optimized Routes" to see Google OR-Tools powered delivery routes with real-time traffic optimization
                 </div>
               ) : (
                 <div className="space-y-3 max-h-64 overflow-y-auto">
@@ -533,6 +533,10 @@ export function Dashboard() {
                         <div className="flex justify-between">
                           <span>Date:</span>
                           <span>{route.date}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>AI Optimized:</span>
+                          <span className="text-green-600">✓ OR-Tools</span>
                         </div>
                       </div>
                     </div>

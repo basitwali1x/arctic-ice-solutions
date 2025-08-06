@@ -52,6 +52,10 @@ export interface Customer {
   total_orders?: number;
   last_order_date?: string;
   current_balance?: number;
+  coordinates?: {
+    lat: number;
+    lng: number;
+  };
 }
 
 export interface DashboardOverview {
@@ -165,10 +169,18 @@ export interface RouteStop {
   id: string;
   route_id: string;
   customer_id: string;
+  customer_name?: string;
   order_id: string;
   stop_number: number;
   estimated_arrival: string;
   status: 'pending' | 'completed';
+  address?: string;
+  coordinates?: {
+    lat: number;
+    lng: number;
+  };
+  pallets?: number;
+  eta_updated?: string;
 }
 
 export interface CustomerUser {
@@ -410,4 +422,23 @@ export interface QuickBooksSyncResult {
   invoices_synced: number;
   payments_synced: number;
   errors: string[];
+}
+
+export interface RouteProgress {
+  route_id: string;
+  completed_stops: number;
+  total_stops: number;
+  progress_percentage: number;
+  current_stop?: RouteStop;
+  estimated_completion?: string;
+}
+
+export interface DriverLocation {
+  lat: number;
+  lng: number;
+  timestamp: string;
+  route_id?: string;
+  speed?: number;
+  heading?: number;
+  accuracy?: number;
 }

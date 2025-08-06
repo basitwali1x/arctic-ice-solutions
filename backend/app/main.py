@@ -13,6 +13,7 @@ import tempfile
 import os
 import logging
 import json
+import math
 from pathlib import Path
 from dotenv import load_dotenv
 from .excel_import import process_excel_files, process_customer_excel_files, process_route_excel_files
@@ -161,6 +162,7 @@ class Customer(BaseModel):
     credit_limit: float = 0.0
     payment_terms: int = 30
     is_active: bool = True
+    coordinates: Optional[dict] = None
 
 class Product(BaseModel):
     id: str
@@ -289,10 +291,77 @@ class QuickBooksSyncRequest(BaseModel):
     sync_invoices: bool = True
     sync_payments: bool = True
 
-def calculate_distance(addr1: str, addr2: str) -> float:
-    hash1 = hash(addr1) % 1000
-    hash2 = hash(addr2) % 1000
-    return abs(hash1 - hash2) / 10.0
+def calculate_distance(addr1: str, addr2: str, coordinates1: Optional[dict] = None, coordinates2: Optional[dict] = None) -> float:
+    """Enhanced distance calculation using Google Maps API or haversine fallback"""
+    try:
+        import googlemaps
+        gmaps = googlemaps.Client(key=os.getenv('GOOGLE_MAPS_API_KEY', ''))
+        
+        if coordinates1 and coordinates2:
+            origin = (coordinates1['lat'], coordinates1['lng'])
+            destination = (coordinates2['lat'], coordinates2['lng'])
+        else:
+            origin = addr1
+            destination = addr2
+        
+        result = gmaps.distance_matrix(
+            origins=[origin],
+            destinations=[destination],
+            mode="driving",
+            units="imperial",
+            avoid="tolls"
+        )
+        
+        if result['status'] == 'OK' and result['rows'][0]['elements'][0]['status'] == 'OK':
+            distance_miles = result['rows'][0]['elements'][0]['distance']['value'] * 0.000621371
+            return distance_miles
+        else:
+            if coordinates1 and coordinates2:
+                lat1, lng1 = coordinates1['lat'], coordinates1['lng']
+                lat2, lng2 = coordinates2['lat'], coordinates2['lng']
+                return haversine_distance(lat1, lng1, lat2, lng2)
+            else:
+                hash1 = hash(addr1) % 1000
+                hash2 = hash(addr2) % 1000
+                return abs(hash1 - hash2) / 10.0
+    except Exception as e:
+        logging.warning(f"Distance calculation failed: {e}")
+        if coordinates1 and coordinates2:
+            lat1, lng1 = coordinates1['lat'], coordinates1['lng']
+            lat2, lng2 = coordinates2['lat'], coordinates2['lng']
+            return haversine_distance(lat1, lng1, lat2, lng2)
+        else:
+            hash1 = hash(addr1) % 1000
+            hash2 = hash(addr2) % 1000
+            return abs(hash1 - hash2) / 10.0
+
+def haversine_distance(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    """Calculate distance between two points using haversine formula"""
+    R = 3959  # Earth's radius in miles
+    lat1_rad = math.radians(lat1)
+    lat2_rad = math.radians(lat2)
+    delta_lat = math.radians(lat2 - lat1)
+    delta_lng = math.radians(lng2 - lng1)
+    
+    a = math.sin(delta_lat/2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(delta_lng/2)**2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+    
+    return R * c
+
+def geocode_address(address: str) -> Optional[dict]:
+    """Geocode address using Google Maps API"""
+    try:
+        import googlemaps
+        gmaps = googlemaps.Client(key=os.getenv('GOOGLE_MAPS_API_KEY', ''))
+        result = gmaps.geocode(address)
+        
+        if result:
+            location = result[0]['geometry']['location']
+            return {'lat': location['lat'], 'lng': location['lng']}
+        return None
+    except Exception as e:
+        logging.warning(f"Geocoding failed for {address}: {e}")
+        return None
 
 def optimize_route_ai(customers: List[dict], orders: List[dict], vehicle: dict, depot_address: str) -> List[dict]:
     print(f"DEBUG AI: Starting optimization with {len(orders)} orders, {len(customers)} customers")
@@ -369,6 +438,116 @@ def optimize_route_ai(customers: List[dict], orders: List[dict], vehicle: dict, 
     
     print(f"DEBUG AI: Final route has {len(route_stops)} stops")
     return route_stops
+
+def optimize_with_ortools(locations, demands, coordinates, vehicle_capacity):
+    """Use Google OR-Tools for Vehicle Routing Problem optimization"""
+    try:
+        from ortools.constraint_solver import routing_enums_pb2
+        from ortools.constraint_solver import pywrapcp
+        
+        distance_matrix = create_distance_matrix(coordinates)
+        
+        manager = pywrapcp.RoutingIndexManager(len(locations), 1, 0)
+        
+        routing = pywrapcp.RoutingModel(manager)
+        
+        def distance_callback(from_index, to_index):
+            from_node = manager.IndexToNode(from_index)
+            to_node = manager.IndexToNode(to_index)
+            return distance_matrix[from_node][to_node]
+        
+        transit_callback_index = routing.RegisterTransitCallback(distance_callback)
+        routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index)
+        
+        def demand_callback(from_index):
+            from_node = manager.IndexToNode(from_index)
+            return demands[from_node]
+        
+        demand_callback_index = routing.RegisterUnaryTransitCallback(demand_callback)
+        routing.AddDimensionWithVehicleCapacity(
+            demand_callback_index,
+            0,  # null capacity slack
+            [vehicle_capacity],  # vehicle maximum capacities
+            True,  # start cumul to zero
+            'Capacity'
+        )
+        
+        search_parameters = pywrapcp.DefaultRoutingSearchParameters()
+        search_parameters.first_solution_strategy = (
+            routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
+        )
+        search_parameters.local_search_metaheuristic = (
+            routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH
+        )
+        search_parameters.time_limit.seconds = 10
+        
+        solution = routing.SolveWithParameters(search_parameters)
+        
+        if solution:
+            route = []
+            index = routing.Start(0)
+            while not routing.IsEnd(index):
+                node_index = manager.IndexToNode(index)
+                route.append(node_index)
+                index = solution.Value(routing.NextVar(index))
+            
+            return route[1:]  # Remove depot from start
+        
+        return None
+        
+    except Exception as e:
+        logging.error(f"OR-Tools optimization error: {e}")
+        return None
+
+def create_distance_matrix(coordinates):
+    """Create distance matrix using Google Maps API or haversine fallback"""
+    size = len(coordinates)
+    matrix = [[0 for _ in range(size)] for _ in range(size)]
+    
+    try:
+        import googlemaps
+        gmaps = googlemaps.Client(key=os.getenv('GOOGLE_MAPS_API_KEY', ''))
+        
+        result = gmaps.distance_matrix(
+            origins=coordinates,
+            destinations=coordinates,
+            mode="driving",
+            units="imperial"
+        )
+        
+        if result['status'] == 'OK':
+            for i in range(size):
+                for j in range(size):
+                    if i != j:
+                        element = result['rows'][i]['elements'][j]
+                        if element['status'] == 'OK':
+                            matrix[i][j] = int(element['distance']['value'])
+                        else:
+                            lat1, lng1 = coordinates[i]
+                            lat2, lng2 = coordinates[j]
+                            distance_miles = haversine_distance(lat1, lng1, lat2, lng2)
+                            matrix[i][j] = int(distance_miles * 1609.34)  # Convert to meters
+        else:
+            for i in range(size):
+                for j in range(size):
+                    if i != j:
+                        lat1, lng1 = coordinates[i]
+                        lat2, lng2 = coordinates[j]
+                        distance_miles = haversine_distance(lat1, lng1, lat2, lng2)
+                        matrix[i][j] = int(distance_miles * 1609.34)  # Convert to meters
+                        
+    except Exception as e:
+        logging.warning(f"Distance matrix API failed: {e}")
+        for i in range(size):
+            for j in range(size):
+                if i != j:
+                    lat1, lng1 = coordinates[i]
+                    lat2, lng2 = coordinates[j]
+                    distance_miles = haversine_distance(lat1, lng1, lat2, lng2)
+                    matrix[i][j] = int(distance_miles * 1609.34)  # Convert to meters
+    
+    return matrix
+
     receipt_url: Optional[str] = None
 
 locations_db = {}
@@ -2881,8 +3060,56 @@ async def optimize_routes(location_id: str, current_user: UserInDB = Depends(get
         print(f"DEBUG: Processing vehicle {vehicle['license_plate']} with capacity {vehicle.get('capacity_pallets', 20)}")
         print(f"DEBUG: Remaining orders: {len(remaining_orders)}")
         
-        route_stops = optimize_route_ai(location_customers, remaining_orders, vehicle, depot_address)
-        print(f"DEBUG: Generated {len(route_stops)} stops for vehicle {vehicle['license_plate']}")
+        try:
+            customers = location_customers
+            demands = [0] + [order.get('quantity', 1) for order in remaining_orders]  # Depot + order demands
+            coordinates = [(31.1391, -93.2044)]  # Depot coordinates
+            
+            # Add customer coordinates
+            for customer in customers:
+                if customer.get('coordinates'):
+                    coords = customer['coordinates']
+                    coordinates.append((coords['lat'], coords['lng']))
+                else:
+                    geocoded = geocode_address(customer.get('address', ''))
+                    if geocoded:
+                        coordinates.append((geocoded['lat'], geocoded['lng']))
+                        customers_db[customer['id']]['coordinates'] = geocoded
+                        save_data_to_disk()
+                    else:
+                        coordinates.append((31.1391 + len(coordinates) * 0.01, -93.2044 + len(coordinates) * 0.01))
+            
+            if len(customers) > 1:
+                optimized_order = optimize_with_ortools(customers, demands, coordinates, vehicle.get('capacity_pallets', 20))
+                if optimized_order:
+                    route_stops = []
+                    for i, customer_idx in enumerate(optimized_order):
+                        customer = customers[customer_idx]
+                        order = next((o for o in remaining_orders if o['customer_id'] == customer['id']), None)
+                        if order:
+                            route_stops.append({
+                                "id": str(uuid.uuid4()),
+                                "order_id": order["id"],
+                                "customer_id": customer["id"],
+                                "stop_number": i + 1,
+                                "estimated_arrival": (datetime.now() + timedelta(hours=i * 0.5)).isoformat(),
+                                "status": "pending",
+                                "customer_name": customer["name"],
+                                "address": customer["address"],
+                                "coordinates": coordinates[customer_idx + 1] if customer_idx + 1 < len(coordinates) else None,
+                                "optimization_method": "OR-Tools"
+                            })
+                    print(f"DEBUG: OR-Tools generated {len(route_stops)} optimized stops for vehicle {vehicle['license_plate']}")
+                else:
+                    route_stops = optimize_route_ai(location_customers, remaining_orders, vehicle, depot_address)
+                    print(f"DEBUG: Fallback algorithm generated {len(route_stops)} stops for vehicle {vehicle['license_plate']}")
+            else:
+                route_stops = optimize_route_ai(location_customers, remaining_orders, vehicle, depot_address)
+                print(f"DEBUG: Single customer - generated {len(route_stops)} stops for vehicle {vehicle['license_plate']}")
+        except Exception as e:
+            logging.warning(f"OR-Tools optimization failed: {e}")
+            route_stops = optimize_route_ai(location_customers, remaining_orders, vehicle, depot_address)
+            print(f"DEBUG: Exception fallback - generated {len(route_stops)} stops for vehicle {vehicle['license_plate']}")
         
         if route_stops:
             route_id = str(uuid.uuid4())
@@ -3089,8 +3316,18 @@ async def update_driver_location(driver_id: str, location_data: dict, current_us
         "lat": location_data.get("lat"),
         "lng": location_data.get("lng"),
         "timestamp": location_data.get("timestamp"),
-        "route_id": location_data.get("route_id")
+        "route_id": location_data.get("route_id"),
+        "speed": location_data.get("speed", 0),
+        "heading": location_data.get("heading", 0),
+        "accuracy": location_data.get("accuracy", 0)
     }
+    
+    route_id = location_data.get("route_id")
+    if route_id and route_id in routes_db:
+        route = routes_db[route_id]
+        current_location = {"lat": location_data.get("lat"), "lng": location_data.get("lng")}
+        update_route_etas(route, current_location)
+    
     return {"status": "success", "message": "Location updated"}
 
 @app.get("/api/drivers/{driver_id}/location")
@@ -3098,6 +3335,94 @@ async def get_driver_location(driver_id: str, current_user: UserInDB = Depends(g
     if driver_id in driver_locations:
         return driver_locations[driver_id]
     return {"error": "Driver location not found"}
+
+@app.get("/api/routes/{route_id}/progress")
+async def get_route_progress(route_id: str, current_user: UserInDB = Depends(get_current_user)):
+    if route_id not in routes_db:
+        raise HTTPException(status_code=404, detail="Route not found")
+    
+    route = routes_db[route_id]
+    stops = route.get("stops", [])
+    
+    completed_stops = len([s for s in stops if s.get("status") == "completed"])
+    total_stops = len(stops)
+    
+    progress = {
+        "route_id": route_id,
+        "completed_stops": completed_stops,
+        "total_stops": total_stops,
+        "progress_percentage": (completed_stops / total_stops * 100) if total_stops > 0 else 0,
+        "current_stop": next((s for s in stops if s.get("status") == "pending"), None),
+        "estimated_completion": calculate_estimated_completion(route)
+    }
+    
+    return progress
+
+def update_route_etas(route, current_location):
+    """
+    Update ETAs for remaining stops based on current driver location
+    """
+    try:
+        stops = route.get("stops", [])
+        pending_stops = [s for s in stops if s.get("status") == "pending"]
+        
+        if not pending_stops:
+            return
+        
+        import googlemaps
+        gmaps = googlemaps.Client(key=os.getenv('GOOGLE_MAPS_API_KEY', ''))
+        
+        origins = [(current_location["lat"], current_location["lng"])]
+        destinations = []
+        
+        for stop in pending_stops:
+            if stop.get("coordinates"):
+                destinations.append((stop["coordinates"]["lat"], stop["coordinates"]["lng"]))
+            else:
+                destinations.append(stop["address"])
+        
+        if destinations:
+            result = gmaps.distance_matrix(
+                origins=origins,
+                destinations=destinations,
+                mode="driving",
+                departure_time="now",
+                traffic_model="best_guess"
+            )
+            
+            if result['status'] == 'OK':
+                for i, stop in enumerate(pending_stops):
+                    element = result['rows'][0]['elements'][i]
+                    if element['status'] == 'OK':
+                        duration_seconds = element['duration_in_traffic']['value']
+                        eta = datetime.now() + timedelta(seconds=duration_seconds)
+                        stop["estimated_arrival"] = eta.strftime("%H:%M")
+                        stop["eta_updated"] = datetime.now().isoformat()
+        
+        save_data_to_disk()
+        
+    except Exception as e:
+        logging.warning(f"ETA update failed: {e}")
+
+def calculate_estimated_completion(route):
+    """
+    Calculate estimated route completion time
+    """
+    try:
+        stops = route.get("stops", [])
+        pending_stops = [s for s in stops if s.get("status") == "pending"]
+        
+        if not pending_stops:
+            return datetime.now().isoformat()
+        
+        avg_time_per_stop = 30  # minutes
+        remaining_time = len(pending_stops) * avg_time_per_stop
+        
+        completion_time = datetime.now() + timedelta(minutes=remaining_time)
+        return completion_time.isoformat()
+        
+    except Exception:
+        return None
 
 @app.get("/{full_path:path}")
 async def serve_spa(full_path: str):

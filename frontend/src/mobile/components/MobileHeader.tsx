@@ -6,6 +6,7 @@ import { Badge } from '../../components/ui/badge';
 import { Card, CardContent } from '../../components/ui/card';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePR } from '../../contexts/PRContext';
+import { useNotifications } from '../../hooks/useNotifications';
 
 interface MobileHeaderProps {
   currentUser: {
@@ -21,12 +22,7 @@ export function MobileHeader({ currentUser }: MobileHeaderProps) {
   const navigate = useNavigate();
   const [showMenu, setShowMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-
-  const notifications = [
-    { id: 1, title: 'Work Order Approved', message: 'TX-ICE-01 maintenance approved', time: '5 min ago' },
-    { id: 2, title: 'New Route Assignment', message: 'Route 3 assigned for today', time: '1 hour ago' },
-    { id: 3, title: 'Vehicle Check Required', message: 'LA-ICE-02 needs inspection', time: '2 hours ago' }
-  ];
+  const { notifications, unreadCount } = useNotifications();
 
   return (
     <>
@@ -53,9 +49,11 @@ export function MobileHeader({ currentUser }: MobileHeaderProps) {
             onClick={() => setShowNotifications(!showNotifications)}
           >
             <Bell className="h-5 w-5" />
-            <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs bg-red-500">
-              {notifications.length}
-            </Badge>
+            {unreadCount > 0 && (
+              <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs bg-red-500">
+                {unreadCount}
+              </Badge>
+            )}
           </Button>
         </div>
       </header>
@@ -129,15 +127,21 @@ export function MobileHeader({ currentUser }: MobileHeaderProps) {
               </div>
             </div>
             <div className="p-4 space-y-3">
-              {notifications.map((notification) => (
-                <Card key={notification.id}>
-                  <CardContent className="p-3">
-                    <h3 className="font-medium text-sm">{notification.title}</h3>
-                    <p className="text-xs text-gray-600 mt-1">{notification.message}</p>
-                    <p className="text-xs text-gray-400 mt-2">{notification.time}</p>
-                  </CardContent>
-                </Card>
-              ))}
+              {notifications.length === 0 ? (
+                <p className="text-gray-500 text-center py-4">No notifications</p>
+              ) : (
+                notifications.map((notification) => (
+                  <Card key={notification.id}>
+                    <CardContent className="p-3">
+                      <h3 className="font-medium text-sm">{notification.title}</h3>
+                      <p className="text-xs text-gray-600 mt-1">{notification.message}</p>
+                      <p className="text-xs text-gray-400 mt-2">
+                        {new Date(notification.timestamp).toLocaleString()}
+                      </p>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
             </div>
           </div>
         </div>

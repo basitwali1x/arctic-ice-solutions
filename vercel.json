@@ -4,7 +4,7 @@
   "outputDirectory": "frontend/dist",
   "headers": [
     {
-      "source": "/assets/(.*\\.js)",
+      "source": "/assets/(.*).js",
       "headers": [
         {
           "key": "Content-Type",
@@ -13,7 +13,7 @@
       ]
     },
     {
-      "source": "/assets/(.*\\.css)",
+      "source": "/assets/(.*).css",
       "headers": [
         {
           "key": "Content-Type",
@@ -22,7 +22,7 @@
       ]
     },
     {
-      "source": "/(.*\\.js)",
+      "source": "/(.*).js",
       "headers": [
         {
           "key": "Content-Type",
@@ -31,18 +31,14 @@
       ]
     }
   ],
-  "rewrites": [
+  "routes": [
     {
-      "source": "/assets/(.*)",
-      "destination": "/assets/$1"
+      "src": "/assets/(.*)",
+      "dest": "/assets/$1"
     },
     {
-      "source": "/(.*\\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|json|webmanifest))",
-      "destination": "/$1"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
   ]
 }

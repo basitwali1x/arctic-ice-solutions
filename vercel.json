@@ -4,11 +4,24 @@
   "outputDirectory": "frontend/dist",
   "headers": [
     {
-      "source": "/assets/(.*)",
+      "source": "/assets/(.*).js",
       "headers": [
         {
           "key": "Content-Type",
           "value": "application/javascript; charset=utf-8"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/assets/(.*).css",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "text/css; charset=utf-8"
         },
         {
           "key": "Cache-Control",
@@ -24,20 +37,11 @@
           "value": "application/javascript; charset=utf-8"
         }
       ]
-    },
-    {
-      "source": "/(.*).css",
-      "headers": [
-        {
-          "key": "Content-Type",
-          "value": "text/css; charset=utf-8"
-        }
-      ]
     }
   ],
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/((?!assets/).)*",
       "destination": "/index.html"
     }
   ]

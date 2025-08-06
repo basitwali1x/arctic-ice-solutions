@@ -1,19 +1,15 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "frontend/dist/**",
-      "use": "@vercel/static"
-    }
-  ],
+  "buildCommand": "cd frontend && pnpm install && VITE_API_URL=https://app-rawyclbe.fly.dev pnpm build",
+  "outputDirectory": "frontend/dist",
   "rewrites": [
     {
       "source": "/pr/(.*)",
-      "destination": "/frontend/dist/index.html"
+      "destination": "/index.html"
     },
     {
       "source": "/((?!assets|manifest|registerSW|sw|vite\\.svg|workbox).*)",
-      "destination": "/frontend/dist/index.html"
+      "destination": "/index.html"
     }
   ],
   "headers": [

@@ -6,17 +6,14 @@
       "use": "@vercel/static"
     }
   ],
-  "routes": [
+  "rewrites": [
     {
-      "handle": "filesystem"
+      "source": "/pr/(.*)",
+      "destination": "/frontend/dist/index.html"
     },
     {
-      "src": "/pr/(.*)",
-      "dest": "/frontend/dist/index.html"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/frontend/dist/index.html"
+      "source": "/((?!assets|manifest|registerSW|sw|vite\\.svg|workbox).*)",
+      "destination": "/frontend/dist/index.html"
     }
   ],
   "headers": [

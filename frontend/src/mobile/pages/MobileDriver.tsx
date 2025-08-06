@@ -7,6 +7,8 @@ import { Label } from '../../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { MapPin, Navigation, Package, DollarSign, Fuel, Clock, Bluetooth } from 'lucide-react';
 import { getCurrentPosition, watchPosition, clearWatch } from '../../utils/capacitor';
+import GoogleMapsNavigation from '../../components/GoogleMapsNavigation';
+import { RouteService } from '../../services/RouteService';
 
 interface RouteStop {
   id: string;
@@ -17,6 +19,10 @@ interface RouteStop {
   payment_method?: 'cash' | 'check' | 'credit';
   payment_amount?: number;
   delivery_time?: string;
+  coordinates?: {
+    lat: number;
+    lng: number;
+  };
 }
 
 interface DriverRoute {
@@ -131,19 +137,18 @@ export function MobileDriver() {
         setCurrentLocation(newLocation);
         
         if (currentRoute) {
-          fetch('/api/drivers/driver-001/location', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${localStorage.getItem('token')}`
-            },
-            body: JSON.stringify({
-              lat: newLocation.lat,
-              lng: newLocation.lng,
-              timestamp: new Date().toISOString(),
-              route_id: currentRoute.route_number
-            })
-          }).catch(error => console.error('Failed to update location:', error));
+          const locationData = {
+            lat: newLocation.lat,
+            lng: newLocation.lng,
+            timestamp: new Date().toISOString(),
+            route_id: currentRoute.id,
+            speed: (position as any).coords?.speed || 0,
+            heading: (position as any).coords?.heading || 0,
+            accuracy: (position as any).coords?.accuracy || 0
+          };
+
+          RouteService.updateDriverLocation('driver-001', locationData)
+            .catch((error: any) => console.error('Failed to update location:', error));
         }
       });
       setWatchId(id);
@@ -270,6 +275,33 @@ Thank you for your business!
               </Button>
             )}
           </div>
+          
+          {currentRoute.stops && currentRoute.stops.length > 0 && (
+            <div className="mt-4">
+              <GoogleMapsNavigation
+                stops={currentRoute.stops.map((stop: any) => ({
+                  id: stop.id,
+                  order_id: stop.id,
+                  customer_id: stop.id,
+                  stop_number: 1,
+                  estimated_arrival: '',
+                  status: stop.status === 'delivered' ? 'completed' : 'pending',
+                  customer_name: stop.customer,
+                  address: stop.address,
+                  coordinates: stop.coordinates ? { lat: stop.coordinates.lat, lng: stop.coordinates.lng } : undefined,
+                  delivery_instructions: '',
+                  priority: 1,
+                  time_window_start: '',
+                  time_window_end: '',
+                  completed_at: stop.status === 'delivered' ? new Date().toISOString() : undefined
+                } as any))}
+                currentLocation={currentLocation || undefined}
+                onDirectionsChange={(directions) => {
+                  console.log('Directions updated:', directions);
+                }}
+              />
+            </div>
+          )}
         </CardContent>
       </Card>
 

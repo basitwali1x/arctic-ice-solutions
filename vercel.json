@@ -1,32 +1,30 @@
 {
   "version": 2,
-  "buildCommand": "cd frontend && pnpm install && VITE_API_URL=https://app-rawyclbe.fly.dev pnpm build",
-  "outputDirectory": "frontend/dist",
-  "cleanUrls": false,
-  "trailingSlash": false,
-  "rewrites": [
+  "builds": [
     {
-      "source": "/pr/(.*)",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/((?!assets|manifest|registerSW|sw|vite\\.svg|workbox).*)",
-      "destination": "/index.html"
+      "src": "frontend/dist/**/*",
+      "use": "@vercel/static"
     }
   ],
-  "headers": [
+  "routes": [
     {
-      "source": "/assets/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        },
-        {
-          "key": "Content-Type",
-          "value": "application/javascript"
-        }
-      ]
+      "src": "/assets/(.*)",
+      "dest": "/frontend/dist/assets/$1",
+      "headers": {
+        "Cache-Control": "public, max-age=31536000, immutable"
+      }
+    },
+    {
+      "src": "/(manifest\\.webmanifest|registerSW\\.js|sw\\.js|vite\\.svg|workbox-.*\\.js)",
+      "dest": "/frontend/dist/$1"
+    },
+    {
+      "src": "/pr/(.*)",
+      "dest": "/frontend/dist/index.html"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/frontend/dist/index.html"
     }
   ]
 }

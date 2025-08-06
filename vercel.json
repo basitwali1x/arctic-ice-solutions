@@ -12,7 +12,7 @@
       "destination": "/frontend/dist/index.html"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!assets|manifest|registerSW|sw|vite\\.svg|workbox).*)",
       "destination": "/frontend/dist/index.html"
     }
   ],

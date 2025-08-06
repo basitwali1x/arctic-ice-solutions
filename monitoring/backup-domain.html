@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arctic Ice Solutions - Maintenance Mode</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .maintenance-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 40px;
+            text-align: center;
+            max-width: 600px;
+            width: 100%;
+        }
+        
+        .logo {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            border-radius: 50%;
+            margin: 0 auto 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 2rem;
+            font-weight: bold;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+        }
+        
+        .status-message {
+            color: #6c757d;
+            font-size: 1.2rem;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        
+        .alert-box {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 30px 0;
+            color: #856404;
+        }
+        
+        .alert-box h3 {
+            margin-bottom: 10px;
+            color: #856404;
+        }
+        
+        .contact-info {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 25px;
+            margin: 30px 0;
+        }
+        
+        .contact-info h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+        
+        .contact-item {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin: 10px 0;
+            color: #495057;
+        }
+        
+        .contact-item a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        
+        .contact-item a:hover {
+            text-decoration: underline;
+        }
+        
+        .progress-bar {
+            background: #e9ecef;
+            border-radius: 10px;
+            height: 8px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            background: linear-gradient(90deg, #28a745, #20c997);
+            height: 100%;
+            width: 65%;
+            border-radius: 10px;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        
+        .eta {
+            color: #6c757d;
+            font-size: 0.9rem;
+            margin-top: 10px;
+        }
+        
+        .status-updates {
+            text-align: left;
+            margin: 30px 0;
+        }
+        
+        .status-updates h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .update-item {
+            display: flex;
+            gap: 15px;
+            margin: 15px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+        
+        .update-time {
+            color: #6c757d;
+            font-size: 0.9rem;
+            min-width: 120px;
+        }
+        
+        .update-message {
+            color: #495057;
+        }
+        
+        .refresh-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 20px;
+            transition: background 0.3s ease;
+        }
+        
+        .refresh-btn:hover {
+            background: #0056b3;
+        }
+        
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #e9ecef;
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="maintenance-container">
+        <div class="logo">AIS</div>
+        
+        <h1>Arctic Ice Solutions</h1>
+        
+        <div class="status-message">
+            We're currently performing scheduled maintenance to improve our services. 
+            Our team is working to restore full functionality as quickly as possible.
+        </div>
+        
+        <div class="alert-box">
+            <h3>🔧 Current Status</h3>
+            <p>Domain migration in progress. DNS propagation and SSL certificate configuration underway.</p>
+        </div>
+        
+        <div class="progress-bar">
+            <div class="progress-fill"></div>
+        </div>
+        <div class="eta">Estimated completion: 2-4 hours</div>
+        
+        <div class="contact-info">
+            <h3>Need Immediate Assistance?</h3>
+            <div class="contact-item">
+                📧 <a href="mailto:support@arcticicesolutions.com">support@arcticicesolutions.com</a>
+            </div>
+            <div class="contact-item">
+                📞 <a href="tel:+13375550123">(337) 555-0123</a>
+            </div>
+            <div class="contact-item">
+                🌐 <a href="https://status.arcticicesolutions.com" target="_blank">Status Page</a>
+            </div>
+        </div>
+        
+        <div class="status-updates">
+            <h3>Recent Updates</h3>
+            
+            <div class="update-item">
+                <div class="update-time" id="update-time-1">18:45 UTC</div>
+                <div class="update-message">Domain migration initiated. DNS records being updated.</div>
+            </div>
+            
+            <div class="update-item">
+                <div class="update-time" id="update-time-2">18:30 UTC</div>
+                <div class="update-message">Maintenance window started. Application code deployed successfully.</div>
+            </div>
+            
+            <div class="update-item">
+                <div class="update-time" id="update-time-3">18:00 UTC</div>
+                <div class="update-message">Scheduled maintenance announced. Backup systems activated.</div>
+            </div>
+        </div>
+        
+        <button class="refresh-btn" onclick="window.location.reload()">
+            🔄 Refresh Status
+        </button>
+        
+        <div class="footer">
+            <p>This page will automatically redirect once services are restored.</p>
+            <p>Last updated: <span id="last-updated">--</span></p>
+        </div>
+    </div>
+
+    <script>
+        // Update last updated time
+        document.getElementById('last-updated').textContent = new Date().toLocaleString();
+        
+        // Auto-refresh every 2 minutes
+        setTimeout(() => {
+            window.location.reload();
+        }, 120000);
+        
+        // Try to redirect to main site every 30 seconds
+        setInterval(async () => {
+            try {
+                const response = await fetch('https://arcticicesolutions.com', { 
+                    method: 'HEAD', 
+                    mode: 'no-cors' 
+                });
+                // If we can reach the main site, redirect
+                window.location.href = 'https://arcticicesolutions.com';
+            } catch (error) {
+                // Main site still not available, stay on maintenance page
+                console.log('Main site not yet available');
+            }
+        }, 30000);
+    </script>
+</body>
+</html>

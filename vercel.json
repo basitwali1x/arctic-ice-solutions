@@ -1,22 +1,7 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "frontend/dist/**/*",
-      "use": "@vercel/static"
-    }
-  ],
-  "routes": [
-    {
-      "handle": "filesystem"
-    },
-    {
-      "src": "/pr/(.*)",
-      "dest": "/frontend/dist/index.html"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/frontend/dist/index.html"
-    }
-  ]
+  "buildCommand": "echo 'Using pre-built files'",
+  "outputDirectory": "frontend/dist",
+  "cleanUrls": false,
+  "trailingSlash": false
 }

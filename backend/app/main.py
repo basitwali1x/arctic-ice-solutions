@@ -40,6 +40,7 @@ app.add_middleware(
     allow_origins=[
         "*",  # Allows all origins for development
         "https://ice-management-app-4r16aafs.devinapps.com",  # Canonical deployment URL
+        "https://dashboard-flicker-app-nx31x17t.devinapps.com",  # New frontend URL
         "http://localhost:5173",  # Local frontend
         "http://localhost:3000",  # Alternative local frontend
     ],

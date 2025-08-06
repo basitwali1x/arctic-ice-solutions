@@ -1,18 +1,11 @@
 {
-  "version": 2,
-  "builds": [
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "echo 'Using pre-built files from frontend/dist'",
+  "outputDirectory": "frontend/dist",
+  "rewrites": [
     {
-      "src": "frontend/dist/**/*",
-      "use": "@vercel/static"
-    }
-  ],
-  "routes": [
-    {
-      "handle": "filesystem"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/frontend/dist/index.html"
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }

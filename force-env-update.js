@@ -7,18 +7,24 @@ const env = {
   VITE_GOOGLE_MAPS_API_KEY: process.env.VITE_GOOGLE_MAPS_API_KEY || ''
 };
 
-console.log('Starting environment update...');
+console.log('🔧 Starting comprehensive environment update...');
 console.log('Target directory:', distPath);
 console.log('Environment variables:', { VITE_API_URL: env.VITE_API_URL });
 
 if (!fs.existsSync(distPath)) {
-  console.error('Error: dist directory not found at', distPath);
+  console.error('❌ Error: dist directory not found at', distPath);
   process.exit(1);
 }
 
-const indexPath = path.join(distPath, 'index.html');
-if (fs.existsSync(indexPath)) {
-  let content = fs.readFileSync(indexPath, 'utf8');
+if (!env.VITE_API_URL.includes('app-rawyclbe.fly.dev')) {
+  console.error('❌ Error: Incorrect API URL detected:', env.VITE_API_URL);
+  console.error('Expected URL should contain: app-rawyclbe.fly.dev');
+  process.exit(1);
+}
+
+const indexHtmlPath = path.join(distPath, 'index.html');
+if (fs.existsSync(indexHtmlPath)) {
+  let content = fs.readFileSync(indexHtmlPath, 'utf8');
   
   content = content.replace(
     /(const API_BASE_URL\s*=\s*["']).*?(["'])/g,
@@ -30,7 +36,7 @@ if (fs.existsSync(indexPath)) {
     `"${env.VITE_API_URL}"`
   );
   
-  fs.writeFileSync(indexPath, content);
+  fs.writeFileSync(indexHtmlPath, content);
   console.log('✅ Updated index.html');
 } else {
   console.log('⚠️  index.html not found');
@@ -39,25 +45,63 @@ if (fs.existsSync(indexPath)) {
 const assetsPath = path.join(distPath, 'assets');
 if (fs.existsSync(assetsPath)) {
   const jsFiles = fs.readdirSync(assetsPath).filter(file => file.endsWith('.js'));
+  let updatedFiles = 0;
   
   jsFiles.forEach(file => {
     const filePath = path.join(assetsPath, file);
     let content = fs.readFileSync(filePath, 'utf8');
+    let modified = false;
     
-    content = content.replace(
-      /https:\/\/app-[a-z0-9]+\.fly\.dev/g,
-      env.VITE_API_URL
-    );
+    const oldUrlPatterns = [
+      /https:\/\/app-dfyyccxe\.fly\.dev/g,
+      /https:\/\/app-eueptojk\.fly\.dev/g,
+      /https:\/\/app-[a-z0-9]+\.fly\.dev/g
+    ];
     
-    content = content.replace(
-      /import\.meta\.env\.VITE_API_URL/g,
-      `"${env.VITE_API_URL}"`
-    );
+    oldUrlPatterns.forEach(pattern => {
+      if (pattern.test(content)) {
+        content = content.replace(pattern, env.VITE_API_URL);
+        modified = true;
+      }
+    });
     
-    fs.writeFileSync(filePath, content);
+    if (content.includes('import.meta.env.VITE_API_URL')) {
+      content = content.replace(
+        /import\.meta\.env\.VITE_API_URL/g,
+        `"${env.VITE_API_URL}"`
+      );
+      modified = true;
+    }
+    
+    if (content.includes('API_BASE') || content.includes('apiUrl')) {
+      content = content.replace(
+        /(API_BASE|apiUrl)\s*[:=]\s*["'][^"']*["']/g,
+        `$1:"${env.VITE_API_URL}"`
+      );
+      modified = true;
+    }
+    
+    if (modified) {
+      fs.writeFileSync(filePath, content);
+      updatedFiles++;
+      console.log(`✅ Updated ${file}`);
+    }
   });
   
-  console.log(`✅ Updated ${jsFiles.length} JavaScript files in assets/`);
+  console.log(`✅ Updated ${updatedFiles}/${jsFiles.length} JavaScript files in assets/`);
+  
+  const verificationFailed = jsFiles.some(file => {
+    const filePath = path.join(assetsPath, file);
+    const content = fs.readFileSync(filePath, 'utf8');
+    return content.includes('app-dfyyccxe.fly.dev') || content.includes('app-eueptojk.fly.dev');
+  });
+  
+  if (verificationFailed) {
+    console.error('❌ Verification failed: Old URLs still present in assets');
+    process.exit(1);
+  } else {
+    console.log('✅ Verification passed: No old URLs found in assets');
+  }
 } else {
   console.log('⚠️  assets directory not found');
 }
@@ -80,5 +124,53 @@ if (fs.existsSync(swPath)) {
   console.log('✅ Updated service worker');
 }
 
-console.log('🎉 Environment update completed successfully!');
+const runtimeConfigPath = path.join(distPath, 'runtime-config.js');
+const runtimeConfigContent = `
+(function() {
+  console.log('🔧 Runtime config override loading...');
+  
+  window.env = window.env || {};
+  window.env.VITE_API_URL = "${env.VITE_API_URL}";
+  
+  const originalFetch = window.fetch;
+  window.fetch = function(url, options) {
+    if (typeof url === 'string') {
+      if (url.includes('app-dfyyccxe.fly.dev') || url.includes('app-eueptojk.fly.dev')) {
+        url = url.replace(/https:\\/\\/app-[a-z0-9]+\\.fly\\.dev/, "${env.VITE_API_URL}");
+        console.log('🔄 Redirected API call to:', url);
+      }
+    }
+    return originalFetch.call(this, url, options);
+  };
+  
+  console.log('✅ Runtime config override active - API URL:', window.env.VITE_API_URL);
+})();
+`;
+
+fs.writeFileSync(runtimeConfigPath, runtimeConfigContent);
+console.log('✅ Created runtime-config.js');
+
+const indexFinalPath = path.join(distPath, 'index.html');
+if (fs.existsSync(indexFinalPath)) {
+  let content = fs.readFileSync(indexFinalPath, 'utf8');
+  
+  if (!content.includes('runtime-config.js')) {
+    content = content.replace(
+      '</head>',
+      '  <script src="/runtime-config.js"></script>\n</head>'
+    );
+    fs.writeFileSync(indexFinalPath, content);
+    console.log('✅ Injected runtime config into index.html');
+  }
+}
+
+console.log('🎉 Comprehensive environment update completed successfully!');
 console.log('Backend URL set to:', env.VITE_API_URL);
+console.log('Runtime override active for any missed references');
+
+console.log('\n📊 Update Summary:');
+console.log('- Environment config file created');
+console.log('- JavaScript assets updated');
+console.log('- Runtime override script created');
+console.log('- Index.html updated with runtime config');
+console.log('- All old URLs replaced with:', env.VITE_API_URL);

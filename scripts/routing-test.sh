@@ -3,7 +3,7 @@
 set -e
 
 API_URL="https://app-rawyclbe.fly.dev"
-FRONTEND_URL="https://ice-management-app-4r16aafs.devinapps.com"
+FRONTEND_URL="https://arcticicesolutions.com"
 TEST_TOKEN="${TEST_TOKEN:-test-token-123}"
 
 echo "🚀 Starting AI Routing System Test"

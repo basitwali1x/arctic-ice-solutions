@@ -24,7 +24,7 @@
   "deployHooks": {
     "postDeploy": [
       "echo 'Running post-deploy checks'",
-      "curl -s https://ice-management-app-4r16aafs.devinapps.com/api/health || echo 'Health check failed'"
+      "curl -s https://arcticicesolutions.com/api/health || echo 'Health check failed'"
     ]
   }
 }

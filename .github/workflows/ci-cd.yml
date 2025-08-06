@@ -157,7 +157,7 @@ jobs:
           devin apps wait-for-deployment --id $DEPLOYMENT_ID --timeout 300
           
           echo "✅ Deployment completed to Devin Apps Platform"
-          echo "Production URL: https://ice-management-app-4r16aafs.devinapps.com"
+          echo "Production URL: https://arcticicesolutions.com"
           echo "AI routing features should now be live"
           
       - name: Deploy Preview (PR Branches)

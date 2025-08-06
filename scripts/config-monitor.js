@@ -33,7 +33,7 @@
         console.error('[Config Monitor] ❌ Backend connection failed:', error);
         
         const currentOrigin = window.location.origin;
-        if (currentOrigin.includes('devinapps.com')) {
+        if (currentOrigin.includes('arcticicesolutions.com')) {
           console.log('[Config Monitor] Attempting to reload with cache bypass...');
           window.location.reload(true);
         }

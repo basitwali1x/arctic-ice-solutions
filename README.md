@@ -82,7 +82,7 @@ A comprehensive web application for managing ice manufacturing and distribution 
 
 ### Frontend
 - Deployed on Devin Apps Platform
-- URL: https://ice-management-app-4r16aafs.devinapps.com
+- URL: https://arcticicesolutions.com
 - Environment Variables:
   - Production: `VITE_API_URL=https://app-rawyclbe.fly.dev`
   - Local Development: `VITE_API_URL=http://localhost:8000`
@@ -93,7 +93,7 @@ A comprehensive web application for managing ice manufacturing and distribution 
 - Health Check: https://app-rawyclbe.fly.dev/healthz
 
 ### Deployment Verification Steps
-1. Verify frontend loads at https://ice-management-app-4r16aafs.devinapps.com
+1. Verify frontend loads at https://arcticicesolutions.com
 2. Check logout functionality is visible in Header and Settings
 3. Test API connectivity (no SOCKS connection errors in console)
 4. Verify Add Customer functionality works end-to-end
@@ -150,7 +150,7 @@ VITE_API_URL=http://localhost:8000
 
 ## Deployment URLs
 
-- **Frontend**: https://ice-management-app-4r16aafs.devinapps.com
+- **Frontend**: https://arcticicesolutions.com
 - **Backend API**: https://app-rawyclbe.fly.dev
 
 ## Project Structure

@@ -1,1 +1,1 @@
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://app-lgxaaqfo.fly.dev';
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://app-gtgfifoe.fly.dev';

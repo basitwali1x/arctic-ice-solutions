@@ -93,6 +93,24 @@ jobs:
           pnpm install
           pnpm build
           
+      - name: Force Environment Update
+        env:
+          VITE_API_URL: https://app-rawyclbe.fly.dev
+          VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+        run: |
+          node force-env-update.js
+          
+      - name: Verify Build Configuration
+        run: |
+          echo "Checking built assets for correct backend URL..."
+          if [ -f "frontend/dist/env-config.js" ]; then
+            cat frontend/dist/env-config.js
+          fi
+          if [ -d "frontend/dist/assets" ]; then
+            grep -r "app-rawyclbe.fly.dev" frontend/dist/assets/ || echo "Backend URL not found in assets"
+            grep -r "app-dfyyccxe.fly.dev" frontend/dist/assets/ && echo "❌ Old backend URL still present!" || echo "✅ Old backend URL not found"
+          fi
+          
       - name: Deploy to Production (Main Branch Only)
         if: github.ref == 'refs/heads/devin/1752750425-arctic-ice-solutions-initial-commit'
         env:

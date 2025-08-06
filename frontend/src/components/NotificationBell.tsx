@@ -1,36 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Bell } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Notification } from '../types/api';
-import { apiRequest } from '../utils/api';
+import { useNotifications } from '../hooks/useNotifications';
 
 export function NotificationBell() {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const { notifications, unreadCount } = useNotifications();
   const [showDropdown, setShowDropdown] = useState(false);
-
-  useEffect(() => {
-    const fetchNotifications = async () => {
-      try {
-        const response = await apiRequest('/api/notifications');
-        if (response && response.ok) {
-          const data = await response.json();
-          setNotifications(Array.isArray(data) ? data : []);
-        } else {
-          setNotifications([]);
-        }
-      } catch (error) {
-        console.error('Failed to fetch notifications:', error);
-        setNotifications([]);
-      }
-    };
-
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
     <div className="relative">

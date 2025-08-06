@@ -1,14 +1,9 @@
 {
   "version": 2,
-  "buildCommand": "cd frontend && pnpm install && VITE_API_URL=https://app-rawyclbe.fly.dev pnpm build",
-  "outputDirectory": "frontend/dist",
   "builds": [
     {
-      "src": "frontend/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "buildCommand": "VITE_API_URL=https://app-rawyclbe.fly.dev pnpm build"
-      }
+      "src": "frontend/dist/**",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
@@ -17,11 +12,11 @@
     },
     {
       "src": "/pr/(.*)",
-      "dest": "/index.html"
+      "dest": "/frontend/dist/index.html"
     },
     {
       "src": "/(.*)",
-      "dest": "/index.html"
+      "dest": "/frontend/dist/index.html"
     }
   ],
   "headers": [

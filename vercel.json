@@ -2,23 +2,24 @@
   "version": 2,
   "buildCommand": "cd frontend && pnpm install && VITE_API_URL=https://app-rawyclbe.fly.dev pnpm build",
   "outputDirectory": "frontend/dist",
-  "headers": [
+  "routes": [
     {
-      "source": "/assets/(.*)\\.js",
-      "headers": [
-        { "key": "Content-Type", "value": "application/javascript; charset=utf-8" },
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
-      ]
+      "src": "/assets/(.*)\\.js$",
+      "headers": { "Content-Type": "application/javascript; charset=utf-8" },
+      "dest": "/assets/$1.js"
     },
     {
-      "source": "/assets/(.*)\\.css",
-      "headers": [
-        { "key": "Content-Type", "value": "text/css; charset=utf-8" },
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
-      ]
+      "src": "/assets/(.*)\\.css$", 
+      "headers": { "Content-Type": "text/css; charset=utf-8" },
+      "dest": "/assets/$1.css"
+    },
+    {
+      "src": "/(registerSW\\.js|manifest\\.webmanifest|vite\\.svg|.*\\.png)$",
+      "dest": "/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
-  ],
-  "rewrites": [
-    { "source": "/((?!assets|registerSW\\.js|manifest\\.webmanifest|vite\\.svg|pwa-.*\\.png).)*", "destination": "/index.html" }
   ]
 }

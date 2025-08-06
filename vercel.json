@@ -1,7 +1,0 @@
-{
-  "version": 2,
-  "buildCommand": "echo 'Using pre-built files'",
-  "outputDirectory": "frontend/dist",
-  "cleanUrls": false,
-  "trailingSlash": false
-}

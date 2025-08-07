@@ -1,15 +1,6 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "frontend/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "buildCommand": "VITE_API_URL=https://app-rawyclbe.fly.dev pnpm build",
-        "outputDirectory": "dist"
-      }
-    }
-  ],
+  "buildCommand": "cd frontend && pnpm install && VITE_API_URL=https://app-rawyclbe.fly.dev pnpm build",
+  "outputDirectory": "frontend/dist",
   "routes": [
     {
       "src": "/assets/(.*\\.js)$",
@@ -20,29 +11,11 @@
       "continue": true
     },
     {
-      "src": "/_next/static/(.*\\.js)$",
-      "headers": {
-        "Content-Type": "application/javascript; charset=utf-8",
-        "Cache-Control": "public, max-age=31536000, immutable"
-      },
-      "continue": true
-    },
-    {
       "handle": "filesystem"
     },
     {
-      "src": "/pr/(.*)",
-      "dest": "/index.html",
-      "headers": {
-        "Content-Type": "text/html; charset=utf-8"
-      }
-    },
-    {
       "src": "/(.*)",
-      "dest": "/index.html",
-      "headers": {
-        "Content-Type": "text/html; charset=utf-8"
-      }
+      "dest": "/index.html"
     }
   ]
 }

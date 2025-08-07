@@ -221,3 +221,4 @@ arctic-ice-solutions/
 # Trigger deployment
 # Registry fixes applied - forcing CI trigger
 # Force Vercel deployment - Thu Aug  7 19:04:36 UTC 2025
+# Force Vercel deployment - Thu Aug  7 19:25:24 UTC 2025

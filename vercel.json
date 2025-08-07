@@ -3,7 +3,8 @@
   "outputDirectory": "frontend/dist",
   "build": {
     "env": {
-      "NPM_CONFIG_REGISTRY": "https://registry.npmmirror.com"
+      "PNPM_STORE_DIR": "/tmp/.pnpm-store",
+      "NPM_CONFIG_REGISTRY": "https://registry.npmjs.org/"
     }
   },
   "routes": [

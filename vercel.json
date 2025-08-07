@@ -1,6 +1,11 @@
 {
   "buildCommand": "cd frontend && pnpm install && pnpm build",
   "outputDirectory": "frontend/dist",
+  "build": {
+    "env": {
+      "NPM_CONFIG_REGISTRY": "https://registry.npmmirror.com"
+    }
+  },
   "routes": [
     {
       "src": "/assets/(.*\\.js)$",

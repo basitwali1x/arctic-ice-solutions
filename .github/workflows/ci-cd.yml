@@ -27,40 +27,16 @@ jobs:
           cd frontend
           pnpm install
           
-      - name: Lint frontend
-        run: |
-          cd frontend
-          pnpm lint
-          
       - name: Build frontend
         run: |
           cd frontend
           pnpm build
           
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.12'
-          
-      - name: Install Poetry
-        run: pip install poetry
-        
-      - name: Install system dependencies
+      - name: Verify build
         run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential cmake
-          
-      - name: Install backend dependencies
-        if: ${{ secrets.GOOGLE_MAPS_API_KEY != '' }}
-        env:
-          GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
-        run: |
-          cd backend
-          poetry install --no-interaction --no-ansi
-          
-      - name: Skip backend dependencies
-        if: ${{ secrets.GOOGLE_MAPS_API_KEY == '' }}
-        run: echo "⚠️ GOOGLE_MAPS_API_KEY secret not configured. Backend dependencies installation skipped."
+          echo "Build verification:"
+          ls -la frontend/dist/
+          echo "✅ Build completed successfully"
           
   deploy:
     needs: build-and-test

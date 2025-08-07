@@ -51,11 +51,16 @@ jobs:
           sudo apt-get install -y build-essential cmake
           
       - name: Install backend dependencies
+        if: ${{ secrets.GOOGLE_MAPS_API_KEY != '' }}
         env:
           GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
         run: |
           cd backend
           poetry install --no-interaction --no-ansi
+          
+      - name: Skip backend dependencies
+        if: ${{ secrets.GOOGLE_MAPS_API_KEY == '' }}
+        run: echo "⚠️ GOOGLE_MAPS_API_KEY secret not configured. Backend dependencies installation skipped."
           
   deploy:
     needs: build-and-test
@@ -87,7 +92,7 @@ jobs:
       - name: Build frontend for production
         env:
           VITE_API_URL: https://app-rawyclbe.fly.dev
-          VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+          VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY || '' }}
         run: |
           cd frontend
           pnpm install
@@ -96,7 +101,7 @@ jobs:
       - name: Force Environment Update
         env:
           VITE_API_URL: https://app-rawyclbe.fly.dev
-          VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+          VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY || '' }}
         run: |
           node force-env-update.js
           

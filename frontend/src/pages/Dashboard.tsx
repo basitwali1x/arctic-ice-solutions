@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import './Dashboard.css';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,20 +12,27 @@ import { apiRequest } from '../utils/api';
 import { useErrorToast } from '../hooks/useErrorToast';
 
 export function Dashboard() {
-  const [dashboardData, setDashboardData] = useState<{
-    overview: DashboardOverview | null;
-    production: ProductionDashboard | null;
-    fleet: FleetDashboard | null;
-    financial: FinancialDashboard | null;
+  const [dashboardState, setDashboardState] = useState<{
+    data: {
+      overview: DashboardOverview | null;
+      production: ProductionDashboard | null;
+      fleet: FleetDashboard | null;
+      financial: FinancialDashboard | null;
+    };
+    locations: Location[];
+    loading: boolean;
+    error: string | null;
   }>({
-    overview: null,
-    production: null,
-    fleet: null,
-    financial: null
+    data: {
+      overview: null,
+      production: null,
+      fleet: null,
+      financial: null
+    },
+    locations: [],
+    loading: true,
+    error: null
   });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [locations, setLocations] = useState<Location[]>([]);
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [selectedOptimizeLocation, setSelectedOptimizeLocation] = useState<string>('');
@@ -34,9 +42,6 @@ export function Dashboard() {
 
   const fetchDashboardData = useCallback(async () => {
     try {
-      setLoading(true);
-      setError(null);
-      
       const [overviewRes, productionRes, fleetRes, financialRes, locationsRes] = await Promise.all([
         apiRequest('/api/dashboard/overview'),
         apiRequest('/api/dashboard/production'),
@@ -53,21 +58,20 @@ export function Dashboard() {
         locationsRes?.ok ? locationsRes.json() : null
       ]);
 
-      setDashboardData({ overview, production, fleet, financial });
-      setLocations(locations || []);
+      setDashboardState({
+        data: { overview, production, fleet, financial },
+        locations: locations || [],
+        loading: false,
+        error: null
+      });
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
-      setError('Failed to load dashboard data');
       showError(error, 'Failed to load dashboard data');
-      setDashboardData({
-        overview: null,
-        production: null,
-        fleet: null,
-        financial: null
-      });
-      setLocations([]);
-    } finally {
-      setLoading(false);
+      setDashboardState(prev => ({
+        ...prev,
+        loading: false,
+        error: 'Failed to load dashboard data'
+      }));
     }
   }, [showError]);
 
@@ -76,27 +80,27 @@ export function Dashboard() {
   }, [fetchDashboardData]);
 
   const productionData = [
-    { name: 'Shift 1', pallets: dashboardData.production?.shift_1_pallets || 45 },
-    { name: 'Shift 2', pallets: dashboardData.production?.shift_2_pallets || 35 },
+    { name: 'Shift 1', pallets: dashboardState.data.production?.shift_1_pallets || 45 },
+    { name: 'Shift 2', pallets: dashboardState.data.production?.shift_2_pallets || 35 },
   ];
 
-  const paymentData = dashboardData.financial?.payment_breakdown ? [
-    { name: 'Cash', value: dashboardData.financial.payment_breakdown.cash, color: '#0088FE' },
-    { name: 'Check', value: dashboardData.financial.payment_breakdown.check, color: '#00C49F' },
-    { name: 'Credit', value: dashboardData.financial.payment_breakdown.credit, color: '#FFBB28' }
+  const paymentData = dashboardState.data.financial?.payment_breakdown ? [
+    { name: 'Cash', value: dashboardState.data.financial.payment_breakdown.cash, color: '#0088FE' },
+    { name: 'Check', value: dashboardState.data.financial.payment_breakdown.check, color: '#00C49F' },
+    { name: 'Credit', value: dashboardState.data.financial.payment_breakdown.credit, color: '#FFBB28' }
   ] : [
     { name: 'Cash', value: 45, color: '#0088FE' },
     { name: 'Check', value: 30, color: '#00C49F' },
     { name: 'Credit', value: 25, color: '#FFBB28' }
   ];
 
-  const fleetData = Object.entries(dashboardData.fleet?.vehicles_by_location || {}).map(([location, count]) => ({
+  const fleetData = Object.entries(dashboardState.data.fleet?.vehicles_by_location || {}).map(([location, count]) => ({
     location,
     vehicles: count
   }));
 
   const handleLocationClick = (locationName: string) => {
-    const location = locations.find(loc => 
+    const location = dashboardState.locations.find(loc => 
       loc.name.toLowerCase().includes(locationName.toLowerCase()) ||
       locationName.toLowerCase().includes(loc.name.toLowerCase())
     );
@@ -193,11 +197,11 @@ export function Dashboard() {
     }
   };
 
-  if (loading) {
-    return <div className="flex items-center justify-center h-64">Loading dashboard...</div>;
+  if (dashboardState.loading) {
+    return <div className="flex items-center justify-center h-64 dashboard-loading">Loading dashboard...</div>;
   }
 
-  if (error) {
+  if (dashboardState.error) {
     return (
       <Card className="border-red-200 bg-red-50">
         <CardHeader>
@@ -207,7 +211,7 @@ export function Dashboard() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-red-700 mb-4">{error}</p>
+          <p className="text-red-700 mb-4">{dashboardState.error}</p>
           <Button onClick={fetchDashboardData} variant="outline">
             <RefreshCw className="h-4 w-4 mr-2" />
             Retry
@@ -218,7 +222,7 @@ export function Dashboard() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 dashboard-container dashboard-content dashboard-loaded">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
         <div className="flex items-center space-x-2 text-sm text-gray-600">
@@ -235,7 +239,7 @@ export function Dashboard() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{dashboardData.overview?.total_customers || 1200}</div>
+            <div className="text-2xl font-bold">{dashboardState.data.overview?.total_customers || 1200}</div>
             <p className="text-xs text-muted-foreground">
               <span className="text-green-600 flex items-center">
                 <TrendingUp className="h-3 w-3 mr-1" />
@@ -251,9 +255,9 @@ export function Dashboard() {
             <Truck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{dashboardData.overview?.total_vehicles || 8}</div>
+            <div className="text-2xl font-bold">{dashboardState.data.overview?.total_vehicles || 8}</div>
             <p className="text-xs text-muted-foreground">
-              {dashboardData.fleet?.vehicles_in_use || 6} in use, {dashboardData.fleet?.vehicles_available || 2} available
+              {dashboardState.data.fleet?.vehicles_in_use || 6} in use, {dashboardState.data.fleet?.vehicles_available || 2} available
             </p>
           </CardContent>
         </Card>
@@ -264,7 +268,7 @@ export function Dashboard() {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{dashboardData.overview?.total_orders_today || 0}</div>
+            <div className="text-2xl font-bold">{dashboardState.data.overview?.total_orders_today || 0}</div>
             <p className="text-xs text-muted-foreground">
               <span className="text-green-600 flex items-center">
                 <TrendingUp className="h-3 w-3 mr-1" />
@@ -280,7 +284,7 @@ export function Dashboard() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${dashboardData.financial?.daily_revenue?.toLocaleString() || '0'}</div>
+            <div className="text-2xl font-bold">${dashboardState.data.financial?.daily_revenue?.toLocaleString() || '0'}</div>
             <p className="text-xs text-muted-foreground">
               <span className="text-green-600 flex items-center">
                 <TrendingUp className="h-3 w-3 mr-1" />
@@ -296,7 +300,7 @@ export function Dashboard() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${dashboardData.financial?.daily_revenue_average?.toLocaleString() || '12,500'}</div>
+            <div className="text-2xl font-bold">${dashboardState.data.financial?.daily_revenue_average?.toLocaleString() || '12,500'}</div>
             <p className="text-xs text-muted-foreground">
               <span className="text-blue-600 flex items-center">
                 <TrendingUp className="h-3 w-3 mr-1" />
@@ -312,7 +316,7 @@ export function Dashboard() {
             <FileText className="h-4 w-4 text-yellow-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">${dashboardData.financial?.outstanding_invoices?.toLocaleString() || '25,000'}</div>
+            <div className="text-2xl font-bold text-yellow-600">${dashboardState.data.financial?.outstanding_invoices?.toLocaleString() || '25,000'}</div>
             <p className="text-xs text-muted-foreground">Accounts receivable</p>
           </CardContent>
         </Card>
@@ -337,7 +341,7 @@ export function Dashboard() {
               </BarChart>
             </ResponsiveContainer>
             <div className="mt-4 text-sm text-gray-600">
-              Target: {dashboardData.production?.target_production_pallets || 160} pallets/day
+              Target: {dashboardState.data.production?.target_production_pallets || 160} pallets/day
             </div>
           </CardContent>
         </Card>
@@ -480,7 +484,7 @@ export function Dashboard() {
                     <SelectValue placeholder="Choose location for optimization" />
                   </SelectTrigger>
                   <SelectContent>
-                    {locations.map((location) => (
+                    {dashboardState.locations.map((location) => (
                       <SelectItem key={location.id} value={location.id}>
                         {location.name}
                       </SelectItem>

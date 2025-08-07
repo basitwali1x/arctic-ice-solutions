@@ -17,7 +17,7 @@ import { Maintenance } from './pages/Maintenance';
 import { ProductionManager } from './pages/ProductionManager';
 import MobileApp from './mobile/MobileApp';
 import { useIsMobile } from './hooks/use-mobile';
-import React from 'react';
+import React, { Suspense } from 'react';
 
 const RoleBasedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
@@ -68,7 +68,11 @@ function App() {
                             <ErrorBoundary>
                               <Routes>
                                 <Route path="/" element={<Navigate to="dashboard" replace />} />
-                                <Route path="/dashboard" element={<Dashboard />} />
+                                <Route path="/dashboard" element={
+                                  <Suspense fallback={<div className="flex items-center justify-center h-64">Loading dashboard...</div>}>
+                                    <Dashboard />
+                                  </Suspense>
+                                } />
                                 <Route path="/production-inventory" element={<ProductionInventory />} />
                                 <Route path="/fleet" element={<FleetManagement />} />
                                 <Route path="/customers" element={<CustomerManagement />} />
@@ -109,7 +113,11 @@ function App() {
                             <ErrorBoundary>
                               <Routes>
                                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                                <Route path="/dashboard" element={<Dashboard />} />
+                                <Route path="/dashboard" element={
+                                  <Suspense fallback={<div className="flex items-center justify-center h-64">Loading dashboard...</div>}>
+                                    <Dashboard />
+                                  </Suspense>
+                                } />
                                 <Route path="/production-inventory" element={<ProductionInventory />} />
                                 <Route path="/fleet" element={<FleetManagement />} />
                                 <Route path="/customers" element={<CustomerManagement />} />

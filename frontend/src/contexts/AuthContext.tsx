@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useMemo } from 'react';
 import { API_BASE_URL } from '../lib/constants';
 
 interface User {
@@ -106,13 +106,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(null);
   };
 
-  const value = {
+  const value = useMemo(() => ({
     user,
     token,
     login,
     logout,
     isLoading,
-  };
+  }), [user, token, isLoading]);
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={value}>{!isLoading && children}</AuthContext.Provider>;
 };

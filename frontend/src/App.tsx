@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { ThemeProvider } from 'next-themes';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { PRProvider } from './contexts/PRContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -16,6 +17,7 @@ import { Settings } from './pages/Settings';
 import { Maintenance } from './pages/Maintenance';
 import { ProductionManager } from './pages/ProductionManager';
 import MobileApp from './mobile/MobileApp';
+import CustomerApp from './customer/CustomerApp';
 import { useIsMobile } from './hooks/use-mobile';
 import React, { Suspense } from 'react';
 
@@ -24,7 +26,7 @@ const RoleBasedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   const isMobile = useIsMobile();
   
   if (user?.role === 'customer') {
-    return <Navigate to="/mobile/customer" replace />;
+    return <Navigate to="/customer" replace />;
   }
   
   if (isMobile) {
@@ -38,9 +40,10 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <AuthProvider>
-        <Router>
-          <PRProvider>
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <AuthProvider>
+          <Router>
+            <PRProvider>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               
@@ -101,6 +104,16 @@ function App() {
                 }
               />
               <Route
+                path="/customer/*"
+                element={
+                  <ProtectedRoute>
+                    <ErrorBoundary>
+                      <CustomerApp />
+                    </ErrorBoundary>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/*"
                 element={
                   <ProtectedRoute>
@@ -139,6 +152,7 @@ function App() {
           </PRProvider>
         </Router>
       </AuthProvider>
+    </ThemeProvider>
     </ErrorBoundary>
   );
 }

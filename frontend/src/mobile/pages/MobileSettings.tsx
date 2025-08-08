@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useTheme } from 'next-themes';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Switch } from '../../components/ui/switch';
@@ -8,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Bell, MapPin, Bluetooth, Shield, Database, Smartphone } from 'lucide-react';
 
 export function MobileSettings() {
+  const { theme, setTheme } = useTheme();
   const [settings, setSettings] = useState({
     notifications: {
       push_enabled: true,
@@ -28,7 +30,6 @@ export function MobileSettings() {
       receipt_copies: 1
     },
     app: {
-      theme: 'light',
       language: 'en',
       auto_sync: true,
       offline_mode: true,
@@ -40,6 +41,14 @@ export function MobileSettings() {
       biometric_auth: false
     }
   });
+
+  useEffect(() => {
+    const savedSettings = localStorage.getItem('arctic_ice_mobile_settings');
+    if (savedSettings) {
+      const parsed = JSON.parse(savedSettings);
+      setSettings(parsed);
+    }
+  }, []);
 
   const updateSetting = (category: string, key: string, value: string | number | boolean) => {
     setSettings(prev => ({
@@ -227,8 +236,8 @@ export function MobileSettings() {
           <div>
             <Label htmlFor="theme">Theme</Label>
             <Select 
-              value={settings.app.theme} 
-              onValueChange={(value) => updateSetting('app', 'theme', value)}
+              value={theme} 
+              onValueChange={setTheme}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -236,7 +245,7 @@ export function MobileSettings() {
               <SelectContent>
                 <SelectItem value="light">Light</SelectItem>
                 <SelectItem value="dark">Dark</SelectItem>
-                <SelectItem value="auto">Auto</SelectItem>
+                <SelectItem value="system">Auto</SelectItem>
               </SelectContent>
             </Select>
           </div>

@@ -19,11 +19,25 @@ import { ProductionManager } from './pages/ProductionManager';
 import MobileApp from './mobile/MobileApp';
 import EmployeeApp from './employee/EmployeeApp';
 import { useIsMobile } from './hooks/use-mobile';
+import { getSubdomain } from './utils/urlUtils';
 import React, { Suspense } from 'react';
 
 const RoleBasedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const isMobile = useIsMobile();
+  const subdomain = getSubdomain();
+  
+  if (subdomain === 'employee') {
+    return <Navigate to="/employee" replace />;
+  }
+  
+  if (subdomain === 'customer') {
+    return <Navigate to="/mobile/customer" replace />;
+  }
+  
+  if (subdomain === 'admin') {
+    return <Navigate to="/dashboard" replace />;
+  }
   
   if (user?.role === 'customer') {
     return <Navigate to="/mobile/customer" replace />;

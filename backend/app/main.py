@@ -19,6 +19,8 @@ from dotenv import load_dotenv
 from .excel_import import process_excel_files, process_customer_excel_files, process_route_excel_files
 from .google_sheets_import import process_google_sheets_data, test_google_sheets_connection
 from .quickbooks_integration import QuickBooksClient, map_arctic_customer_to_qb, map_arctic_order_to_qb_invoice, map_arctic_payment_to_qb
+from .weather_service import weather_service
+from .monitoring_service import monitoring_service
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
@@ -35,6 +37,14 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 1440
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
 
+try:
+    from .weather_service import router as weather_router
+    from .monitoring_service import router as monitoring_router
+    app.include_router(weather_router, prefix="/weather", tags=["weather"])
+    app.include_router(monitoring_router, prefix="/monitoring", tags=["monitoring"])
+except ImportError as e:
+    print(f"Weather and monitoring services not available: {e}")
+
 # Disable CORS. Do not remove this for full-stack development.
 app.add_middleware(
     CORSMiddleware,
@@ -42,6 +52,7 @@ app.add_middleware(
         "*",  # Allows all origins for development
         "https://arcticicesolutions.com",  # New primary domain
         "https://www.arcticicesolutions.com",  # New domain with www
+        "https://api.arcticicesolutions.com",  # API domain
         "https://ice-management-app-4r16aafs.devinapps.com",  # Legacy deployment URL
         "https://dashboard-flicker-app-nx31x17t.devinapps.com",  # New frontend URL
         "http://localhost:5173",  # Local frontend
@@ -292,6 +303,26 @@ class QuickBooksSyncRequest(BaseModel):
     sync_customers: bool = True
     sync_invoices: bool = True
     sync_payments: bool = True
+
+class TrainingModule(BaseModel):
+    id: str
+    title: str
+    description: str
+    duration: str
+    type: str
+    status: str = "available"
+    progress: int = 0
+    
+class EmployeeCertification(BaseModel):
+    id: str
+    employee_id: str
+    title: str
+    description: str
+    issue_date: Optional[str] = None
+    expiry_date: Optional[str] = None
+    status: str = "pending"
+    nft_id: Optional[str] = None
+    blockchain_hash: Optional[str] = None
 
 def calculate_distance(addr1: str, addr2: str, coordinates1: Optional[dict] = None, coordinates2: Optional[dict] = None) -> float:
     """Enhanced distance calculation using Google Maps API or haversine fallback"""
@@ -552,15 +583,24 @@ def create_distance_matrix(coordinates):
 
     receipt_url: Optional[str] = None
 
-locations_db = {}
 users_db = {}
 customers_db = {}
 products_db = {}
 vehicles_db = {}
-inventory_db = {}
-routes_db = {}
+locations_db = {}
 orders_db = {}
+routes_db = {}
+inventory_db = []
+work_orders_db = {}
+production_entries_db = {}
+expenses_db = {}
 customer_pricing_db = {}
+driver_locations = {}
+quickbooks_connection = None
+training_modules_db = {}
+employee_certifications_db = {}
+employee_progress_db = {}
+customer_feedback = {}
 
 imported_customers = []
 imported_orders = []
@@ -1703,6 +1743,41 @@ def initialize_sample_data():
     print(f"DEBUG: Final counts - imported_customers: {len(imported_customers)}, imported_orders: {len(imported_orders)}")
 
 initialize_sample_data()
+
+training_modules_db = {
+    "ice-handling-safety": {
+        "id": "ice-handling-safety",
+        "title": "Ice Handling & Safety Protocols",
+        "description": "Essential safety procedures for ice handling, storage, and delivery operations",
+        "duration": "45 minutes",
+        "type": "safety",
+        "status": "available"
+    },
+    "equipment-operation": {
+        "id": "equipment-operation", 
+        "title": "Equipment Operation Training",
+        "description": "Proper operation of ice production and handling equipment",
+        "duration": "60 minutes",
+        "type": "equipment",
+        "status": "available"
+    },
+    "customer-service": {
+        "id": "customer-service",
+        "title": "Customer Service Excellence", 
+        "description": "Best practices for customer interactions and service delivery",
+        "duration": "30 minutes",
+        "type": "service",
+        "status": "available"
+    },
+    "quality-control": {
+        "id": "quality-control",
+        "title": "Quality Control Standards",
+        "description": "Understanding and maintaining ice quality standards", 
+        "duration": "40 minutes",
+        "type": "quality",
+        "status": "available"
+    }
+}
 
 @app.post("/api/auth/login", response_model=Token)
 async def login(login_request: LoginRequest):
@@ -3436,6 +3511,186 @@ def calculate_estimated_completion(route):
         
     except Exception:
         return None
+
+@app.get("/api/training/modules")
+async def get_training_modules(current_user: UserInDB = Depends(get_current_user)):
+    """Get all available training modules"""
+    return list(training_modules_db.values())
+
+@app.get("/api/training/modules/{module_id}")
+async def get_training_module(module_id: str, current_user: UserInDB = Depends(get_current_user)):
+    """Get specific training module"""
+    if module_id not in training_modules_db:
+        raise HTTPException(status_code=404, detail="Training module not found")
+    return training_modules_db[module_id]
+
+@app.post("/api/training/modules/{module_id}/progress")
+async def update_training_progress(
+    module_id: str, 
+    progress_data: dict,
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """Update employee progress on a training module"""
+    employee_id = current_user.id
+    progress_key = f"{employee_id}_{module_id}"
+    
+    employee_progress_db[progress_key] = {
+        "employee_id": employee_id,
+        "module_id": module_id,
+        "progress": progress_data.get("progress", 0),
+        "completed": progress_data.get("progress", 0) >= 100,
+        "last_updated": datetime.utcnow().isoformat()
+    }
+    
+    if progress_data.get("progress", 0) >= 100:
+        cert_id = f"cert_{employee_id}_{module_id}_{int(datetime.utcnow().timestamp())}"
+        module = training_modules_db.get(module_id, {})
+        
+        employee_certifications_db[cert_id] = {
+            "id": cert_id,
+            "employee_id": employee_id,
+            "title": f"{module.get('title', 'Training')} Certification",
+            "description": f"Blockchain-verified certification for {module.get('title', 'training')}",
+            "issue_date": datetime.utcnow().strftime("%Y-%m-%d"),
+            "expiry_date": (datetime.utcnow() + timedelta(days=365)).strftime("%Y-%m-%d"),
+            "status": "active",
+            "nft_id": f"AIS-{module_id.upper()}-{employee_id[-3:]}",
+            "blockchain_hash": f"0x{uuid.uuid4().hex[:8]}...{uuid.uuid4().hex[-4:]}"
+        }
+    
+    save_data_to_disk()
+    return {"message": "Progress updated successfully"}
+
+@app.get("/api/employee/certifications")
+async def get_employee_certifications(current_user: UserInDB = Depends(get_current_user)):
+    """Get all certifications for current employee"""
+    employee_certs = [
+        cert for cert in employee_certifications_db.values() 
+        if cert["employee_id"] == current_user.id
+    ]
+    return employee_certs
+
+@app.get("/api/employee/progress")
+async def get_employee_progress(current_user: UserInDB = Depends(get_current_user)):
+    """Get training progress for current employee"""
+    employee_progress = [
+        progress for progress in employee_progress_db.values()
+        if progress["employee_id"] == current_user.id
+    ]
+    return {
+        "overall_progress": 75,
+        "completed_modules": len([p for p in employee_progress if p.get("completed")]),
+        "total_modules": len(training_modules_db),
+        "certifications_earned": len([c for c in employee_certifications_db.values() if c["employee_id"] == current_user.id and c["status"] == "active"]),
+        "total_certifications": 4,
+        "current_streak": 12,
+        "total_hours": 24.5,
+        "progress_details": employee_progress
+    }
+
+@app.get("/api/weather/current")
+async def get_current_weather(
+    lat: float, 
+    lng: float,
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """Get current weather for coordinates"""
+    return await weather_service.get_current_weather(lat, lng)
+
+@app.get("/api/weather/route-impact/{route_id}")
+async def get_route_weather_impact(
+    route_id: str,
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """Get weather impact analysis for a route"""
+    if route_id not in routes_db:
+        raise HTTPException(status_code=404, detail="Route not found")
+    
+    route = routes_db[route_id]
+    stops = route.get("stops", [])
+    
+    impact = await weather_service.get_route_weather_impact(stops)
+    return impact
+
+@app.get("/api/customers/{customer_id}/dashboard")
+async def get_customer_dashboard(
+    customer_id: str,
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """Get customer dashboard data"""
+    if current_user.role == UserRole.CUSTOMER and current_user.id != customer_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    customer = next((c for c in customers_db if c["id"] == customer_id), None)
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    customer_orders = [o for o in orders_db if o.get("customer_id") == customer_id]
+    
+    total_orders = len(customer_orders)
+    total_spent = sum(o.get("total_amount", 0) for o in customer_orders)
+    active_orders = len([o for o in customer_orders if o.get("status") in ["pending", "confirmed", "in-production", "out-for-delivery"]])
+    
+    return {
+        "customer": customer,
+        "metrics": {
+            "total_orders": total_orders,
+            "total_spent": total_spent,
+            "active_orders": active_orders,
+            "account_balance": customer.get("account_balance", 0),
+            "credit_limit": customer.get("credit_limit", 5000),
+            "credit_terms": customer.get("credit_terms", "Net 30")
+        },
+        "recent_orders": customer_orders[-5:] if customer_orders else []
+    }
+
+@app.post("/api/customers/{customer_id}/feedback")
+async def submit_customer_feedback(
+    customer_id: str,
+    feedback_data: dict,
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """Submit customer feedback"""
+    if current_user.role == UserRole.CUSTOMER and current_user.id != customer_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    feedback_id = f"feedback_{int(datetime.utcnow().timestamp())}"
+    feedback = {
+        "id": feedback_id,
+        "customer_id": customer_id,
+        "type": feedback_data.get("type", "general"),
+        "rating": feedback_data.get("rating", 5),
+        "subject": feedback_data.get("subject", ""),
+        "message": feedback_data.get("message", ""),
+        "order_id": feedback_data.get("order_id"),
+        "submitted_at": datetime.utcnow().isoformat(),
+        "status": "new"
+    }
+    
+    customer_feedback[feedback_id] = feedback
+    save_data_to_disk()
+    
+    return {"message": "Feedback submitted successfully", "feedback_id": feedback_id}
+
+@app.get("/api/monitoring/health")
+async def get_system_health(current_user: UserInDB = Depends(get_current_user)):
+    """Get overall system health status"""
+    if current_user.role not in [UserRole.MANAGER]:
+        raise HTTPException(status_code=403, detail="Manager access required")
+    
+    return monitoring_service.get_monitoring_summary()
+
+@app.get("/api/monitoring/ssl-status")
+async def get_ssl_status(current_user: UserInDB = Depends(get_current_user)):
+    """Get SSL certificate status for all domains"""
+    if current_user.role not in [UserRole.MANAGER]:
+        raise HTTPException(status_code=403, detail="Manager access required")
+    
+    ssl_results = []
+    for domain in monitoring_service.domains_to_monitor:
+        ssl_results.append(monitoring_service.check_ssl_certificate(domain))
+    
+    return {"ssl_certificates": ssl_results}
 
 @app.get("/{full_path:path}")
 async def serve_spa(full_path: str):

@@ -1,0 +1,17 @@
+{
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/static-build"
+    }
+  ],
+  "env": {
+    "API_BASE_URL": "https://api.arcticicesolutions.com",
+    "NEXT_PUBLIC_API_URL": "https://api.arcticicesolutions.com"
+  },
+  "functions": {
+    "pages/api/**/*.js": {
+      "runtime": "nodejs18.x"
+    }
+  }
+}

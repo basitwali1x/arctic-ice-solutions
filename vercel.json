@@ -1,6 +1,6 @@
 {
-  "buildCommand": "cd frontend && pnpm install && pnpm build",
-  "outputDirectory": "frontend/dist",
+  "buildCommand": "pnpm install && pnpm build",
+  "outputDirectory": "dist",
   "build": {
     "env": {
       "PNPM_STORE_DIR": "/tmp/.pnpm-store",

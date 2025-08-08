@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ main, devin/1752750425-arctic-ice-solutions-initial-commit ]
+    branches: [ main, devin/1752750425-arctic-ice-solutions-initial-commit, devin/1754667647-fix-employee-role-routing ]
 
 jobs:
   build:
@@ -17,9 +17,9 @@ jobs:
     runs-on: ubuntu-latest
     if: >-
       (github.event_name == 'push' && 
-       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devin/1752750425-arctic-ice-solutions-initial-commit')) || 
+       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devin/1752750425-arctic-ice-solutions-initial-commit' || github.ref == 'refs/heads/devin/1754667647-fix-employee-role-routing')) || 
       (github.event_name == 'pull_request' && 
-       (github.base_ref == 'main' || github.base_ref == 'devin/1752750425-arctic-ice-solutions-initial-commit'))
+       (github.base_ref == 'main' || github.base_ref == 'devin/1752750425-arctic-ice-solutions-initial-commit' || github.base_ref == 'devin/1754667647-fix-employee-role-routing'))
     steps:
       - uses: actions/checkout@v4
       
@@ -80,7 +80,7 @@ jobs:
           echo "✅ Build configuration verification completed"
           
       - name: Deploy to Production (Main Branch Only)
-        if: github.ref == 'refs/heads/devin/1752750425-arctic-ice-solutions-initial-commit'
+        if: github.ref == 'refs/heads/devin/1752750425-arctic-ice-solutions-initial-commit' || github.ref == 'refs/heads/devin/1754667647-fix-employee-role-routing'
         env:
           DEVIN_API_KEY: ${{ secrets.DEVIN_SECRET_KEY }}
         run: |
@@ -118,7 +118,7 @@ jobs:
           echo "✅ Frontend deployment to Devin Apps Platform completed"
           
       - name: Deploy Preview (PR Branches)
-        if: github.ref != 'refs/heads/devin/1752750425-arctic-ice-solutions-initial-commit'
+        if: github.ref != 'refs/heads/devin/1752750425-arctic-ice-solutions-initial-commit' && github.ref != 'refs/heads/devin/1754667647-fix-employee-role-routing'
         env:
           DEVIN_API_KEY: ${{ secrets.DEVIN_SECRET_KEY }}
         run: |

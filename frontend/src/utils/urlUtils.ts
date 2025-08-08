@@ -33,3 +33,16 @@ export const getDriverRouteUrl = (driverId: string): string =>
 
 export const getRouteProgressUrl = (routeId: string): string =>
   buildAPIUrl(`/api/routes/${encodeURIComponent(routeId)}/progress`);
+
+export const getSubdomain = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  
+  const hostname = window.location.hostname;
+  const parts = hostname.split('.');
+  
+  if (parts.length >= 3 && !hostname.includes('localhost')) {
+    return parts[0];
+  }
+  
+  return null;
+};

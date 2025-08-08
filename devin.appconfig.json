@@ -7,7 +7,7 @@
       "minInstances": 2,
       "maxInstances": 5,
       "envVars": {
-        "VITE_API_URL": "https://app-rawyclbe.fly.dev",
+        "VITE_API_URL": "https://app-wcqcowqv.fly.dev",
         "VITE_GOOGLE_MAPS_API_KEY": "$GOOGLE_MAPS_API_KEY"
       }
     },
@@ -16,7 +16,7 @@
       "minInstances": 1,
       "maxInstances": 2,
       "envVars": {
-        "VITE_API_URL": "https://app-rawyclbe.fly.dev",
+        "VITE_API_URL": "https://app-wcqcowqv.fly.dev",
         "VITE_GOOGLE_MAPS_API_KEY": "$GOOGLE_MAPS_API_KEY"
       }
     }

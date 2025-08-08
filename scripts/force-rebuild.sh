@@ -2,7 +2,7 @@
 
 set -e
 
-APP_ID="ice-management-app-4r16aafs"
+APP_ID="employee-dashboard-qygeggpo"
 CORRECT_API_URL="https://app-wcqcowqv.fly.dev"
 
 echo "🔧 Force Rebuild Script for Devin Apps Platform"

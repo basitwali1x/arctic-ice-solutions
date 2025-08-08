@@ -2308,7 +2308,12 @@ async def create_order(order: Order, current_user: UserInDB = Depends(get_curren
 
 @app.get("/api/dashboard/overview")
 async def get_dashboard_overview(current_user: UserInDB = Depends(get_current_user)):
-    filtered_customers = filter_by_location(list(customers_db.values()), current_user)
+    if imported_customers and len(imported_customers) > 0:
+        customers = imported_customers
+    else:
+        customers = list(customers_db.values())
+    
+    filtered_customers = filter_by_location(customers, current_user)
     total_customers = len(filtered_customers)
     
     if imported_orders is not None and len(imported_orders) > 0:
@@ -3032,7 +3037,10 @@ async def optimize_routes(location_id: str, current_user: UserInDB = Depends(get
     pending_orders = [o for o in orders if o["status"] == "pending"]
     print(f"DEBUG: Total orders: {len(orders)}, Pending orders: {len(pending_orders)}")
     
-    customers = list(customers_db.values())
+    if imported_customers and len(imported_customers) > 0:
+        customers = imported_customers
+    else:
+        customers = list(customers_db.values())
     location_customers = [c for c in customers if c["location_id"] == location_id]
     location_orders = [o for o in pending_orders if any(c["id"] == o["customer_id"] for c in location_customers)]
     print(f"DEBUG: Location customers: {len(location_customers)}, Location orders: {len(location_orders)}")
@@ -3261,7 +3269,10 @@ async def quickbooks_sync(sync_request: QuickBooksSyncRequest, current_user: Use
         
         if sync_request.sync_customers:
             try:
-                arctic_customers = list(customers_db.values())
+                if imported_customers and len(imported_customers) > 0:
+                    arctic_customers = imported_customers
+                else:
+                    arctic_customers = list(customers_db.values())
                 qb_customers = quickbooks_client.get_customers(access_token, realm_id)
                 qb_customer_names = {c.get("Name", "").lower() for c in qb_customers}
                 

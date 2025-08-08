@@ -71,6 +71,7 @@ class UserRole(str, Enum):
     ACCOUNTANT = "accountant"
     DRIVER = "driver"
     CUSTOMER = "customer"
+    EMPLOYEE = "employee"
 
 class LocationType(str, Enum):
     HEADQUARTERS = "headquarters"
@@ -1635,6 +1636,26 @@ def initialize_sample_data():
             "email": "francis@arcticeice.com",
             "full_name": "Francis",
             "role": "driver",
+            "location_id": "loc_2",
+            "is_active": True,
+            "hashed_password": get_password_hash(demo_password)
+        },
+        {
+            "id": "user_9",
+            "username": "employee",
+            "email": "employee@arcticeice.com",
+            "full_name": "Alex Employee",
+            "role": "employee",
+            "location_id": "loc_1",
+            "is_active": True,
+            "hashed_password": get_password_hash(demo_password)
+        },
+        {
+            "id": "user_10",
+            "username": "employee2",
+            "email": "employee2@arcticeice.com",
+            "full_name": "Jordan Employee",
+            "role": "employee",
             "location_id": "loc_2",
             "is_active": True,
             "hashed_password": get_password_hash(demo_password)

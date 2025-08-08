@@ -94,6 +94,7 @@ export const LoginPage: React.FC = () => {
             <p>Dispatcher: dispatcher / dev-password-change-in-production</p>
             <p>Accountant: accountant / dev-password-change-in-production</p>
             <p>Driver: driver / dev-password-change-in-production</p>
+            <p>Employee: employee / dev-password-change-in-production</p>
             <p>Customer: customer1 / dev-password-change-in-production</p>
           </div>
         </form>

@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  nginx-proxy:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+    restart: unless-stopped
+    
+  # Optional: Add SSL termination with Let's Encrypt
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    command: certonly --webroot --webroot-path=/var/www/certbot --email admin@arcticicesolutions.com --agree-tos --no-eff-email -d arcticicesolutions.com -d employee.arcticicesolutions.com

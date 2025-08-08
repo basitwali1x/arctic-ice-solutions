@@ -173,34 +173,60 @@ export function MobileCustomer({
     return () => clearInterval(interval);
   }, [currentView, customerId, currentUser]);
 
-  const submitFeedback = () => {
+  const submitFeedback = async () => {
     if (!newFeedback.subject || !newFeedback.message) {
       alert('Please fill in all feedback fields');
       return;
     }
 
-    const feedback: CustomerFeedback = {
-      id: `feedback-${Date.now()}`,
-      customerId: customerId,
-      orderId: newFeedback.orderId || undefined,
-      type: newFeedback.type,
-      rating: newFeedback.rating,
-      subject: newFeedback.subject,
-      message: newFeedback.message,
-      submittedAt: new Date().toISOString(),
-      status: 'new'
-    };
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/customers/${customerId}/feedback`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          type: newFeedback.type,
+          rating: newFeedback.rating,
+          subject: newFeedback.subject,
+          message: newFeedback.message,
+          order_id: newFeedback.orderId || undefined
+        })
+      });
 
-    setFeedback(prev => [feedback, ...prev]);
-    setNewFeedback({
-      type: 'delivery',
-      rating: 5,
-      subject: '',
-      message: '',
-      orderId: ''
-    });
-    
-    alert('Feedback submitted successfully!');
+      if (response.ok) {
+        const result = await response.json();
+        const feedbackItem: CustomerFeedback = {
+          id: result.feedback_id,
+          customerId: customerId,
+          orderId: newFeedback.orderId || undefined,
+          type: newFeedback.type,
+          rating: newFeedback.rating,
+          subject: newFeedback.subject,
+          message: newFeedback.message,
+          submittedAt: new Date().toISOString(),
+          status: 'new'
+        };
+        
+        setFeedback(prev => [feedbackItem, ...prev]);
+        setNewFeedback({
+          type: 'delivery',
+          rating: 5,
+          subject: '',
+          message: '',
+          orderId: ''
+        });
+        
+        alert('Feedback submitted successfully!');
+      } else {
+        alert('Failed to submit feedback. Please try again.');
+      }
+    } catch (error) {
+      console.error('Failed to submit feedback:', error);
+      alert('Failed to submit feedback. Please try again.');
+    }
   };
 
   const viewOrderDetails = (order: CustomerOrder) => {

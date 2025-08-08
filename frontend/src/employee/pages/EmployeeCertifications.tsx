@@ -2,41 +2,37 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../..
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Award, Download, ExternalLink, Calendar } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
-const certifications = [
-  {
-    id: 1,
-    title: 'Ice Handling Safety Certification',
-    description: 'Blockchain-verified certification for safe ice handling procedures',
-    issueDate: '2024-01-15',
-    expiryDate: '2025-01-15',
-    status: 'active',
-    nftId: 'AIS-IHS-001',
-    blockchainHash: '0x1234...abcd'
-  },
-  {
-    id: 2,
-    title: 'Equipment Operation Certification',
-    description: 'Certified for operating ice production and handling equipment',
-    issueDate: '2024-02-01',
-    expiryDate: '2025-02-01',
-    status: 'active',
-    nftId: 'AIS-EOC-002',
-    blockchainHash: '0x5678...efgh'
-  },
-  {
-    id: 3,
-    title: 'Quality Control Specialist',
-    description: 'Advanced certification in ice quality standards and control',
-    issueDate: null,
-    expiryDate: null,
-    status: 'pending',
-    nftId: null,
-    blockchainHash: null
-  }
-];
 
 export function EmployeeCertifications() {
+  const [certifications, setCertifications] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchCertifications = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/employee/certifications', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          const certs = await response.json();
+          setCertifications(certs);
+        }
+      } catch (error) {
+        console.error('Failed to fetch certifications:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCertifications();
+  }, []);
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active':
@@ -50,6 +46,17 @@ export function EmployeeCertifications() {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading certifications...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -60,7 +67,18 @@ export function EmployeeCertifications() {
       </div>
 
       <div className="grid gap-6">
-        {certifications.map((cert) => (
+        {certifications.length === 0 ? (
+          <Card>
+            <CardContent className="p-8 text-center">
+              <Award className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No Certifications Yet</h3>
+              <p className="text-muted-foreground">
+                Complete training modules to earn blockchain-verified certifications
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          certifications.map((cert) => (
           <Card key={cert.id} className="relative">
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -82,14 +100,14 @@ export function EmployeeCertifications() {
                       <span className="text-muted-foreground">Issue Date:</span>
                       <div className="flex items-center mt-1">
                         <Calendar className="mr-2 h-4 w-4" />
-                        {new Date(cert.issueDate!).toLocaleDateString()}
+                        {new Date(cert.issue_date!).toLocaleDateString()}
                       </div>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Expires:</span>
                       <div className="flex items-center mt-1">
                         <Calendar className="mr-2 h-4 w-4" />
-                        {new Date(cert.expiryDate!).toLocaleDateString()}
+                        {new Date(cert.expiry_date!).toLocaleDateString()}
                       </div>
                     </div>
                   </div>
@@ -97,11 +115,11 @@ export function EmployeeCertifications() {
                   <div className="space-y-2">
                     <div className="text-sm">
                       <span className="text-muted-foreground">NFT ID:</span>
-                      <code className="ml-2 px-2 py-1 bg-muted rounded text-xs">{cert.nftId}</code>
+                      <code className="ml-2 px-2 py-1 bg-muted rounded text-xs">{cert.nft_id}</code>
                     </div>
                     <div className="text-sm">
                       <span className="text-muted-foreground">Blockchain Hash:</span>
-                      <code className="ml-2 px-2 py-1 bg-muted rounded text-xs">{cert.blockchainHash}</code>
+                      <code className="ml-2 px-2 py-1 bg-muted rounded text-xs">{cert.blockchain_hash}</code>
                     </div>
                   </div>
 
@@ -128,7 +146,8 @@ export function EmployeeCertifications() {
               )}
             </CardContent>
           </Card>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );

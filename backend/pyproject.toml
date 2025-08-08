@@ -24,6 +24,8 @@ xlrd = "^2.0.2"
 reportlab = "^4.4.3"
 ortools = "^9.8.3296"
 googlemaps = "^4.10.0"
+requests = "^2.32.4"
+google-generativeai = "^0.8.5"
 
 
 [build-system]

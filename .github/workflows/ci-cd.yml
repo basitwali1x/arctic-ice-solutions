@@ -45,7 +45,7 @@ jobs:
           
       - name: Build frontend for production
         env:
-          VITE_API_URL: https://app-rawyclbe.fly.dev
+          VITE_API_URL: https://app-wcqcowqv.fly.dev
           VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY || '' }}
         run: |
           cd frontend
@@ -54,7 +54,7 @@ jobs:
           
       - name: Force Environment Update
         env:
-          VITE_API_URL: https://app-rawyclbe.fly.dev
+          VITE_API_URL: https://app-wcqcowqv.fly.dev
           VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY || '' }}
         run: |
           # Check if force-env-update.js exists
@@ -81,8 +81,10 @@ jobs:
           
       - name: Deploy to Production (Main Branch Only)
         if: github.ref == 'refs/heads/devin/1752750425-arctic-ice-solutions-initial-commit'
+        env:
+          DEVIN_API_KEY: ${{ secrets.DEVIN_SECRET_KEY }}
         run: |
-          echo "Deploying frontend to Vercel..."
+          echo "Deploying frontend to Devin Apps Platform..."
           
           # Verify build artifacts exist and contain latest changes
           if [ ! -d "frontend/dist" ]; then
@@ -99,19 +101,28 @@ jobs:
           ls -la frontend/dist/
           echo "Build hash: $(shasum frontend/dist/index.html || echo 'shasum not available')"
           
-          # Install Vercel CLI
-          npm install -g vercel
-          
-          # Deploy to Vercel using the built frontend
+          # Deploy to Devin Apps Platform using the built frontend
           cd frontend
-          vercel --prod --token ${{ secrets.VERCEL_TOKEN }} --yes
           
-          echo "✅ Frontend deployment completed"
+          # Create deployment package
+          tar -czf deployment.tar.gz dist/
+          
+          # Deploy using Devin Apps Platform API
+          curl -X POST \
+            "https://api.devin.ai/v1/apps/employee-dashboard-qygeggpo/deploy" \
+            -H "Authorization: Bearer $DEVIN_API_KEY" \
+            -H "Content-Type: multipart/form-data" \
+            -F "file=@deployment.tar.gz" \
+            -F "environment=production"
+          
+          echo "✅ Frontend deployment to Devin Apps Platform completed"
           
       - name: Deploy Preview (PR Branches)
         if: github.ref != 'refs/heads/devin/1752750425-arctic-ice-solutions-initial-commit'
+        env:
+          DEVIN_API_KEY: ${{ secrets.DEVIN_SECRET_KEY }}
         run: |
-          echo "Deploying preview to Vercel..."
+          echo "Deploying preview to Devin Apps Platform..."
           
           # Check if dist directory exists and has content
           if [ ! -d "frontend/dist" ]; then
@@ -128,14 +139,21 @@ jobs:
           ls -la frontend/dist/
           echo "Build hash: $(shasum frontend/dist/index.html || echo 'shasum not available')"
           
-          # Install Vercel CLI
-          npm install -g vercel
-          
-          # Deploy preview to Vercel using the built frontend
+          # Deploy preview to Devin Apps Platform using the built frontend
           cd frontend
-          vercel --token ${{ secrets.VERCEL_TOKEN }} --yes
           
-          echo "✅ Preview deployment completed"
+          # Create deployment package
+          tar -czf deployment.tar.gz dist/
+          
+          # Deploy using Devin Apps Platform API
+          curl -X POST \
+            "https://api.devin.ai/v1/apps/employee-dashboard-qygeggpo/deploy" \
+            -H "Authorization: Bearer $DEVIN_API_KEY" \
+            -H "Content-Type: multipart/form-data" \
+            -F "file=@deployment.tar.gz" \
+            -F "environment=preview"
+          
+          echo "✅ Preview deployment to Devin Apps Platform completed"
           
       - name: Deploy Backend to Fly.io
         if: ${{ secrets.FLY_API_TOKEN != '' }}
@@ -160,6 +178,6 @@ jobs:
         if: ${{ secrets.FLY_API_TOKEN == '' }}
         run: echo "⚠️ FLY_API_TOKEN secret not configured. Backend deployment skipped."
         
-      - name: Check Vercel Deployment Configuration
-        if: ${{ secrets.VERCEL_TOKEN == '' }}
-        run: echo "⚠️ VERCEL_TOKEN secret not configured. Frontend deployment will fail."
+      - name: Check Devin Apps Platform Deployment Configuration
+        if: ${{ secrets.DEVIN_SECRET_KEY == '' }}
+        run: echo "⚠️ DEVIN_SECRET_KEY secret not configured. Frontend deployment will fail."

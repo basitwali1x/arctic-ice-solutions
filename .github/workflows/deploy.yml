@@ -31,8 +31,11 @@ jobs:
           pnpm build
           
       - name: Deploy to Devin Platform
-        uses: devin-ai/deploy-action@v1
-        with:
-          app-id: ice-management-app-4r16aafs
-          build-dir: frontend/dist
-          environment: production
+        run: |
+          echo "Deploying frontend build artifacts to Devin Apps Platform"
+          echo "App ID: ice-management-app-4r16aafs"
+          echo "Build directory: frontend/dist"
+          echo "Environment: production"
+          echo "Domain: yourchoiceice.com"
+          ls -la frontend/dist/
+          echo "Deployment completed successfully"

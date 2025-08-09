@@ -1,17 +1,21 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Progress } from '../../components/ui/progress';
 import { Badge } from '../../components/ui/badge';
-import { TrendingUp, Award, BookOpen, Target, Calendar } from 'lucide-react';
+import { Button } from '../../components/ui/button';
+import { TrendingUp, Award, BookOpen, Target, Calendar, Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { apiRequest } from '../../utils/api';
 
-const progressData = {
-  overallProgress: 75,
-  completedModules: 6,
-  totalModules: 8,
-  certificationsEarned: 2,
-  totalCertifications: 4,
-  currentStreak: 12,
-  totalHours: 24.5
-};
+interface ProgressData {
+  overall_progress: number;
+  completed_modules: number;
+  total_modules: number;
+  certifications_earned: number;
+  total_certifications: number;
+  current_streak: number;
+  total_hours: number;
+  progress_details: any[];
+}
 
 const recentActivity = [
   {
@@ -69,6 +73,34 @@ const upcomingGoals = [
 ];
 
 export function EmployeeProgress() {
+  const [progressData, setProgressData] = useState<ProgressData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchProgressData();
+  }, []);
+
+  const fetchProgressData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await apiRequest('/api/employee/progress');
+      if (!response) {
+        throw new Error('Failed to fetch progress data');
+      }
+
+      const data = await response.json();
+      setProgressData(data);
+    } catch (err) {
+      console.error('Failed to fetch progress data:', err);
+      setError('Failed to load progress data. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getActivityIcon = (type: string) => {
     switch (type) {
       case 'completion':
@@ -93,6 +125,38 @@ export function EmployeeProgress() {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Loading progress data...</span>
+      </div>
+    );
+  }
+
+  if (error || !progressData) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Progress Tracking</h1>
+          <p className="text-muted-foreground">
+            Real-time updates on your training progress and achievements
+          </p>
+        </div>
+        <div className="bg-red-50 border border-red-200 rounded-md p-4">
+          <p className="text-red-800">{error || 'Failed to load progress data'}</p>
+          <Button 
+            onClick={fetchProgressData} 
+            variant="outline" 
+            className="mt-2"
+          >
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -109,8 +173,8 @@ export function EmployeeProgress() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{progressData.overallProgress}%</div>
-            <Progress value={progressData.overallProgress} className="mt-2" />
+            <div className="text-2xl font-bold">{progressData.overall_progress}%</div>
+            <Progress value={progressData.overall_progress} className="mt-2" />
           </CardContent>
         </Card>
 
@@ -121,10 +185,10 @@ export function EmployeeProgress() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {progressData.completedModules}/{progressData.totalModules}
+              {progressData.completed_modules}/{progressData.total_modules}
             </div>
             <p className="text-xs text-muted-foreground">
-              {progressData.totalModules - progressData.completedModules} remaining
+              {progressData.total_modules - progressData.completed_modules} remaining
             </p>
           </CardContent>
         </Card>
@@ -136,10 +200,10 @@ export function EmployeeProgress() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {progressData.certificationsEarned}/{progressData.totalCertifications}
+              {progressData.certifications_earned}/{progressData.total_certifications}
             </div>
             <p className="text-xs text-muted-foreground">
-              {progressData.totalCertifications - progressData.certificationsEarned} available
+              {progressData.total_certifications - progressData.certifications_earned} available
             </p>
           </CardContent>
         </Card>
@@ -150,9 +214,9 @@ export function EmployeeProgress() {
             <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{progressData.totalHours}h</div>
+            <div className="text-2xl font-bold">{progressData.total_hours}h</div>
             <p className="text-xs text-muted-foreground">
-              {progressData.currentStreak} day streak
+              {progressData.current_streak} day streak
             </p>
           </CardContent>
         </Card>

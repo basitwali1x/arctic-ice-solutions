@@ -7,7 +7,7 @@
       "minInstances": 2,
       "maxInstances": 5,
       "envVars": {
-        "VITE_API_URL": "https://app-ifriwrjz.fly.dev",
+        "VITE_API_URL": "https://api.yourchoiceice.com",
         "VITE_GOOGLE_MAPS_API_KEY": "$GOOGLE_MAPS_API_KEY"
       }
     },
@@ -16,7 +16,7 @@
       "minInstances": 1,
       "maxInstances": 2,
       "envVars": {
-        "VITE_API_URL": "https://app-ifriwrjz.fly.dev",
+        "VITE_API_URL": "https://api.yourchoiceice.com",
         "VITE_GOOGLE_MAPS_API_KEY": "$GOOGLE_MAPS_API_KEY"
       }
     }
@@ -26,5 +26,6 @@
       "echo 'Running post-deploy checks'",
       "curl -s https://yourchoiceice.com/api/health || echo 'Health check failed'"
     ]
-  }
+  },
+  "domains": ["yourchoiceice.com"]
 }

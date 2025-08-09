@@ -10,8 +10,8 @@ logger = logging.getLogger(__name__)
 class MonitoringService:
     def __init__(self):
         self.domains_to_monitor = [
-            "arcticicesolutions.com",
-            "www.arcticicesolutions.com"
+            "yourchoiceice.com",
+            "www.yourchoiceice.com"
         ]
     
     def check_ssl_certificate(self, domain: str, port: int = 443) -> Dict:

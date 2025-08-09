@@ -11,7 +11,7 @@ app = FastAPI(title="Arctic Ice AI Data Imports")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://arcticicesolutions.com", "https://api.arcticicesolutions.com"],
+    allow_origins=["https://yourchoiceice.com", "https://api.yourchoiceice.com"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -88,7 +88,7 @@ async def import_quickbooks_with_ai(company_id: str) -> Dict[str, Any]:
             "company_id": company_id,
             "data_found": mock_qb_data,
             "ai_analysis": ai_analysis,
-            "redirect_uri": "https://arcticicesolutions.com/auth/callback"
+            "redirect_uri": "https://yourchoiceice.com/auth/callback"
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"QuickBooks import failed: {str(e)}")

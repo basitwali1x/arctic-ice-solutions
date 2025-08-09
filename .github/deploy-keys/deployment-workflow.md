@@ -7,13 +7,13 @@ This repository is configured for automatic deployment of both frontend and back
 
 ### Frontend Deployment
 - **Platform**: Devin Apps Platform
-- **URL**: https://arcticicesolutions.com
+- **URL**: https://yourchoiceice.com
 - **Build Process**: React + TypeScript with Vite
 - **Authentication**: Uses `DEVIN_SECRET_KEY` secret
 
 ### Backend Deployment
 - **Platform**: Fly.io
-- **URL**: https://app-rawyclbe.fly.dev
+- **URL**: https://api.yourchoiceice.com
 - **Build Process**: FastAPI with Poetry
 - **Authentication**: Uses `FLY_API_TOKEN` secret
 

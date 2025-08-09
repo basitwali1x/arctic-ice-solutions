@@ -3,7 +3,7 @@ const path = require('path');
 
 const distPath = path.join(__dirname, 'frontend/dist');
 const env = {
-  VITE_API_URL: process.env.VITE_API_URL || 'https://app-rawyclbe.fly.dev',
+  VITE_API_URL: process.env.VITE_API_URL || 'https://api.yourchoiceice.com',
   VITE_GOOGLE_MAPS_API_KEY: process.env.VITE_GOOGLE_MAPS_API_KEY || ''
 };
 
@@ -16,9 +16,9 @@ if (!fs.existsSync(distPath)) {
   process.exit(1);
 }
 
-if (!env.VITE_API_URL.includes('app-rawyclbe.fly.dev')) {
+if (!env.VITE_API_URL.includes('api.yourchoiceice.com')) {
   console.error('❌ Error: Incorrect API URL detected:', env.VITE_API_URL);
-  console.error('Expected URL should contain: app-rawyclbe.fly.dev');
+  console.error('Expected URL should contain: api.yourchoiceice.com');
   process.exit(1);
 }
 
@@ -55,6 +55,7 @@ if (fs.existsSync(assetsPath)) {
     const oldUrlPatterns = [
       /https:\/\/app-dfyyccxe\.fly\.dev/g,
       /https:\/\/app-eueptojk\.fly\.dev/g,
+      /https:\/\/app-rawyclbe\.fly\.dev/g,
       /https:\/\/app-[a-z0-9]+\.fly\.dev/g
     ];
     
@@ -93,7 +94,7 @@ if (fs.existsSync(assetsPath)) {
   const verificationFailed = jsFiles.some(file => {
     const filePath = path.join(assetsPath, file);
     const content = fs.readFileSync(filePath, 'utf8');
-    return content.includes('app-dfyyccxe.fly.dev') || content.includes('app-eueptojk.fly.dev');
+    return content.includes('app-dfyyccxe.fly.dev') || content.includes('app-eueptojk.fly.dev') || content.includes('app-rawyclbe.fly.dev');
   });
   
   if (verificationFailed) {
@@ -135,7 +136,7 @@ const runtimeConfigContent = `
   const originalFetch = window.fetch;
   window.fetch = function(url, options) {
     if (typeof url === 'string') {
-      if (url.includes('app-dfyyccxe.fly.dev') || url.includes('app-eueptojk.fly.dev')) {
+      if (url.includes('app-dfyyccxe.fly.dev') || url.includes('app-eueptojk.fly.dev') || url.includes('app-rawyclbe.fly.dev')) {
         url = url.replace(/https:\\/\\/app-[a-z0-9]+\\.fly\\.dev/, "${env.VITE_API_URL}");
         console.log('🔄 Redirected API call to:', url);
       }

@@ -1,5 +1,5 @@
 (function() {
-  const EXPECTED_URL = "https://app-rawyclbe.fly.dev";
+  const EXPECTED_URL = "https://api.yourchoiceice.com";
   const CHECK_INTERVAL = 300000; // 5 minutes
   
   function checkConfiguration() {
@@ -33,7 +33,7 @@
         console.error('[Config Monitor] ❌ Backend connection failed:', error);
         
         const currentOrigin = window.location.origin;
-        if (currentOrigin.includes('arcticicesolutions.com')) {
+        if (currentOrigin.includes('yourchoiceice.com')) {
           console.log('[Config Monitor] Attempting to reload with cache bypass...');
           window.location.reload(true);
         }

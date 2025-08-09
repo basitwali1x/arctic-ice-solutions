@@ -1,6 +1,6 @@
 # Arctic Ice Solutions - Enhanced Features Deployment Package
 
-This package contains all the enhanced features for Arctic Ice Solutions, configured for deployment to arcticicesolutions.com.
+This package contains all the enhanced features for Arctic Ice Solutions, configured for deployment to yourchoiceice.com.
 
 ## Components
 
@@ -48,10 +48,10 @@ cd monitoring && chmod +x ssl-check.sh && ./ssl-check.sh
 
 ```bash
 # Check all endpoints
-curl -I https://arcticicesolutions.com/api/health
-curl https://api.arcticicesolutions.com/weather/forecast?lat=40.71&lon=-74.01
-curl https://api.arcticicesolutions.com/monitoring/ssl-check
-openssl s_client -connect arcticicesolutions.com:443 | openssl x509 -noout -dates
+curl -I https://yourchoiceice.com/api/health
+curl https://api.yourchoiceice.com/weather/forecast?lat=40.71&lon=-74.01
+curl https://api.yourchoiceice.com/monitoring/ssl-check
+openssl s_client -connect yourchoiceice.com:443 | openssl x509 -noout -dates
 ```
 
 ## Environment Variables Required
@@ -65,6 +65,6 @@ openssl s_client -connect arcticicesolutions.com:443 | openssl x509 -noout -date
 ## Domain Configuration
 
 All services are configured to use:
-- Frontend: `https://arcticicesolutions.com`
-- API: `https://api.arcticicesolutions.com`
-- OAuth Redirects: `https://arcticicesolutions.com/auth/callback`
+- Frontend: `https://yourchoiceice.com`
+- API: `https://api.yourchoiceice.com`
+- OAuth Redirects: `https://yourchoiceice.com/auth/callback`

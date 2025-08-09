@@ -1,5 +1,5 @@
-export const API_ENDPOINT = "https://api.arcticicesolutions.com/v2";
-export const BASE_URL = "https://arcticicesolutions.com";
+export const API_ENDPOINT = "https://api.yourchoiceice.com/v2";
+export const BASE_URL = "https://yourchoiceice.com";
 
 export const config = {
   api: {

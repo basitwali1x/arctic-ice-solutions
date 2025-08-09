@@ -3,7 +3,7 @@
 set -e
 
 APP_ID="ice-management-app-4r16aafs"
-CORRECT_API_URL="https://app-rawyclbe.fly.dev"
+CORRECT_API_URL="https://api.yourchoiceice.com"
 
 echo "🔧 Force Rebuild Script for Devin Apps Platform"
 echo "App ID: $APP_ID"
@@ -62,4 +62,4 @@ done
 
 echo "=============================================="
 echo "🎉 Force rebuild completed"
-echo "Please verify the deployment at: https://arcticicesolutions.com"
+echo "Please verify the deployment at: https://yourchoiceice.com"

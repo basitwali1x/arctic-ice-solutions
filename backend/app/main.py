@@ -50,9 +50,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "*",  # Allows all origins for development
-        "https://arcticicesolutions.com",  # New primary domain
-        "https://www.arcticicesolutions.com",  # New domain with www
-        "https://api.arcticicesolutions.com",  # API domain
+        "https://yourchoiceice.com",  # New primary domain
+        "https://www.yourchoiceice.com",  # New domain with www
+        "https://api.yourchoiceice.com",  # API domain
         "https://ice-management-app-4r16aafs.devinapps.com",  # Legacy deployment URL
         "https://dashboard-flicker-app-nx31x17t.devinapps.com",  # New frontend URL
         "http://localhost:5173",  # Local frontend

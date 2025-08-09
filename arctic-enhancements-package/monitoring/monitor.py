@@ -10,7 +10,7 @@ app = FastAPI(title="Arctic Ice Monitoring Service")
 router = APIRouter()
 
 @router.get("/ssl-check")
-async def check_ssl(domain: str = "arcticicesolutions.com") -> Dict[str, Any]:
+async def check_ssl(domain: str = "yourchoiceice.com") -> Dict[str, Any]:
     """Check SSL certificate expiry for domain"""
     try:
         context = ssl.create_default_context()
@@ -45,7 +45,7 @@ async def health_check() -> Dict[str, Any]:
     overall_status = "healthy"
     
     try:
-        ssl_result = await check_ssl("arcticicesolutions.com")
+        ssl_result = await check_ssl("yourchoiceice.com")
         checks["main_ssl"] = ssl_result
         if ssl_result["status"] != "healthy":
             overall_status = "warning"
@@ -54,7 +54,7 @@ async def health_check() -> Dict[str, Any]:
         overall_status = "error"
     
     try:
-        api_ssl_result = await check_ssl("api.arcticicesolutions.com")
+        api_ssl_result = await check_ssl("api.yourchoiceice.com")
         checks["api_ssl"] = api_ssl_result
         if api_ssl_result["status"] != "healthy":
             overall_status = "warning"
@@ -63,7 +63,7 @@ async def health_check() -> Dict[str, Any]:
         overall_status = "error"
     
     try:
-        response = requests.get("https://api.arcticicesolutions.com/health", timeout=10)
+        response = requests.get("https://api.yourchoiceice.com/health", timeout=10)
         checks["api_availability"] = {
             "status": "healthy" if response.status_code == 200 else "error",
             "response_code": response.status_code,
@@ -82,7 +82,7 @@ async def health_check() -> Dict[str, Any]:
 @router.post("/alert")
 async def send_alert(message: str, severity: str = "info") -> Dict[str, Any]:
     """Send monitoring alert"""
-    monitoring_email = os.getenv("MONITORING_EMAIL", "admin@arcticicesolutions.com")
+    monitoring_email = os.getenv("MONITORING_EMAIL", "admin@yourchoiceice.com")
     
     alert_data = {
         "timestamp": datetime.datetime.now().isoformat(),

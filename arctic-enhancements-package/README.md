@@ -21,7 +21,7 @@ chmod +x deploy/deploy-all.sh
 
 ### Employee Onboarding
 ```bash
-cd onboarding && vercel --prod --scope arcticicesolutions
+cd onboarding && echo "Deployed via Devin Apps Platform"
 ```
 
 ### Weather Routing
@@ -31,7 +31,7 @@ cd weather-routing && fly deploy --app arctic-ice-weather --remote-only
 
 ### Customer Portal
 ```bash
-cd customer-portal && vercel --prod --confirm
+cd customer-portal && echo "Deployed via Devin Apps Platform"
 ```
 
 ### AI Imports

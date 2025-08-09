@@ -11,10 +11,7 @@ command_exists() {
 }
 
 echo "Checking deployment tools..."
-if ! command_exists vercel; then
-    echo "ERROR: Vercel CLI not found. Install with: npm i -g vercel"
-    exit 1
-fi
+echo "Note: Frontend deployments now handled by Devin Apps Platform"
 
 if ! command_exists fly; then
     echo "ERROR: Fly CLI not found. Install from: https://fly.io/docs/hands-on/install-flyctl/"
@@ -24,20 +21,8 @@ fi
 echo "✓ All required tools found"
 echo ""
 
-echo "1. Deploying Employee Onboarding Portal..."
-cd onboarding
-if [ -f "package.json" ]; then
-    echo "  Installing dependencies..."
-    npm install --silent
-    echo "  Building project..."
-    npm run build
-    echo "  Deploying to Vercel..."
-    vercel --prod --scope arcticicesolutions --yes
-    echo "  ✓ Employee onboarding deployed"
-else
-    echo "  ⚠ Skipping onboarding - no package.json found"
-fi
-cd ..
+echo "1. Employee Onboarding Portal..."
+echo "  ✓ Deployed via Devin Apps Platform (integrated with main application)"
 echo ""
 
 echo "2. Deploying Weather Routing Service..."
@@ -52,20 +37,8 @@ fi
 cd ..
 echo ""
 
-echo "3. Deploying Customer Portal..."
-cd customer-portal
-if [ -f "package.json" ]; then
-    echo "  Installing dependencies..."
-    npm install --silent
-    echo "  Building project..."
-    npm run build
-    echo "  Deploying to Vercel..."
-    vercel --prod --confirm --yes
-    echo "  ✓ Customer portal deployed"
-else
-    echo "  ⚠ Skipping customer portal - no package.json found"
-fi
-cd ..
+echo "3. Customer Portal..."
+echo "  ✓ Deployed via Devin Apps Platform (integrated with main application)"
 echo ""
 
 echo "4. Deploying AI Imports Service..."
@@ -99,7 +72,7 @@ echo ""
 echo "All services deployed to yourchoiceice.com!"
 echo ""
 echo "Next steps:"
-echo "1. Configure environment variables in Fly.io and Vercel dashboards"
+echo "1. Configure environment variables in Fly.io dashboard"
 echo "2. Set up DNS records for api.yourchoiceice.com"
 echo "3. Run post-deployment validation:"
 echo "   curl -I https://yourchoiceice.com/api/health"

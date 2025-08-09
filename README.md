@@ -220,5 +220,4 @@ arctic-ice-solutions/
 *Comprehensive business management across Louisiana and Texas operations*
 # Trigger deployment
 # Registry fixes applied - forcing CI trigger
-# Force Vercel deployment - Thu Aug  7 19:04:36 UTC 2025
-# Force Vercel deployment - Thu Aug  7 19:25:24 UTC 2025
+# Migrated to Devin Apps Platform - Domain updated to yourchoiceice.com

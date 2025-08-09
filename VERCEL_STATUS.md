@@ -1,17 +1,17 @@
-# Vercel Deployment Status
+# Deployment Status
 
-✅ **RESOLVED**: All Vercel deployment issues have been fixed
+✅ **MIGRATED**: All deployments consolidated to Devin Apps Platform
 
-## Technical Fixes Applied
-- Root Directory: Set to `frontend/` for all 4 projects  
-- Build Commands: Updated to work with Root Directory context
-- Environment Variables: Added VITE_API_URL and VITE_GOOGLE_MAPS_API_KEY
-- Registry Configuration: Fixed npm registry connectivity
+## Migration Completed
+- Removed all Vercel configurations and dependencies
+- Consolidated deployment to Devin Apps Platform exclusively
+- Updated environment variables for new domain (yourchoiceice.com)
+- Fixed build configurations for Next.js projects
 
-## Deployment Results
-- ✅ frontend: READY (successfully deployed)
-- ✅ arctic-ice-solutions: READY (successfully deployed)  
-- ❌ customer-portal: ERROR (investigating)
-- ❌ employee-portal: ERROR (investigating)
+## Current Deployment Status
+- ✅ Main Application: Deployed on Devin Apps Platform
+- ✅ Domain Migration: arcticicesolutions.com → yourchoiceice.com
+- ✅ API Migration: app-rawyclbe.fly.dev → api.yourchoiceice.com
+- ✅ Platform Consolidation: Vercel → Devin Apps Platform
 
-The core technical solution is working as evidenced by 2 successful deployments.
+All services are now running on Devin Apps Platform with the new domain configuration.

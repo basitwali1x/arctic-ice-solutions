@@ -6,8 +6,8 @@
     }
   ],
   "env": {
-    "API_BASE_URL": "https://api.arcticicesolutions.com",
-    "NEXT_PUBLIC_API_URL": "https://api.arcticicesolutions.com"
+    "API_BASE_URL": "https://api.yourchoiceice.com",
+    "NEXT_PUBLIC_API_URL": "https://api.yourchoiceice.com"
   },
   "functions": {
     "pages/api/**/*.js": {

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo "=== Arctic Ice Solutions - Enhanced Features Deployment ==="
-echo "Deploying all services to arcticicesolutions.com..."
+echo "Deploying all services to yourchoiceice.com..."
 echo ""
 
 set -e
@@ -96,14 +96,14 @@ echo ""
 
 echo "=== Deployment Complete! ==="
 echo ""
-echo "All services deployed to arcticicesolutions.com!"
+echo "All services deployed to yourchoiceice.com!"
 echo ""
 echo "Next steps:"
 echo "1. Configure environment variables in Fly.io and Vercel dashboards"
-echo "2. Set up DNS records for api.arcticicesolutions.com"
+echo "2. Set up DNS records for api.yourchoiceice.com"
 echo "3. Run post-deployment validation:"
-echo "   curl -I https://arcticicesolutions.com/api/health"
-echo "   curl https://api.arcticicesolutions.com/weather/forecast?lat=32.7767&lon=-96.7970"
-echo "   curl https://api.arcticicesolutions.com/monitoring/ssl-check"
+echo "   curl -I https://yourchoiceice.com/api/health"
+echo "   curl https://api.yourchoiceice.com/weather/forecast?lat=32.7767&lon=-96.7970"
+echo "   curl https://api.yourchoiceice.com/monitoring/ssl-check"
 echo ""
 echo "Deployment completed at: $(date)"

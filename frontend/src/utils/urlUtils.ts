@@ -15,7 +15,7 @@ class SafeURL {
 }
 
 export const buildAPIUrl = (path: string): string => {
-  const baseUrl = (import.meta as any).env?.VITE_API_URL || 'https://app-rawyclbe.fly.dev';
+  const baseUrl = (import.meta as any).env?.VITE_API_URL || 'https://api.yourchoiceice.com';
   return new SafeURL(baseUrl, path).toString();
 };
 

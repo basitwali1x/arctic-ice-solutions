@@ -27,7 +27,7 @@ export function MobileProfile() {
     name: user.full_name,
     role: user.role,
     location: getLocationName(user.location_id),
-    email: `${user.username}@arcticicesolutions.com`,
+    email: `${user.username}@yourchoiceice.com`,
     phone: '(337) 555-0199',
     employeeId: user.username.toUpperCase()
   };

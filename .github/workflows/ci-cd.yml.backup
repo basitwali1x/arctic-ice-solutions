@@ -45,7 +45,7 @@ jobs:
           
       - name: Build frontend for production
         env:
-          VITE_API_URL: https://app-rawyclbe.fly.dev
+          VITE_API_URL: https://api.yourchoiceice.com
           VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY || '' }}
         run: |
           cd frontend
@@ -54,7 +54,7 @@ jobs:
           
       - name: Force Environment Update
         env:
-          VITE_API_URL: https://app-rawyclbe.fly.dev
+          VITE_API_URL: https://api.yourchoiceice.com
           VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY || '' }}
         run: |
           # Check if force-env-update.js exists
@@ -141,7 +141,7 @@ jobs:
           flyctl deploy --remote-only
           
           echo "Backend deployment completed successfully"
-          echo "Backend API should be accessible at: https://app-rawyclbe.fly.dev"
+          echo "Backend API should be accessible at: https://api.yourchoiceice.com"
           
       - name: Check Backend Deployment Configuration
         if: ${{ secrets.FLY_API_TOKEN == '' }}

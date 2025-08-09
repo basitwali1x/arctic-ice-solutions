@@ -6,8 +6,8 @@
 [env]
   PORT = "8000"
   ENVIRONMENT = "production"
-  API_BASE_URL = "https://api.arcticicesolutions.com"
-  CORS_ORIGINS = "https://arcticicesolutions.com,https://api.arcticicesolutions.com"
+  API_BASE_URL = "https://api.yourchoiceice.com"
+  CORS_ORIGINS = "https://yourchoiceice.com,https://api.yourchoiceice.com"
 
 [http_service]
   internal_port = 8000

@@ -1,8 +1,8 @@
 #!/bin/bash
 
-DOMAIN="arcticicesolutions.com"
-API_DOMAIN="api.arcticicesolutions.com"
-MONITORING_EMAIL="${MONITORING_EMAIL:-admin@arcticicesolutions.com}"
+DOMAIN="yourchoiceice.com"
+API_DOMAIN="api.yourchoiceice.com"
+MONITORING_EMAIL="${MONITORING_EMAIL:-admin@yourchoiceice.com}"
 
 check_ssl_expiry() {
     local domain=$1

@@ -7,7 +7,7 @@ app = FastAPI(title="Arctic Ice Weather Service")
 router = APIRouter()
 
 OPENWEATHER_KEY = os.getenv("OPENWEATHER_API_KEY")
-API_URL = "https://api.arcticicesolutions.com/weather"
+API_URL = "https://api.yourchoiceice.com/weather"
 
 @router.get("/forecast")
 async def get_forecast(lat: float, lon: float) -> Dict[str, Any]:

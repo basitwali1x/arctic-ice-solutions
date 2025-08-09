@@ -2,8 +2,8 @@
 
 set -e
 
-API_URL="https://app-rawyclbe.fly.dev"
-FRONTEND_URL="https://arcticicesolutions.com"
+API_URL="https://api.yourchoiceice.com"
+FRONTEND_URL="https://yourchoiceice.com"
 TEST_TOKEN="${TEST_TOKEN:-test-token-123}"
 
 echo "🚀 Starting AI Routing System Test"
@@ -30,7 +30,7 @@ else
 fi
 
 echo "3. Checking frontend configuration..."
-CONFIG_CHECK=$(curl -s "$FRONTEND_URL/env-config.js" | grep -o "app-rawyclbe.fly.dev" || echo "")
+CONFIG_CHECK=$(curl -s "$FRONTEND_URL/env-config.js" | grep -o "api.yourchoiceice.com" || echo "")
 if [ -n "$CONFIG_CHECK" ]; then
   echo "✅ Frontend configured with correct backend URL"
 else

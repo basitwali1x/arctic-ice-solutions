@@ -257,11 +257,11 @@ export function Settings() {
             </div>
             <div>
               <Label htmlFor="company-email">Email Address</Label>
-              <Input id="company-email" defaultValue="info@arcticicesolutions.com" autoComplete="email" />
+              <Input id="company-email" defaultValue="info@yourchoiceice.com" autoComplete="email" />
             </div>
             <div>
               <Label htmlFor="company-website">Website</Label>
-              <Input id="company-website" defaultValue="arcticicesolutions.com" autoComplete="url" />
+              <Input id="company-website" defaultValue="yourchoiceice.com" autoComplete="url" />
             </div>
           </div>
         </CardContent>

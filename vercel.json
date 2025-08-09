@@ -5,7 +5,7 @@
     "env": {
       "PNPM_STORE_DIR": "/tmp/.pnpm-store",
       "NPM_CONFIG_REGISTRY": "https://registry.npmjs.org/",
-      "VITE_API_URL": "https://app-rawyclbe.fly.dev",
+      "VITE_API_URL": "https://api.yourchoiceice.com",
       "VITE_GOOGLE_MAPS_API_KEY": ""
     }
   },

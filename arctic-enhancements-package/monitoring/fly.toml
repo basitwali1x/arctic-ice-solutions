@@ -5,7 +5,7 @@ primary_region = "dfw"
 
 [env]
   PORT = "8002"
-  MONITORING_EMAIL = "admin@arcticicesolutions.com"
+  MONITORING_EMAIL = "admin@yourchoiceice.com"
 
 [http_service]
   internal_port = 8002

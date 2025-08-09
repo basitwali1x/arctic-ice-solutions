@@ -7,7 +7,7 @@
       "minInstances": 2,
       "maxInstances": 5,
       "envVars": {
-        "VITE_API_URL": "https://app-rawyclbe.fly.dev",
+        "VITE_API_URL": "https://api.yourchoiceice.com",
         "VITE_GOOGLE_MAPS_API_KEY": "$GOOGLE_MAPS_API_KEY"
       }
     },
@@ -16,7 +16,7 @@
       "minInstances": 1,
       "maxInstances": 2,
       "envVars": {
-        "VITE_API_URL": "https://app-rawyclbe.fly.dev",
+        "VITE_API_URL": "https://api.yourchoiceice.com",
         "VITE_GOOGLE_MAPS_API_KEY": "$GOOGLE_MAPS_API_KEY"
       }
     }
@@ -24,7 +24,7 @@
   "deployHooks": {
     "postDeploy": [
       "echo 'Running post-deploy checks'",
-      "curl -s https://arcticicesolutions.com/api/health || echo 'Health check failed'"
+      "curl -s https://yourchoiceice.com/api/health || echo 'Health check failed'"
     ]
   }
 }

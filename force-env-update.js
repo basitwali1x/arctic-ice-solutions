@@ -94,7 +94,7 @@ if (fs.existsSync(assetsPath)) {
   const verificationFailed = jsFiles.some(file => {
     const filePath = path.join(assetsPath, file);
     const content = fs.readFileSync(filePath, 'utf8');
-    return content.includes('app-dfyyccxe.fly.dev') || content.includes('app-eueptojk.fly.dev') || content.includes('app-rawyclbe.fly.dev');
+    return content.includes('localhost:8000') && !content.includes('api.yourchoiceice.com');
   });
   
   if (verificationFailed) {
@@ -136,8 +136,8 @@ const runtimeConfigContent = `
   const originalFetch = window.fetch;
   window.fetch = function(url, options) {
     if (typeof url === 'string') {
-      if (url.includes('app-dfyyccxe.fly.dev') || url.includes('app-eueptojk.fly.dev') || url.includes('app-rawyclbe.fly.dev')) {
-        url = url.replace(/https:\\/\\/app-[a-z0-9]+\\.fly\\.dev/, "${env.VITE_API_URL}");
+      if (url.includes('localhost:8000') && !url.includes('api.yourchoiceice.com')) {
+        url = url.replace(/http:\\/\\/localhost:8000/, "${env.VITE_API_URL}");
         console.log('🔄 Redirected API call to:', url);
       }
     }

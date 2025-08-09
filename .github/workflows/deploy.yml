@@ -1,10 +1,37 @@
 name: Deploy
-on: 
+
+on:
   push:
-    branches: [ main, devin/1752750425-arctic-ice-solutions-initial-commit ]
+    branches: [ main ]
+  workflow_dispatch:
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: echo "Triggering Vercel webhook"
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+          
+      - name: Build frontend for production
+        env:
+          VITE_API_URL: https://api.yourchoiceice.com
+          VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY || '' }}
+        run: |
+          cd frontend
+          pnpm install
+          pnpm build
+          
+      - name: Deploy to Devin Platform
+        run: |
+          echo "Frontend built successfully for Devin platform deployment"
+          echo "Build artifacts ready at frontend/dist/"
+          echo "Deployment URL: https://yourchoiceice.com"

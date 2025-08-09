@@ -1,6 +1,17 @@
 # Mobile Deployment Setup Guide
 
-This guide covers the setup and deployment process for the Arctic Ice Solutions mobile app on iOS and Android platforms using Capacitor.
+This guide covers the setup and deployment process for the Arctic Ice Solutions mobile apps on iOS and Android platforms using Capacitor.
+
+## Two Separate Apps
+
+The Arctic Ice Solutions mobile system now consists of two separate applications:
+
+1. **Arctic Ice Customer App** (`com.arcticeicesolutions.customer`) - Located in `frontend-customer/`
+2. **Arctic Ice Staff App** (`com.arcticeicesolutions.staff`) - Located in `frontend-staff/`
+
+For detailed deployment instructions for each app, see:
+- [Customer App Deployment Guide](./MOBILE_DEPLOYMENT_CUSTOMER.md)
+- [Staff App Deployment Guide](./MOBILE_DEPLOYMENT_STAFF.md)
 
 ## Overview
 

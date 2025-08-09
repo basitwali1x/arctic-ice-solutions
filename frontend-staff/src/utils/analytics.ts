@@ -1,27 +1,27 @@
-import ReactGA from 'react-ga4';
+// import ReactGA from 'react-ga4';
 
 const GA_MEASUREMENT_ID = (import.meta as any).env.VITE_GA_MEASUREMENT_ID;
 
 export const initializeAnalytics = () => {
   if (GA_MEASUREMENT_ID) {
-    ReactGA.initialize(GA_MEASUREMENT_ID);
+    // ReactGA.initialize(GA_MEASUREMENT_ID);
   }
 };
 
-export const trackPageView = (path: string, title?: string) => {
+export const trackPageView = (_path: string, _title?: string) => {
   if (GA_MEASUREMENT_ID) {
-    ReactGA.send({ hitType: 'pageview', page: path, title });
+    // ReactGA.send({ hitType: 'pageview', page: path, title });
   }
 };
 
-export const trackEvent = (action: string, category: string, label?: string, value?: number) => {
+export const trackEvent = (_action: string, _category: string, _label?: string, _value?: number) => {
   if (GA_MEASUREMENT_ID) {
-    ReactGA.event({
-      action,
-      category,
-      label,
-      value,
-    });
+    // ReactGA.event({
+    //   action,
+    //   category,
+    //   label,
+    //   value,
+    // });
   }
 };
 

@@ -1659,6 +1659,16 @@ def initialize_sample_data():
             "location_id": "loc_2",
             "is_active": True,
             "hashed_password": get_password_hash(demo_password)
+        },
+        {
+            "id": "user_11",
+            "username": "basitwali1x",
+            "email": "basitwali1x@gmail.com",
+            "full_name": "Basit Wali",
+            "role": "manager",
+            "location_id": "loc_1",
+            "is_active": True,
+            "hashed_password": get_password_hash("Arct!c!ce2023")
         }
     ]
     

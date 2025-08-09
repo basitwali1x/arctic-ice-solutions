@@ -31,8 +31,8 @@ jobs:
           pnpm build
           
       - name: Deploy to Devin Platform
-        env:
-          DEVIN_TOKEN: ${{ secrets.DEVIN_TOKEN }}
-        run: |
-          cd frontend
-          npx @devin/cli deploy --token=$DEVIN_TOKEN --domain=yourchoiceice.com --build-dir=dist
+        uses: devin-ai/deploy-action@v1
+        with:
+          app-id: ice-management-app-4r16aafs
+          build-dir: frontend/dist
+          environment: production

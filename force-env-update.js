@@ -16,9 +16,9 @@ if (!fs.existsSync(distPath)) {
   process.exit(1);
 }
 
-if (!env.VITE_API_URL.includes('api.yourchoiceice.com')) {
+if (!env.VITE_API_URL.includes('api.yourchoiceice.com') && !env.VITE_API_URL.includes('fly.dev')) {
   console.error('❌ Error: Incorrect API URL detected:', env.VITE_API_URL);
-  console.error('Expected URL should contain: api.yourchoiceice.com');
+  console.error('Expected URL should contain: api.yourchoiceice.com or fly.dev');
   process.exit(1);
 }
 

@@ -31,7 +31,8 @@ jobs:
           pnpm build
           
       - name: Deploy to Devin Platform
+        env:
+          DEVIN_TOKEN: ${{ secrets.DEVIN_TOKEN }}
         run: |
-          echo "Frontend built successfully for Devin platform deployment"
-          echo "Build artifacts ready at frontend/dist/"
-          echo "Deployment URL: https://yourchoiceice.com"
+          cd frontend
+          npx @devin/cli deploy --token=$DEVIN_TOKEN --domain=yourchoiceice.com --build-dir=dist

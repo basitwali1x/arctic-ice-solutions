@@ -2,7 +2,7 @@ name: Deploy
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, devin/1752750425-arctic-ice-solutions-initial-commit ]
   workflow_dispatch:
 
 jobs:

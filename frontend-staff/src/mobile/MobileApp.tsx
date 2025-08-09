@@ -56,7 +56,7 @@ function MobileApp() {
   const getRoleBasedRoutes = () => {
     const userRole = user?.role?.toLowerCase();
     
-    if (!['manager', 'dispatcher', 'driver', 'technician'].includes(userRole)) {
+    if (!['manager', 'dispatcher', 'driver', 'employee'].includes(userRole)) {
       return (
         <Routes>
           <Route path="*" element={<div className="p-4 text-center">Access denied. This app is for staff only.</div>} />
@@ -69,7 +69,7 @@ function MobileApp() {
         <Route path="/" element={<Navigate to="/mobile/dashboard" replace />} />
         <Route path="/dashboard" element={<MobileDashboard />} />
         
-        {(userRole === 'technician' || userRole === 'manager') && (
+        {(userRole === 'employee' || userRole === 'manager') && (
           <Route path="/work-orders" element={<MobileWorkOrders />} />
         )}
         
@@ -81,7 +81,7 @@ function MobileApp() {
           <Route path="/driver" element={<MobileDriver />} />
         )}
         
-        {(userRole === 'driver' || userRole === 'technician' || userRole === 'manager') && (
+        {(userRole === 'driver' || userRole === 'employee' || userRole === 'manager') && (
           <Route path="/inspection" element={<MobileInspection />} />
         )}
         

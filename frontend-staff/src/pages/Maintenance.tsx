@@ -10,7 +10,7 @@ interface WorkOrder {
   id: string;
   vehicle_id: string;
   vehicle_name: string;
-  technician_name: string;
+  employee_name: string;
   issue_description: string;
   priority: 'low' | 'medium' | 'high' | 'critical';
   status: 'pending' | 'approved' | 'in_progress' | 'completed' | 'rejected';
@@ -206,7 +206,7 @@ export function Maintenance() {
                   </div>
                   
                   <div className="text-sm space-y-1">
-                    <p><strong>Technician:</strong> {order.technician_name}</p>
+                    <p><strong>Employee:</strong> {order.employee_name}</p>
                     <p><strong>Issue:</strong> {order.issue_description}</p>
                     <p><strong>Type:</strong> {order.work_type}</p>
                     <p><strong>Estimated Cost:</strong> ${order.estimated_cost.toFixed(2)}</p>
@@ -265,7 +265,7 @@ export function Maintenance() {
                   </div>
                   
                   <div className="text-sm space-y-1">
-                    <p><strong>Technician:</strong> {order.technician_name}</p>
+                    <p><strong>Employee:</strong> {order.employee_name}</p>
                     <p><strong>Issue:</strong> {order.issue_description}</p>
                     <p><strong>Type:</strong> {order.work_type}</p>
                     <p><strong>Cost:</strong> ${order.estimated_cost.toFixed(2)}</p>

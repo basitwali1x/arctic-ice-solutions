@@ -62,7 +62,7 @@ export function MobileDriver() {
     setCurrentRoute({
       id: 'route-001',
       route_number: 'LA-001',
-      driver_name: 'Field Technician',
+      driver_name: 'Field Employee',
       vehicle_id: 'LA-ICE-01',
       start_time: '08:00 AM',
       estimated_completion: '04:30 PM',

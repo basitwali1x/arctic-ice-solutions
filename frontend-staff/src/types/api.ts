@@ -92,7 +92,7 @@ export interface WorkOrder {
   id: string;
   vehicle_id: string;
   vehicle_name: string;
-  technician_name: string;
+  employee_name: string;
   issue_description: string;
   priority: 'low' | 'medium' | 'high' | 'critical';
   status: 'pending' | 'approved' | 'in_progress' | 'completed' | 'rejected';

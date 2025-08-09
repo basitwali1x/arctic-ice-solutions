@@ -74,7 +74,7 @@ export function MobileHeader({ currentUser }: MobileHeaderProps) {
               <Button variant="ghost" className="w-full justify-start" onClick={() => { navigate(getNavigationPath('/mobile/dashboard')); setShowMenu(false); }}>
                 Dashboard
               </Button>
-              {(user?.role === 'technician' || user?.role === 'manager') && (
+              {(user?.role === 'employee' || user?.role === 'manager') && (
                 <Button variant="ghost" className="w-full justify-start" onClick={() => { navigate(getNavigationPath('/mobile/work-orders')); setShowMenu(false); }}>
                   Work Orders
                 </Button>
@@ -94,7 +94,7 @@ export function MobileHeader({ currentUser }: MobileHeaderProps) {
                   Customer Portal
                 </Button>
               )}
-              {(user?.role === 'driver' || user?.role === 'technician' || user?.role === 'manager') && (
+              {(user?.role === 'driver' || user?.role === 'employee' || user?.role === 'manager') && (
                 <Button variant="ghost" className="w-full justify-start" onClick={() => { navigate(getNavigationPath('/mobile/inspection')); setShowMenu(false); }}>
                   Pre-Trip Inspection
                 </Button>

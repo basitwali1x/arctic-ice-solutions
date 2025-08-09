@@ -31,7 +31,7 @@ interface PreTripInspection {
 export function MobileInspection() {
   const [inspection, setInspection] = useState<PreTripInspection>({
     vehicle_id: 'LA-ICE-01',
-    driver_name: 'Field Technician',
+    driver_name: 'Field Employee',
     inspection_date: new Date().toISOString().split('T')[0],
     odometer_reading: 125430,
     fuel_level: 75,

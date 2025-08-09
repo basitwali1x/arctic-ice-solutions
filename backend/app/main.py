@@ -249,6 +249,20 @@ class WorkOrder(BaseModel):
     estimated_hours: float
     approved_by: Optional[str] = None
     approved_date: Optional[datetime] = None
+class WorkOrderCreate(BaseModel):
+    vehicle_id: str
+    vehicle_name: Optional[str] = None
+    technician_name: str
+    issue_description: str
+    priority: WorkOrderPriority
+    status: WorkOrderStatus = WorkOrderStatus.PENDING
+    work_type: WorkOrderType
+    estimated_cost: float = 0
+    estimated_hours: float = 0
+    approved_by: Optional[str] = None
+    approved_date: Optional[datetime] = None
+
+
 
 class ProductionEntryCreate(BaseModel):
     date: date
@@ -2970,18 +2984,30 @@ async def get_work_orders(status: Optional[str] = None, current_user: UserInDB =
     return orders
 
 @app.post("/api/maintenance/work-orders")
-async def create_work_order(work_order: WorkOrder, current_user: UserInDB = Depends(get_current_user)):
+async def create_work_order(work_order: WorkOrderCreate, current_user: UserInDB = Depends(get_current_user)):
     vehicle = vehicles_db.get(work_order.vehicle_id)
     if not vehicle:
         raise HTTPException(status_code=404, detail="Vehicle not found")
     if current_user.role != UserRole.MANAGER and vehicle["location_id"] != current_user.location_id:
         raise HTTPException(status_code=403, detail="Cannot create work order for vehicle in different location")
     
-    work_order.id = str(uuid.uuid4())
-    work_order.submitted_date = datetime.now()
-    work_orders_db[work_order.id] = work_order.dict()
+    vehicle_name = work_order.vehicle_name or f"{vehicle['license_plate']} ({vehicle['vehicle_type']})"
+    created = WorkOrder(
+        id=str(uuid.uuid4()),
+        vehicle_id=work_order.vehicle_id,
+        vehicle_name=vehicle_name,
+        technician_name=work_order.technician_name,
+        issue_description=work_order.issue_description,
+        priority=work_order.priority,
+        status=work_order.status,
+        work_type=work_order.work_type,
+        submitted_date=datetime.now(),
+        estimated_cost=work_order.estimated_cost,
+        estimated_hours=work_order.estimated_hours,
+    )
+    work_orders_db[created.id] = created.dict()
     save_data_to_disk()
-    return work_order
+    return created
 
 @app.post("/api/maintenance/work-orders/{work_order_id}/approve")
 async def approve_work_order(work_order_id: str, current_user: UserInDB = Depends(get_current_user)):

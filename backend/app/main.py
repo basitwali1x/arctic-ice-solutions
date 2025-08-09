@@ -665,17 +665,17 @@ def save_data_to_disk():
         DATA_DIR.mkdir(exist_ok=True)
         
         with open(CUSTOMERS_FILE, 'w') as f:
-            json.dump(imported_customers, f, indent=2)
+            json.dump(imported_customers, f, indent=2, default=str)
         with open(ORDERS_FILE, 'w') as f:
-            json.dump(imported_orders, f, indent=2)
+            json.dump(imported_orders, f, indent=2, default=str)
         with open(FINANCIAL_FILE, 'w') as f:
-            json.dump(imported_financial_data, f, indent=2)
+            json.dump(imported_financial_data, f, indent=2, default=str)
         with open(WORK_ORDERS_FILE, 'w') as f:
-            json.dump(work_orders_db, f, indent=2)
+            json.dump(work_orders_db, f, indent=2, default=str)
         with open(PRODUCTION_FILE, 'w') as f:
-            json.dump(production_entries_db, f, indent=2)
+            json.dump(production_entries_db, f, indent=2, default=str)
         with open(EXPENSES_FILE, 'w') as f:
-            json.dump(expenses_db, f, indent=2)
+            json.dump(expenses_db, f, indent=2, default=str)
         print(f"Saved data: {len(imported_customers)} customers, {len(imported_orders)} orders")
     except Exception as e:
         print(f"Error saving data: {e}")

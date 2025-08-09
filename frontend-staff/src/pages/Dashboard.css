@@ -1,0 +1,22 @@
+.dashboard-container {
+  view-transition-name: dashboard-transition;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.dashboard-content {
+  animation: fadeIn 300ms ease-out;
+}
+
+.dashboard-loading {
+  opacity: 0;
+  transition: opacity 300ms ease-out;
+}
+
+.dashboard-loaded {
+  opacity: 1;
+  transition: opacity 300ms ease-out;
+}

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Arctic Ice Customer</string>
+    <string name="title_activity_main">Arctic Ice Customer</string>
+    <string name="package_name">com.arcticeicesolutions.customer</string>
+    <string name="custom_url_scheme">com.arcticeicesolutions.customer</string>
+</resources>

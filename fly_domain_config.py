@@ -52,7 +52,7 @@ def list_certificates(app_name, token):
     return make_fly_request(f"apps/{app_name}/certificates", token=token)
 
 def main():
-    app_name = "app-rawyclbe"
+    app_name = "arctic-ice-api"
     domain = "api.yourchoiceice.com"
     
     tokens_to_try = [

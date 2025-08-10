@@ -8,7 +8,7 @@ import sys
 
 def make_cloudflare_request(endpoint, method="GET", data=None):
     """Make authenticated request to Cloudflare API"""
-    api_token = os.environ.get('cloufaretoken')
+    api_token = os.environ.get('clouddep')
     if not api_token:
         print("ERROR: No Cloudflare API token found in environment")
         return None
@@ -73,7 +73,7 @@ def create_dns_record(zone_id, record_type, name, content, ttl=1):
 def main():
     domain = "yourchoiceice.com"
     subdomain = "api.yourchoiceice.com"
-    target = "app-rawyclbe.fly.dev"
+    target = "arctic-ice-api.fly.dev"
     
     print("=== Cloudflare DNS Configuration ===")
     print(f"Domain: {domain}")

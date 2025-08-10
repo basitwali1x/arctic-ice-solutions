@@ -1,15 +1,15 @@
 {
-  "timestamp": "2025-08-10T20:09:03.638371",
+  "timestamp": "2025-08-10T23:32:52.187019",
   "dns_resolution": [
     {
       "domain": "yourchoiceice.com",
       "status": "resolved",
-      "ip": "104.21.16.1"
+      "ip": "104.21.96.1"
     },
     {
       "domain": "api.yourchoiceice.com",
       "status": "resolved",
-      "ip": "66.241.124.227"
+      "ip": "66.241.124.78"
     }
   ],
   "http_accessibility": [
@@ -20,8 +20,16 @@
     },
     {
       "url": "https://api.yourchoiceice.com/healthz",
-      "status": "failed",
-      "error": "<urlopen error [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)>"
+      "status": "accessible",
+      "http_code": 200,
+      "headers": {
+        "date": "Sun, 10 Aug 2025 23:32:52 GMT",
+        "server": "Fly/3fc8d4ba2 (2025-08-04)",
+        "content-length": "15",
+        "content-type": "application/json",
+        "via": "1.1 fly.io, 1.1 fly.io",
+        "fly-request-id": "01K2B58VAGXF4E9WM9GTTTMKWB-sea"
+      }
     }
   ],
   "ssl_certificates": [
@@ -33,12 +41,12 @@
     {
       "domain": "api.yourchoiceice.com",
       "status": "error",
-      "error": "[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)"
+      "error": "'tuple' object has no attribute 'get'"
     }
   ],
   "summary": {
     "domains_resolved": 2,
-    "urls_accessible": 0,
+    "urls_accessible": 1,
     "ssl_healthy": 0,
     "total_domains": 2,
     "total_urls": 2

@@ -90,7 +90,8 @@ def main():
         http_results.append(result)
         status_icon = "✅" if result["status"] == "accessible" and result.get("http_code") == 200 else "❌"
         if result["status"] == "accessible":
-            print(f"   {status_icon} {url} -> HTTP {result['http_code']} ({result['response_time']:.2f}s)")
+            response_time = result.get('response_time', 0.0)
+            print(f"   {status_icon} {url} -> HTTP {result['http_code']} ({response_time:.2f}s)")
         else:
             print(f"   {status_icon} {url} -> {result['error']}")
     print()

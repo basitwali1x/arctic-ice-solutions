@@ -1,0 +1,5 @@
+• Initial release of Arctic Ice Solutions mobile app
+• Order management and tracking
+• Real-time delivery updates
+• Customer portal access
+• Staff work order management

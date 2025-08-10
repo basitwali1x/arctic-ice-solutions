@@ -27,5 +27,9 @@
       "curl -s https://yourchoiceice.com/api/health || echo 'Health check failed'"
     ]
   },
-  "domains": ["yourchoiceice.com"]
+  "domains": ["yourchoiceice.com"],
+  "ssl": {
+    "force_https": true,
+    "http2": true
+  }
 }

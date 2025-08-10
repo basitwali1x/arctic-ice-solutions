@@ -92,7 +92,7 @@ jobs:
         KEYSTORE_FILE: keystore.jks
         KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-        KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        KEY_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         
     - name: Build release AAB
       run: |
@@ -102,7 +102,7 @@ jobs:
         KEYSTORE_FILE: keystore.jks
         KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-        KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        KEY_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         
     - name: Upload APK artifacts
       uses: actions/upload-artifact@v4

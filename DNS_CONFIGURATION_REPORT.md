@@ -21,16 +21,28 @@ TXT _dmarc.yourchoiceice.com -> "v=DMARC1; p=reject; adkim=r; aspf=r; rua=mailto
 
 ## ⚠️ Remaining Issues
 
-### 1. Fly.io Custom Domain Configuration Required
-**Problem**: While DNS resolves correctly, Fly.io rejects connections because the custom domain is not configured in the app.
+### 1. Fly.io Account Access Issue - CRITICAL
+**Problem**: app-rawyclbe is not accessible through the current authenticated Fly.io account (basitwali1x@gmail.com)
 
-**Error**: `Connection reset by peer` when accessing `api.yourchoiceice.com`
+**Evidence**: 
+- Fly.io dashboard shows "You don't have any apps yet" (0 apps)
+- API calls to app-rawyclbe return "404 page not found" 
+- Organization deploy token created but cannot access app-rawyclbe
 
-**Solution Required**: Add custom domain to Fly.io app configuration using flyctl:
+**Root Cause**: app-rawyclbe appears to be deployed under a different Fly.io account/organization
+
+**Solution Required**: Access to the correct Fly.io account where app-rawyclbe is deployed, then:
 ```bash
 flyctl certs create api.yourchoiceice.com --app app-rawyclbe
 flyctl domains add api.yourchoiceice.com --app app-rawyclbe
 ```
+
+### 2. Fly.io Custom Domain Configuration Required
+**Problem**: While DNS resolves correctly, Fly.io rejects connections because the custom domain is not configured in the app.
+
+**Error**: `Connection reset by peer` when accessing `api.yourchoiceice.com`
+
+**Dependency**: Requires resolution of Account Access Issue above
 
 ### 2. SSL Certificate Issues
 **Problem**: SSL handshake failures on both domains
@@ -48,13 +60,15 @@ flyctl domains add api.yourchoiceice.com --app app-rawyclbe
 
 ### Immediate Actions (Fly.io Configuration)
 1. ✅ **Install flyctl** - Completed, flyctl v0.3.168 installed
-2. **Authenticate with Fly.io** - In progress via GitHub OAuth
-3. **Add custom domain** to app-rawyclbe:
+2. ✅ **Authenticate with Fly.io** - Completed via GitHub OAuth, organization token created
+3. ❌ **App Access Issue** - app-rawyclbe not accessible through current account (basitwali1x@gmail.com)
+4. **BLOCKED**: Need access to Fly.io account where app-rawyclbe is actually deployed
+5. **Add custom domain** to app-rawyclbe (requires correct account access):
    ```bash
    flyctl certs create api.yourchoiceice.com --app app-rawyclbe
    ```
-4. **Verify SSL certificate** provisioning completes
-5. **Test API endpoint**: `curl https://api.yourchoiceice.com/healthz`
+6. **Verify SSL certificate** provisioning completes
+7. **Test API endpoint**: `curl https://api.yourchoiceice.com/healthz`
 
 ### Frontend Deployment
 1. **Deploy frontend** to proper hosting platform

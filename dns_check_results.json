@@ -1,0 +1,46 @@
+{
+  "timestamp": "2025-08-10T20:05:37.264611",
+  "dns_resolution": [
+    {
+      "domain": "yourchoiceice.com",
+      "status": "resolved",
+      "ip": "104.21.64.1"
+    },
+    {
+      "domain": "api.yourchoiceice.com",
+      "status": "resolved",
+      "ip": "66.241.124.227"
+    }
+  ],
+  "http_accessibility": [
+    {
+      "url": "https://yourchoiceice.com",
+      "status": "failed",
+      "error": "HTTP Error 403: Forbidden"
+    },
+    {
+      "url": "https://api.yourchoiceice.com/healthz",
+      "status": "failed",
+      "error": "<urlopen error [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)>"
+    }
+  ],
+  "ssl_certificates": [
+    {
+      "domain": "yourchoiceice.com",
+      "status": "error",
+      "error": "'tuple' object has no attribute 'get'"
+    },
+    {
+      "domain": "api.yourchoiceice.com",
+      "status": "error",
+      "error": "[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)"
+    }
+  ],
+  "summary": {
+    "domains_resolved": 2,
+    "urls_accessible": 0,
+    "ssl_healthy": 0,
+    "total_domains": 2,
+    "total_urls": 2
+  }
+}

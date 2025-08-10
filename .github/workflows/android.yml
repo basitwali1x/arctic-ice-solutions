@@ -71,7 +71,7 @@ jobs:
         cd ${{ matrix.app }}/android
         ./gradlew assembleRelease
       env:
-        KEYSTORE_FILE: app/keystore.jks
+        KEYSTORE_FILE: keystore.jks
         KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
         KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
@@ -81,7 +81,7 @@ jobs:
         cd ${{ matrix.app }}/android
         ./gradlew bundleRelease
       env:
-        KEYSTORE_FILE: app/keystore.jks
+        KEYSTORE_FILE: keystore.jks
         KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
         KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}

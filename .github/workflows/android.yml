@@ -65,7 +65,7 @@ jobs:
       env:
         KEYSTORE_FILE: ../app/keystore.jks
         KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-        KEY_ALIAS: ${{ secrets.KEYSTORE_ALIAS }}
+        KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
         KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         
     - name: Build release AAB
@@ -75,7 +75,7 @@ jobs:
       env:
         KEYSTORE_FILE: ../app/keystore.jks
         KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-        KEY_ALIAS: ${{ secrets.KEYSTORE_ALIAS }}
+        KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
         KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         
     - name: Upload APK artifacts

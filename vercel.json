@@ -8,10 +8,5 @@
   "env": {
     "VITE_API_URL": "https://api.yourchoiceice.com",
     "VITE_GOOGLE_MAPS_API_KEY": ""
-  },
-  "functions": {
-    "frontend/dist/**/*.js": {
-      "runtime": "nodejs18.x"
-    }
   }
 }

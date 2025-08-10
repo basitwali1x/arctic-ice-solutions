@@ -70,6 +70,18 @@ def create_dns_record(zone_id, record_type, name, content, ttl=1):
     result = make_cloudflare_request(f"zones/{zone_id}/dns_records", method="POST", data=data)
     return result
 
+def update_dns_record(zone_id, record_id, record_type, name, content, ttl=1):
+    """Update an existing DNS record"""
+    data = {
+        'type': record_type,
+        'name': name,
+        'content': content,
+        'ttl': ttl
+    }
+    print(f"Updating {record_type} record: {name} -> {content}")
+    result = make_cloudflare_request(f"zones/{zone_id}/dns_records/{record_id}", method="PUT", data=data)
+    return result
+
 def main():
     domain = "yourchoiceice.com"
     subdomain = "api.yourchoiceice.com"
@@ -116,6 +128,20 @@ def main():
             return 0
         else:
             print(f"⚠️  Record points to {api_record['content']}, should be {target}")
+            print(f"Updating CNAME record to point to {target}...")
+            
+            result = update_dns_record(zone_id, api_record['id'], "CNAME", subdomain, target)
+            if result and result.get('success'):
+                print("✅ CNAME record updated successfully!")
+                updated_record = result.get('result', {})
+                print(f"  ID: {updated_record.get('id')}")
+                print(f"  Name: {updated_record.get('name')}")
+                print(f"  Content: {updated_record.get('content')}")
+            else:
+                print("❌ Failed to update CNAME record")
+                if result:
+                    print(f"Error: {result.get('errors', [])}")
+                return 1
     else:
         print(f"No existing record found for {subdomain}")
         print(f"Creating CNAME record: {subdomain} -> {target}")

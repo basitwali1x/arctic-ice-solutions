@@ -47,13 +47,14 @@ flyctl domains add api.yourchoiceice.com --app app-rawyclbe
 ## 🔧 Next Steps Required
 
 ### Immediate Actions (Fly.io Configuration)
-1. **Install flyctl** on deployment environment or use Fly.io dashboard
-2. **Add custom domain** to app-rawyclbe:
+1. ✅ **Install flyctl** - Completed, flyctl v0.3.168 installed
+2. **Authenticate with Fly.io** - In progress via GitHub OAuth
+3. **Add custom domain** to app-rawyclbe:
    ```bash
    flyctl certs create api.yourchoiceice.com --app app-rawyclbe
    ```
-3. **Verify SSL certificate** provisioning completes
-4. **Test API endpoint**: `curl https://api.yourchoiceice.com/healthz`
+4. **Verify SSL certificate** provisioning completes
+5. **Test API endpoint**: `curl https://api.yourchoiceice.com/healthz`
 
 ### Frontend Deployment
 1. **Deploy frontend** to proper hosting platform

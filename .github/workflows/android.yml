@@ -61,6 +61,14 @@ jobs:
       env:
         KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         
+    - name: Verify Keystore Path
+      run: |
+        if [ ! -f "${{ matrix.app }}/android/app/keystore.jks" ]; then
+          echo "::error::Keystore not found at ${{ matrix.app }}/android/app/keystore.jks"
+          exit 1
+        fi
+        echo "✅ Keystore found and accessible"
+        
     - name: Build debug APK
       run: |
         cd ${{ matrix.app }}/android
@@ -99,3 +107,10 @@ jobs:
       with:
         name: ${{ matrix.app }}-aab
         path: ${{ matrix.app }}/android/app/build/outputs/bundle/release/*.aab
+        
+    - name: Inspect Build Artifacts
+      run: |
+        echo "📦 Build artifacts for ${{ matrix.app }}:"
+        ls -la ${{ matrix.app }}/android/app/build/outputs/apk/debug/ || echo "No debug APKs found"
+        ls -la ${{ matrix.app }}/android/app/build/outputs/apk/release/ || echo "No release APKs found"
+        ls -la ${{ matrix.app }}/android/app/build/outputs/bundle/release/ || echo "No release AABs found"

@@ -57,7 +57,17 @@ jobs:
     - name: Validate keystore
       run: |
         cd ${{ matrix.app }}/android
-        keytool -list -keystore app/keystore.jks -storepass ${{ secrets.ANDROID_KEYSTORE_PASSWORD }} -alias ${{ secrets.KEY_ALIAS }}
+        echo "🔍 Validating keystore credentials..."
+        if ! keytool -list -keystore app/keystore.jks -storepass ${{ secrets.ANDROID_KEYSTORE_PASSWORD }} -alias ${{ secrets.KEYSTORE_ALIAS }} > /dev/null 2>&1; then
+          echo "❌ Keystore validation failed. Possible issues:"
+          echo "  - Incorrect ANDROID_KEYSTORE_PASSWORD"
+          echo "  - Incorrect KEYSTORE_ALIAS (expected: yourchoiceice-key)"
+          echo "  - Corrupted keystore file"
+          echo "🔍 Available aliases in keystore:"
+          keytool -list -keystore app/keystore.jks -storepass ${{ secrets.ANDROID_KEYSTORE_PASSWORD }} || echo "Cannot list keystore contents"
+          exit 1
+        fi
+        echo "✅ Keystore validation successful"
       env:
         KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         
@@ -81,7 +91,7 @@ jobs:
       env:
         KEYSTORE_FILE: keystore.jks
         KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-        KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        KEY_ALIAS: ${{ secrets.KEYSTORE_ALIAS }}
         KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         
     - name: Build release AAB
@@ -91,7 +101,7 @@ jobs:
       env:
         KEYSTORE_FILE: keystore.jks
         KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-        KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        KEY_ALIAS: ${{ secrets.KEYSTORE_ALIAS }}
         KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         
     - name: Upload APK artifacts

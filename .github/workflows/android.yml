@@ -52,6 +52,14 @@ jobs:
     - name: Decode keystore
       run: |
         echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > ${{ matrix.app }}/android/app/keystore.jks
+        ls -la ${{ matrix.app }}/android/app/keystore.jks
+        
+    - name: Validate keystore
+      run: |
+        cd ${{ matrix.app }}/android
+        keytool -list -keystore app/keystore.jks -storepass ${{ secrets.ANDROID_KEYSTORE_PASSWORD }} -alias ${{ secrets.KEY_ALIAS }}
+      env:
+        KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         
     - name: Build debug APK
       run: |

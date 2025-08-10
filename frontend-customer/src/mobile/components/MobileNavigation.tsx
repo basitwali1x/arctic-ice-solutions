@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, Wrench, User, Truck, Route, ClipboardCheck } from 'lucide-react';
+import { Home, User } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePR } from '../../contexts/PRContext';

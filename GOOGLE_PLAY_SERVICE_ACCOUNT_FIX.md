@@ -231,6 +231,12 @@ Since the enhanced validation ruled out base64 encoding, the issue is likely one
    - Downloaded as: `fiery-emblem-467622-t0-c5eecd1bacc8.json`
    - Status: Downloaded to user's local machine
 
+3. **Key ID: `bd6ef3f63e4d` (FOUND)**
+   - Generated: Aug 11, 2025
+   - Downloaded as: `fiery-emblem-467622-t0-bd6ef3f63e4d.json`
+   - Status: ✅ Located in user's Downloads folder
+   - Location: `C:\Users\Basit\Downloads\fiery-emblem-467622-t0-bd6ef3f63e4d.json`
+
 ## PowerShell Commands to Locate and View JSON Files
 
 **Find the downloaded files:**

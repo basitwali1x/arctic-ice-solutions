@@ -130,19 +130,40 @@ jobs:
       if: github.ref == 'refs/heads/main'
       run: |
         echo "🔍 Validating Google Play service account JSON format..."
-        if ! echo '${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}' | jq empty; then
-          echo "❌ Invalid JSON format in GOOGLE_PLAY_SERVICE_ACCOUNT_JSON"
-          exit 1
+        
+        # Check if secret is base64 encoded (common issue)
+        if echo '${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}' | base64 -d > /dev/null 2>&1; then
+          echo "⚠️  WARNING: Secret appears to be base64 encoded - it should be plain text JSON"
+          echo "🔄 Attempting to decode and validate..."
+          DECODED_JSON=$(echo '${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}' | base64 -d)
+          if ! echo "$DECODED_JSON" | jq empty; then
+            echo "❌ Invalid JSON format after base64 decode"
+            exit 1
+          fi
+          JSON_CONTENT="$DECODED_JSON"
+        else
+          # Validate as plain text JSON
+          if ! echo '${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}' | jq empty; then
+            echo "❌ Invalid JSON format in GOOGLE_PLAY_SERVICE_ACCOUNT_JSON"
+            exit 1
+          fi
+          JSON_CONTENT='${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}'
         fi
         
         # Check required fields
         REQUIRED_FIELDS=("type" "project_id" "private_key" "client_email")
         for field in "${REQUIRED_FIELDS[@]}"; do
-          if ! echo '${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}' | jq -e ".$field" > /dev/null; then
+          if ! echo "$JSON_CONTENT" | jq -e ".$field" > /dev/null; then
             echo "❌ Missing required field: $field"
             exit 1
           fi
         done
+        
+        # Additional validation for common issues
+        if echo "$JSON_CONTENT" | jq -r '.private_key' | grep -q '\\n'; then
+          echo "⚠️  WARNING: private_key contains literal \\n instead of actual newlines"
+        fi
+        
         echo "✅ Service account JSON validation successful"
         
     - name: Deploy to Google Play Store

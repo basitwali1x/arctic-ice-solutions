@@ -252,9 +252,27 @@ Get-Content "$env:USERPROFILE\Downloads\fiery-emblem-467622-t0-c5eecd1bacc8.json
 Get-Content "$env:USERPROFILE\Downloads\fiery-emblem-467622-t0-deec9b6c46d0.json" | Set-Clipboard
 ```
 
-## Expected JSON Structure Template
+## Alternative Solution: Generate New Service Account Key
 
-Based on the service account configuration, the downloaded JSON files should contain:
+Since the downloaded JSON files cannot be located, here's an alternative approach:
+
+### Option 1: Use Browser Downloads
+If you can find the downloaded files, they should be named:
+- `fiery-emblem-467622-t0-deec9b6c46d0.json`
+- `fiery-emblem-467622-t0-c5eecd1bacc8.json`
+
+### Option 2: Generate Fresh Service Account Key
+If the files cannot be located, generate a new service account key:
+
+1. Go to: https://console.cloud.google.com/iam-admin/serviceaccounts/details/109698483018706418481/keys?project=fiery-emblem-467622-t0
+2. Click "Add key" → "Create new key"
+3. Select "JSON" format
+4. Download the key file
+5. Copy the entire JSON content
+
+### Expected JSON Structure Template
+
+The downloaded JSON files should contain this structure:
 
 ```json
 {
@@ -270,6 +288,19 @@ Based on the service account configuration, the downloaded JSON files should con
   "client_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs/play-store-deployment%40fiery-emblem-467622-t0.iam.gserviceaccount.com",
   "universe_domain": "googleapis.com"
 }
+```
+
+### Troubleshooting File Location Issues
+
+If PowerShell commands don't find the files, try:
+
+```powershell
+# Check browser's default download location
+$downloads = (New-Object -ComObject Shell.Application).NameSpace('shell:Downloads').Self.Path
+Get-ChildItem -Path $downloads -Name "*.json" | Where-Object { $_ -like "*fiery*" }
+
+# Check all recent JSON files
+Get-ChildItem -Path $downloads -Filter "*.json" | Sort-Object LastWriteTime -Descending | Select-Object -First 5 | ForEach-Object { $_.Name }
 ```
 
 ## Next Steps

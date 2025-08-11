@@ -218,12 +218,83 @@ Since the enhanced validation ruled out base64 encoding, the issue is likely one
 3. **Hidden/invisible characters**: Zero-width spaces, BOM markers, or other invisible Unicode characters
 4. **JSON structure issues**: While syntactically valid, the JSON might have formatting that the specific OpenSSL decoder in the action cannot handle
 
+## Service Account Key Generation Results
+
+**Latest Key Generation Attempts:**
+
+1. **Key ID: `deec9b6c46d086352c8beab6e6169ab808553bec`**
+   - Generated: Aug 11, 2025
+   - Downloaded as: `fiery-emblem-467622-t0-deec9b6c46d0.json`
+   - Status: Downloaded to user's local machine
+
+2. **Key ID: `c5eecd1bacc8` (attempted)**
+   - Downloaded as: `fiery-emblem-467622-t0-c5eecd1bacc8.json`
+   - Status: Downloaded to user's local machine
+
+## PowerShell Commands to Locate and View JSON Files
+
+**Find the downloaded files:**
+```powershell
+Get-ChildItem -Path $env:USERPROFILE\Downloads -Name "*fiery-emblem-467622-t0*.json" -Recurse
+```
+
+**View the content of the most recent file:**
+```powershell
+# For the deec9b6c46d0 key:
+Get-Content "$env:USERPROFILE\Downloads\fiery-emblem-467622-t0-deec9b6c46d0.json" | Out-String
+
+# For the c5eecd1bacc8 key (if available):
+Get-Content "$env:USERPROFILE\Downloads\fiery-emblem-467622-t0-c5eecd1bacc8.json" | Out-String
+```
+
+**Copy content to clipboard:**
+```powershell
+Get-Content "$env:USERPROFILE\Downloads\fiery-emblem-467622-t0-deec9b6c46d0.json" | Set-Clipboard
+```
+
+## Expected JSON Structure Template
+
+Based on the service account configuration, the downloaded JSON files should contain:
+
+```json
+{
+  "type": "service_account",
+  "project_id": "fiery-emblem-467622-t0",
+  "private_key_id": "[KEY_ID_FROM_FILENAME]",
+  "private_key": "-----BEGIN PRIVATE KEY-----\n[PRIVATE_KEY_CONTENT]\n-----END PRIVATE KEY-----\n",
+  "client_email": "play-store-deployment@fiery-emblem-467622-t0.iam.gserviceaccount.com",
+  "client_id": "[CLIENT_ID]",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs/play-store-deployment%40fiery-emblem-467622-t0.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
+```
+
 ## Next Steps
 
-1. **IMMEDIATE**: Update the `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` repository secret with properly formatted JSON
-2. **Enhanced Validation**: Improve validation logic to catch encoding issues
-3. **Retrigger**: Test the workflow again after secret update
-4. **Monitor**: Verify deployment success for both mobile applications
+**IMMEDIATE ACTION REQUIRED:**
+
+1. **Locate and Copy JSON Content:**
+   - Use the PowerShell commands above to find and view the downloaded JSON files
+   - Copy the **entire content** of one of the JSON files (recommend using the most recent one)
+
+2. **Update GitHub Repository Secret:**
+   - Go to: https://github.com/basitwali1x/arctic-ice-solutions/settings/secrets/actions
+   - Find `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` secret
+   - Click "Update" 
+   - Paste the **entire content** of the JSON file
+   - The content should be plain text JSON, NOT base64 encoded
+
+3. **Test the Fix:**
+   - Trigger the Android workflow manually: https://github.com/basitwali1x/arctic-ice-solutions/actions/workflows/android.yml
+   - Monitor the deployment to verify the "DECODER routines::unsupported" error is resolved
+
+4. **Verify Success:**
+   - Check that the validation step passes
+   - Confirm Google Play deployment completes successfully
+   - Monitor for any new error messages
 
 ## Documentation References
 

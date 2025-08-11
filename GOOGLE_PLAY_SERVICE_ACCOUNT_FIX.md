@@ -161,12 +161,42 @@ if missing_fields:
     raise ValueError(f"Missing required fields in service account JSON: {missing_fields}")
 ```
 
+## Test Results - Workflow 16885764838
+
+**Status**: ❌ FAILED - Validation passed but deployment still failed  
+**Date**: August 11, 2025 16:20 UTC  
+
+### Key Findings:
+- ✅ **JSON Validation Step**: Passed successfully for both frontend-customer and frontend-staff
+- ❌ **Google Play Deployment**: Still failed with same "error:1E08010C:DECODER routines::unsupported"
+- 🔍 **Root Cause**: Current validation logic doesn't catch the specific encoding issue that r0adkll action encounters
+
+### Validation Step Output:
+```
+🔍 Validating Google Play service account JSON format...
+✅ Service account JSON validation successful
+```
+
+### Deployment Failure:
+```
+Creating a new Edit for this release
+##[error]error:1E08010C:DECODER routines::unsupported
+```
+
+### Analysis:
+The JSON passes basic syntax validation and contains all required fields, but there's a deeper encoding or format issue that the r0adkll/upload-google-play@v1 action cannot handle. This suggests:
+
+1. **Possible Base64 encoding**: The secret might be base64 encoded when it should be plain text
+2. **Character encoding issues**: UTF-8 vs ASCII encoding problems
+3. **Escape sequence problems**: Newlines in private_key field not properly formatted
+4. **Hidden characters**: BOM or other invisible characters in the JSON
+
 ## Next Steps
 
-1. Update the `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` repository secret with properly formatted JSON
-2. Retrigger the Android workflow to verify the fix
-3. Monitor deployment success for both mobile applications
-4. Consider adding similar validation to other service account configurations
+1. **IMMEDIATE**: Update the `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` repository secret with properly formatted JSON
+2. **Enhanced Validation**: Improve validation logic to catch encoding issues
+3. **Retrigger**: Test the workflow again after secret update
+4. **Monitor**: Verify deployment success for both mobile applications
 
 ## Documentation References
 

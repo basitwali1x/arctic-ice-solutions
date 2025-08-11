@@ -11,15 +11,15 @@ This document provides comprehensive deployment resources for the Arctic Ice Sol
 - **Platform**: Devin Apps Platform
 - **Backend API**: https://api.yourchoiceice.com
 
-### ❌ Custom Domain Configuration Issue - CRITICAL
+### ⚠️ Custom Domain Configuration - PARTIAL SUCCESS
 - **Target Domain**: https://yourchoiceice.com
-- **Current Issue**: Certificate error (ERR_CERT_COMMON_NAME_INVALID) - Domain not accessible after 20+ minutes
-- **App ID**: `ice-management-app-4r16aafs` (configured in devin.appconfig.json)
-- **Root Cause**: `deploy_frontend` command creates new deployments instead of using configured app ID
+- **SSL Status**: ✅ RESOLVED - Cloudflare proxy provides SSL termination
 - **DNS Status**: ✅ Successfully updated CNAME record to point to current deployment
-- **SSL Status**: ❌ SSL certificate on deployment doesn't include yourchoiceice.com as valid hostname
-- **Force Rebuild Script**: ❌ Fails with "Not Found" errors, app ID may not exist
-- **Impact**: Site accessible at generated URL instead of yourchoiceice.com as required
+- **Current Issue**: 404 routing error - Frontend application not loading at custom domain
+- **App ID**: `ice-management-app-4r16aafs` (configured in devin.appconfig.json)
+- **Root Cause**: Custom domain routing issue - SSL works but application paths return 404
+- **Force Rebuild Script**: ❌ Still fails with "Not Found" errors, app ID may not exist
+- **Impact**: SSL certificate error resolved, but frontend application not accessible at yourchoiceice.com
 
 ### Environment Configuration
 Production environment variables are configured in `devin.appconfig.json`:
@@ -70,11 +70,17 @@ deploy_frontend dir="/path/to/frontend/dist"
 - ✅ App ID `ice-management-app-4r16aafs` configured in devin.appconfig.json with yourchoiceice.com domain
 - ✅ Frontend builds correctly with production API URL
 
-**Required Solution**:
-1. Use Devin Apps Platform API or CLI to deploy to specific app ID instead of creating new deployments
-2. Configure SSL certificate for yourchoiceice.com domain in Devin platform
-3. Verify domain ownership and DNS configuration
-4. Test that yourchoiceice.com serves the application correctly
+**SSL Certificate Solution - COMPLETED**:
+✅ **Cloudflare Proxy Enabled**: Successfully resolves SSL certificate error
+- Script: `enable_cloudflare_proxy.py` 
+- Result: yourchoiceice.com now accessible without ERR_CERT_COMMON_NAME_INVALID
+- SSL termination handled by Cloudflare proxy
+
+**Remaining Issue - Frontend Routing**:
+❌ **404 Error**: yourchoiceice.com returns "404 page not found" for all paths
+- Original deployment works: https://frontend-deployment-app-0vfk8kvg.devinapps.com
+- Custom domain SSL works but application routing fails
+- May require platform-level routing configuration or deployment to proper app ID
 
 **User Impact**: User frustrated with weeks of domain switching issues - needs permanent yourchoiceice.com setup to avoid "going round and round again"
 

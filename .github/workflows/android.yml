@@ -126,6 +126,25 @@ jobs:
         ls -la ${{ matrix.app }}/android/app/build/outputs/apk/release/ || echo "No release APKs found"
         ls -la ${{ matrix.app }}/android/app/build/outputs/bundle/release/ || echo "No release AABs found"
         
+    - name: Validate Google Play Service Account JSON
+      if: github.ref == 'refs/heads/main'
+      run: |
+        echo "🔍 Validating Google Play service account JSON format..."
+        if ! echo '${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}' | jq empty; then
+          echo "❌ Invalid JSON format in GOOGLE_PLAY_SERVICE_ACCOUNT_JSON"
+          exit 1
+        fi
+        
+        # Check required fields
+        REQUIRED_FIELDS=("type" "project_id" "private_key" "client_email")
+        for field in "${REQUIRED_FIELDS[@]}"; do
+          if ! echo '${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}' | jq -e ".$field" > /dev/null; then
+            echo "❌ Missing required field: $field"
+            exit 1
+          fi
+        done
+        echo "✅ Service account JSON validation successful"
+        
     - name: Deploy to Google Play Store
       if: github.ref == 'refs/heads/main'
       uses: r0adkll/upload-google-play@v1

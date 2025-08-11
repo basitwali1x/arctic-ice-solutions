@@ -191,6 +191,33 @@ The JSON passes basic syntax validation and contains all required fields, but th
 3. **Escape sequence problems**: Newlines in private_key field not properly formatted
 4. **Hidden characters**: BOM or other invisible characters in the JSON
 
+## Test Results - Workflow 16885877837 (Enhanced Validation)
+
+**Status**: ❌ FAILED - Enhanced validation passed but deployment still failed  
+**Date**: August 11, 2025 16:27 UTC  
+
+### Key Findings:
+- ✅ **Enhanced JSON Validation Step**: Passed successfully - no base64 encoding detected
+- ❌ **Google Play Deployment**: Still failed with same "error:1E08010C:DECODER routines::unsupported"
+- 🔍 **Root Cause**: The issue is NOT base64 encoding - it's a deeper character encoding or format problem
+
+### Enhanced Validation Results:
+The enhanced validation logic with base64 detection ran successfully but did not detect any encoding issues. The secret appears to be in plain text JSON format as expected, but the r0adkll action still cannot decode it.
+
+### Deployment Failure (Same Error):
+```
+Creating a new Edit for this release
+##[error]error:1E08010C:DECODER routines::unsupported
+```
+
+### Updated Analysis:
+Since the enhanced validation ruled out base64 encoding, the issue is likely one of these more subtle problems:
+
+1. **Character encoding mismatch**: The JSON might be encoded in UTF-8 with BOM or other encoding that the action cannot handle
+2. **Private key format issues**: The private_key field might have incorrect line endings or escape sequences
+3. **Hidden/invisible characters**: Zero-width spaces, BOM markers, or other invisible Unicode characters
+4. **JSON structure issues**: While syntactically valid, the JSON might have formatting that the specific OpenSSL decoder in the action cannot handle
+
 ## Next Steps
 
 1. **IMMEDIATE**: Update the `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` repository secret with properly formatted JSON

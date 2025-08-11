@@ -1,10 +1,10 @@
 {
-  "timestamp": "2025-08-10T23:32:52.187019",
+  "timestamp": "2025-08-11T02:55:41.612255",
   "dns_resolution": [
     {
       "domain": "yourchoiceice.com",
       "status": "resolved",
-      "ip": "104.21.96.1"
+      "ip": "52.88.16.158"
     },
     {
       "domain": "api.yourchoiceice.com",
@@ -16,19 +16,19 @@
     {
       "url": "https://yourchoiceice.com",
       "status": "failed",
-      "error": "HTTP Error 403: Forbidden"
+      "error": "<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: Hostname mismatch, certificate is not valid for 'yourchoiceice.com'. (_ssl.c:1000)>"
     },
     {
       "url": "https://api.yourchoiceice.com/healthz",
       "status": "accessible",
       "http_code": 200,
       "headers": {
-        "date": "Sun, 10 Aug 2025 23:32:52 GMT",
+        "date": "Mon, 11 Aug 2025 02:55:41 GMT",
         "server": "Fly/3fc8d4ba2 (2025-08-04)",
         "content-length": "15",
         "content-type": "application/json",
         "via": "1.1 fly.io, 1.1 fly.io",
-        "fly-request-id": "01K2B58VAGXF4E9WM9GTTTMKWB-sea"
+        "fly-request-id": "01K2BGW7HGK3KQCRR0DF0RA60X-sea"
       }
     }
   ],
@@ -36,7 +36,7 @@
     {
       "domain": "yourchoiceice.com",
       "status": "error",
-      "error": "'tuple' object has no attribute 'get'"
+      "error": "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: Hostname mismatch, certificate is not valid for 'yourchoiceice.com'. (_ssl.c:1000)"
     },
     {
       "domain": "api.yourchoiceice.com",

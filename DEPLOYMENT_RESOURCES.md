@@ -13,9 +13,12 @@ This document provides comprehensive deployment resources for the Arctic Ice Sol
 
 ### ❌ Custom Domain Configuration Issue - CRITICAL
 - **Target Domain**: https://yourchoiceice.com
-- **Current Issue**: Certificate error (ERR_CERT_COMMON_NAME_INVALID) - Domain not accessible
+- **Current Issue**: Certificate error (ERR_CERT_COMMON_NAME_INVALID) - Domain not accessible after 20+ minutes
 - **App ID**: `ice-management-app-4r16aafs` (configured in devin.appconfig.json)
 - **Root Cause**: `deploy_frontend` command creates new deployments instead of using configured app ID
+- **DNS Status**: ✅ Successfully updated CNAME record to point to current deployment
+- **SSL Status**: ❌ SSL certificate on deployment doesn't include yourchoiceice.com as valid hostname
+- **Force Rebuild Script**: ❌ Fails with "Not Found" errors, app ID may not exist
 - **Impact**: Site accessible at generated URL instead of yourchoiceice.com as required
 
 ### Environment Configuration

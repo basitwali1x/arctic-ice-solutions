@@ -38,4 +38,6 @@ jobs:
           echo "Environment: production"
           echo "Domain: yourchoiceice.com"
           ls -la frontend/dist/
-          echo "Deployment completed successfully"
+          echo "Note: Actual deployment to Devin Apps Platform requires manual deploy_frontend command"
+          echo "GitHub Actions cannot directly deploy to Devin Apps Platform"
+          echo "Build artifacts are ready for deployment"

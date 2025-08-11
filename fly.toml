@@ -1,13 +1,11 @@
-app = "app-rawyclbe"
+app = "arctic-ice-api"
 primary_region = "iad"
 
 [build]
-builder = "paketobuildpacks/builder:base"
+dockerfile = "Dockerfile"
 
 [env]
 PORT = "8000"
-SECRET_KEY = "production-secret-key-change-me"
-GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON = ""
 
 [[services]]
 http_checks = []

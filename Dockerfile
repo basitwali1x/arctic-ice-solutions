@@ -14,7 +14,6 @@ RUN poetry config virtualenvs.create false \
 
 # Copy application code
 COPY backend/app ./app
-COPY frontend/dist ./frontend/dist
 
 # Expose port
 EXPOSE 8000

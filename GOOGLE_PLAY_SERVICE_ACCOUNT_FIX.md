@@ -1,10 +1,11 @@
-# Google Play Service Account JSON Configuration Fix
+# Google Play Service Account Credential Fix
 
-## Issue Summary
-**Workflow ID**: 16885104108  
-**Error**: "DECODER routines::unsupported" during Google Play authentication  
-**Root Cause**: Malformed JSON in `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` repository secret  
+## Current Status - August 12, 2025
+**Latest Workflow**: 16897272236 (PR #110)  
+**Error**: `error:1E08010C:DECODER routines::unsupported` during Google Play authentication  
+**Root Cause**: Corrupted service account credentials in `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` repository secret  
 **Impact**: Both frontend-customer and frontend-staff deployments failing  
+**Solution**: Regenerate service account key in Google Cloud Console  
 
 ## Error Analysis
 
@@ -325,26 +326,62 @@ The complete JSON content has been successfully retrieved from the downloaded fi
 - ✅ Contains required field: `client_email` = "play-store-deployment@fiery-emblem-467622-t0.iam.gserviceaccount.com"
 - ✅ Contains required field: `client_id` = "109698483018706418481"
 
-## Next Steps
+## IMMEDIATE ACTION REQUIRED - Service Account Key Regeneration
 
-**IMMEDIATE ACTION REQUIRED:**
+Based on comprehensive analysis and Google search results, the `error:1E08010C:DECODER routines::unsupported` error is caused by corrupted service account credentials. All comprehensive fixes (action v1.1.3, NODE_OPTIONS, ProGuard, JSON formatting) are correctly implemented but cannot resolve the underlying credential corruption.
 
-1. **Update GitHub Repository Secret:**
-   - Go to: https://github.com/basitwali1x/arctic-ice-solutions/settings/secrets/actions
-   - Find `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` secret
-   - Click "Update" 
-   - Paste the **entire JSON content** provided above
-   - The content should be plain text JSON, NOT base64 encoded
-   - Save the secret
+### Step 1: Access Google Cloud Console
+Navigate to: https://console.cloud.google.com/iam-admin/serviceaccounts/details/109698483018706418481/keys?project=fiery-emblem-467622-t0
 
-2. **Test the Fix:**
-   - Trigger the Android workflow manually: https://github.com/basitwali1x/arctic-ice-solutions/actions/workflows/android.yml
-   - Monitor the deployment to verify the "DECODER routines::unsupported" error is resolved
+### Step 2: Create New Service Account Key (SAFETY FIRST)
+**Important**: Create new key BEFORE deleting old one (24h grace period)
 
-3. **Verify Success:**
-   - Check that the validation step passes
-   - Confirm Google Play deployment completes successfully
-   - Monitor for any new error messages
+1. Click "ADD KEY" button
+2. Select "Create new key"  
+3. Choose "JSON" format
+4. Click "CREATE"
+5. Download the new service account JSON file
+6. **Keep both keys active during transition**
+
+### Step 3: Validate New JSON Locally
+Before updating GitHub secret, validate the downloaded JSON:
+
+```bash
+# Validate JSON structure
+cat new-service-account.json | jq -e '.'
+
+# Verify private key format  
+cat new-service-account.json | jq -r '.private_key' | head -n 1
+# Should output: -----BEGIN PRIVATE KEY-----
+
+# Check for proper newlines (not escaped)
+cat new-service-account.json | jq -r '.private_key' | grep -c "BEGIN PRIVATE KEY"  
+# Should output: 1
+```
+
+### Step 4: Update GitHub Repository Secret
+1. Go to: https://github.com/basitwali1x/arctic-ice-solutions/settings/secrets/actions
+2. Find `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` secret
+3. Click "Update"
+4. **CRITICAL**: Copy ENTIRE contents of newly downloaded JSON file
+5. Paste as **plain text** (NOT base64 encoded)
+6. Ensure private_key field contains actual newlines, not escaped `\n`
+7. Save the secret
+
+### Step 5: Test Single-App Deployment First
+- Workflow is configured to deploy only `frontend-customer` first
+- Monitor "Deploy to Google Play Store" step for decoder error resolution
+- Verify successful deployment to internal track
+
+### Step 6: Restore Dual-App Deployment (After Success)
+- Update matrix strategy back to both apps
+- Test both frontend-customer and frontend-staff deployment
+
+### Step 7: Clean Up (After Verification)
+Only after confirming new key works:
+1. Return to Google Cloud Console
+2. Delete old service account key
+3. Keep only new working key active
 
 ## Resolution Status
 

@@ -1,0 +1,14 @@
+Android deployment force trigger for main branch created at: 2025-08-12T01:17:54Z
+
+This file was created to force trigger the Android CI/CD workflow on the main branch
+after PR merge, since the auto-merge action doesn't generate push events.
+
+The previous PR #104 was successfully merged but didn't trigger the Android workflow
+on main due to the limitation of juliangruber/merge-pull-request-action@v1.
+
+This will ensure both Android apps deploy to Google Play Store internal track:
+- Customer app: com.arcticeicesolutions.customer  
+- Staff app: com.arcticeicesolutions.staff
+
+Created by: @basitwali1x
+Devin session: https://app.devin.ai/sessions/1eaf9ea933f244459ebf7881eea8fd30

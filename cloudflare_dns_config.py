@@ -84,12 +84,13 @@ def update_dns_record(zone_id, record_id, record_type, name, content, ttl=1):
 
 def main():
     domain = "yourchoiceice.com"
-    target = "frontend-deployment-app-0vfk8kvg.devinapps.com"
+    subdomain = "api.yourchoiceice.com"
+    target = "arctic-ice-api.fly.dev"
     
     print("=== Cloudflare DNS Configuration ===")
     print(f"Domain: {domain}")
+    print(f"Target subdomain: {subdomain}")
     print(f"Target: {target}")
-    print("Updating main domain CNAME record to point to current frontend deployment")
     print()
     
     zone_id = get_zone_id(domain)
@@ -110,26 +111,26 @@ def main():
         print(f"  {record['type']} {record['name']} -> {record['content']}")
     print()
     
-    main_record = None
+    api_record = None
     for record in records:
-        if record['name'] == domain:
-            main_record = record
+        if record['name'] == subdomain:
+            api_record = record
             break
     
-    if main_record:
-        print(f"Found existing record for {domain}:")
-        print(f"  Type: {main_record['type']}")
-        print(f"  Content: {main_record['content']}")
-        print(f"  TTL: {main_record['ttl']}")
+    if api_record:
+        print(f"Found existing record for {subdomain}:")
+        print(f"  Type: {api_record['type']}")
+        print(f"  Content: {api_record['content']}")
+        print(f"  TTL: {api_record['ttl']}")
         
-        if main_record['content'] == target:
+        if api_record['content'] == target:
             print("✅ Record already points to correct target!")
             return 0
         else:
-            print(f"⚠️  Record points to {main_record['content']}, should be {target}")
+            print(f"⚠️  Record points to {api_record['content']}, should be {target}")
             print(f"Updating CNAME record to point to {target}...")
             
-            result = update_dns_record(zone_id, main_record['id'], "CNAME", domain, target)
+            result = update_dns_record(zone_id, api_record['id'], "CNAME", subdomain, target)
             if result and result.get('success'):
                 print("✅ CNAME record updated successfully!")
                 updated_record = result.get('result', {})
@@ -142,10 +143,10 @@ def main():
                     print(f"Error: {result.get('errors', [])}")
                 return 1
     else:
-        print(f"No existing record found for {domain}")
-        print(f"Creating CNAME record: {domain} -> {target}")
+        print(f"No existing record found for {subdomain}")
+        print(f"Creating CNAME record: {subdomain} -> {target}")
         
-        result = create_dns_record(zone_id, "CNAME", domain, target)
+        result = create_dns_record(zone_id, "CNAME", subdomain, target)
         if result and result.get('success'):
             print("✅ CNAME record created successfully!")
             new_record = result.get('result', {})
@@ -160,8 +161,6 @@ def main():
     
     print()
     print("=== DNS Configuration Complete ===")
-    print("Waiting for DNS propagation (may take a few minutes)...")
-    print("You can test with: curl -I https://yourchoiceice.com")
     return 0
 
 if __name__ == "__main__":

@@ -222,3 +222,4 @@ arctic-ice-solutions/
 # Registry fixes applied - forcing CI trigger
 # Force Vercel deployment - Thu Aug  7 19:04:36 UTC 2025
 # Force Vercel deployment - Thu Aug  7 19:25:24 UTC 2025
+# Trigger Play Store deployment - Mon Aug 12 05:59:00 UTC 2025

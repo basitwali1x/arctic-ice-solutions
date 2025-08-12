@@ -1,327 +1,325 @@
-# Google Play Console Developer Environment Setup
+<<<<<<< HEAD
+# Google Play Console Setup Guide - Arctic Ice Solutions
 
 ## Overview
 
-This document provides comprehensive setup instructions for the Google Play Console developer environment for Arctic Ice Solutions mobile applications. The setup includes both local development environment configuration and CI/CD pipeline verification.
+This guide provides comprehensive setup instructions for publishing the Arctic Ice Solutions mobile applications on Google Play Console. The system consists of two separate applications targeting different user groups.
 
-## Mobile Applications
+## Applications
 
-Arctic Ice Solutions has two Android applications configured for Google Play Store deployment:
+### 1. Arctic Ice Customer App
+- **Package Name**: `com.arcticeicesolutions.customer`
+- **App Name**: Arctic Ice Customer
+- **Target Users**: Customers only
+- **Primary Functions**: Order placement, delivery tracking, invoice management
 
-- **Customer App**: `com.arcticeicesolutions.customer`
-- **Staff App**: `com.arcticeicesolutions.staff`
+### 2. Arctic Ice Staff App
+- **Package Name**: `com.arcticeicesolutions.staff`
+- **App Name**: Arctic Ice Staff
+- **Target Users**: Staff members (managers, dispatchers, drivers, technicians)
+- **Primary Functions**: Field operations, work orders, route management, vehicle inspections
 
-Both applications are built using:
-- **Framework**: React + TypeScript with Capacitor 6.0
-- **Build System**: Gradle with Android SDK API 34
-- **Deployment**: Automated CI/CD via GitHub Actions
+## Google Play Console Setup Tasks
 
-## Prerequisites
+### 1. App Information
 
-### System Requirements
+#### Customer App
+- **App Name**: Arctic Ice Customer
+- **Short Description**: Customer portal for Arctic Ice Solutions - order ice, track deliveries, manage billing
+- **Full Description**: 
+  ```
+  Arctic Ice Customer is the official mobile app for Arctic Ice Solutions customers. Easily place ice orders, track your deliveries in real-time, view invoices, and manage your account from anywhere.
 
-- **Operating System**: Linux (Ubuntu recommended)
-- **Java**: JDK 11 or higher
-- **Node.js**: Version 18+ with pnpm package manager
-- **Git**: For version control and repository access
+  Key Features:
+  • Place orders for 8lb bags, 20lb bags, and block ice
+  • Real-time delivery tracking with GPS
+  • View and manage invoices and payment history
+  • Customer account management
+  • Delivery notifications and updates
+  • Multi-location support across Louisiana and Texas
 
-### Required Tools
+  Arctic Ice Solutions serves customers across Louisiana and Texas with reliable ice delivery services. Our customer app makes it easy to manage your ice delivery needs on the go.
+  ```
+- **Category**: Business
+- **Tags**: ice delivery, customer portal, order tracking, billing, business
 
-1. **Android SDK Command Line Tools**
-2. **Capacitor CLI**
-3. **Gradle** (included with Android projects)
+#### Staff App
+- **App Name**: Arctic Ice Staff
+- **Short Description**: Staff operations app for Arctic Ice Solutions - manage routes, work orders, and field operations
+- **Full Description**:
+  ```
+  Arctic Ice Staff is the official mobile app for Arctic Ice Solutions employees. Streamline field operations, manage work orders, optimize delivery routes, and conduct vehicle inspections.
 
-## Local Development Environment Setup
+  Key Features:
+  • Work order management and submission
+  • Route optimization and GPS navigation
+  • Driver dashboard with delivery tracking
+  • Vehicle inspection forms and reporting
+  • Real-time location updates
+  • Multi-role access (Manager, Dispatcher, Driver, Technician)
 
-### 1. Install Android SDK Command Line Tools
+  Designed for field technicians, drivers, dispatchers, and managers to efficiently coordinate ice manufacturing and distribution operations across multiple locations in Louisiana and Texas.
+  ```
+- **Category**: Business
+- **Tags**: field operations, work orders, route management, delivery tracking, business
 
-```bash
-# Download Android SDK command line tools
-cd /tmp
-wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O android-cmdline-tools.zip
+### 2. Privacy Policy
 
-# Extract and setup directory structure
-unzip android-cmdline-tools.zip
-mkdir -p /tmp/android-sdk/cmdline-tools
-mv cmdline-tools /tmp/android-sdk/cmdline-tools/latest
+**Privacy Policy URL**: `https://arcticicesolutions.com/privacy-policy`
 
-# Set environment variables
-export ANDROID_HOME=/tmp/android-sdk
-export ANDROID_SDK_ROOT=/tmp/android-sdk
-export PATH=$PATH:/tmp/android-sdk/cmdline-tools/latest/bin:/tmp/android-sdk/platform-tools
+**Privacy Policy Content** (to be hosted at the above URL):
 
-# Accept Android SDK licenses
-yes | sdkmanager --licenses
+```
+Privacy Policy for Arctic Ice Solutions Mobile Apps
 
-# Install required Android SDK components
-sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
+Last Updated: [Current Date]
+
+1. INFORMATION WE COLLECT
+- Account information (name, email, phone, address)
+- Location data for delivery tracking and route optimization
+- Order history and billing information
+- Device information for app functionality
+
+2. HOW WE USE INFORMATION
+- Process and fulfill ice delivery orders
+- Provide real-time delivery tracking
+- Manage customer accounts and billing
+- Optimize delivery routes and operations
+- Send order notifications and updates
+
+3. INFORMATION SHARING
+We do not sell or share personal information with third parties except:
+- Service providers who assist with app functionality
+- As required by law or legal process
+
+4. DATA SECURITY
+We implement appropriate security measures to protect your information including:
+- Encrypted data transmission
+- Secure authentication systems
+- Regular security audits
+
+5. YOUR RIGHTS
+- Access your personal information
+- Request correction of inaccurate data
+- Request deletion of your account
+- Opt out of non-essential communications
+
+6. CONTACT US
+For privacy questions, contact us at:
+Email: privacy@arcticicesolutions.com
+Phone: [Company Phone]
+Address: [Company Address]
 ```
 
-### 2. Configure Environment Variables
-
-Add the following to your shell profile (`~/.bashrc` or `~/.zshrc`):
-
-```bash
-export ANDROID_HOME=/tmp/android-sdk
-export ANDROID_SDK_ROOT=/tmp/android-sdk
-export PATH=$PATH:/tmp/android-sdk/cmdline-tools/latest/bin:/tmp/android-sdk/platform-tools
-```
-
-### 3. Configure Android Projects
-
-Update the `local.properties` files in both Android projects:
-
-**Customer App**: `frontend-customer/android/local.properties`
-```properties
-sdk.dir=/tmp/android-sdk
-```
-
-**Staff App**: `frontend-staff/android/local.properties`
-```properties
-sdk.dir=/tmp/android-sdk
-```
-
-### 4. Install Node.js Dependencies
-
-```bash
-# Navigate to project root
-cd ~/repos/arctic-ice-solutions
-
-# Install dependencies for customer app
-cd frontend-customer
-pnpm install
-
-# Install dependencies for staff app
-cd ../frontend-staff
-pnpm install
-```
-
-## Building Android Applications
-
-### Debug Builds (Local Development)
-
-Debug builds can be created locally without signing configuration:
-
-```bash
-# Customer App Debug Build
-cd frontend-customer/android
-./gradlew assembleDebug
-
-# Staff App Debug Build
-cd ../../frontend-staff/android
-./gradlew assembleDebug
-```
-
-**Build Artifacts Location**:
-- Customer App: `frontend-customer/android/app/build/outputs/apk/debug/app-debug.apk`
-- Staff App: `frontend-staff/android/app/build/outputs/apk/debug/app-debug.apk`
-
-### Release Builds (CI/CD Only)
-
-Release builds require proper signing configuration and should only be built in the CI/CD environment:
-
-```bash
-# This will fail locally without proper keystore configuration
-./gradlew bundleRelease
-```
-
-## Google Play Console CI/CD Configuration
-
-### GitHub Actions Workflow
-
-The automated deployment is configured in `.github/workflows/android.yml` with the following features:
-
-- **Matrix Build**: Builds both Customer and Staff apps simultaneously
-- **Artifact Generation**: Creates both APK and AAB files
-- **Automatic Deployment**: Deploys to Google Play Store internal track
-- **Signing**: Uses encrypted keystore for release signing
-
-### Required GitHub Secrets
-
-The following secrets must be configured in the GitHub repository:
-
-| Secret Name | Description | Status |
-|-------------|-------------|---------|
-| `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` | Service account JSON for Google Play API | ⚠️ Needs Update |
-| `ANDROID_KEYSTORE_BASE64` | Base64 encoded Android keystore | ✅ Configured |
-| `ANDROID_KEYSTORE_PASSWORD` | Keystore password | ✅ Configured |
-| `KEY_ALIAS` | Key alias for signing | ✅ Configured |
-
-### Service Account Configuration
-
-**Current Status**: The `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` secret requires updating with proper JSON content.
-
-**Required Permissions**:
-- Google Play Developer API access
-- Release management permissions
-- Internal testing track access
-
-## Capacitor Configuration
-
-### Installed Plugins
-
-Both mobile applications use the following Capacitor plugins:
-
-- `@capacitor/camera` - Camera functionality
-- `@capacitor/device` - Device information
-- `@capacitor/geolocation` - GPS location services
-- `@capacitor/push-notifications` - Push notification support
-- `@capacitor/splash-screen` - App splash screen
-- `@capacitor/status-bar` - Status bar customization
-
-### Capacitor Commands
-
-```bash
-# Sync native projects with web assets
-npx cap sync android
-
-# Open Android project in Android Studio
-npx cap open android
-
-# Build and sync in one command
-npx cap build android
-```
-
-## Development Workflow
-
-### 1. Local Development
-
-```bash
-# Start backend API server
-cd backend
-poetry run fastapi dev app/main.py --host 0.0.0.0 --port 8000
-
-# Start frontend development server
-cd frontend
-pnpm dev
-
-# For mobile development, build and sync
-cd frontend-customer  # or frontend-staff
-pnpm build
-npx cap sync android
-```
-
-### 2. Testing Mobile Apps
-
-```bash
-# Build debug APK for testing
-cd frontend-customer/android
-./gradlew assembleDebug
-
-# Install on connected device/emulator
-adb install app/build/outputs/apk/debug/app-debug.apk
-```
-
-### 3. Deployment Process
-
-1. **Commit Changes**: Push changes to the repository
-2. **Trigger Workflow**: GitHub Actions automatically builds and deploys
-3. **Monitor CI**: Check workflow status in GitHub Actions
-4. **Verify Deployment**: Confirm apps are available in Google Play Console
-
-## Troubleshooting
-
-### Common Issues
-
-#### 1. Android SDK License Not Accepted
-
-**Error**: `Failed to install the following Android SDK packages as some licences have not been accepted`
-
-**Solution**:
-```bash
-yes | sdkmanager --licenses
-```
-
-#### 2. SDK Path Not Found
-
-**Error**: `SDK location not found`
-
-**Solution**: Verify `local.properties` files contain correct SDK path:
-```properties
-sdk.dir=/tmp/android-sdk
-```
-
-#### 3. Build Tools Version Mismatch
-
-**Error**: `Could not find build-tools;34.0.0`
-
-**Solution**:
-```bash
-sdkmanager "build-tools;34.0.0"
-```
-
-#### 4. Release Build Signing Failure
-
-**Error**: `Execution failed for task ':app:signReleaseBundle'`
-
-**Cause**: Release builds require proper keystore configuration only available in CI/CD environment.
-
-**Solution**: Use debug builds for local development, release builds for CI/CD only.
-
-### Environment Verification
-
-Run the following commands to verify your setup:
-
-```bash
-# Check Android SDK installation
-echo $ANDROID_HOME
-ls -la $ANDROID_HOME
-
-# Check available Android platforms
-sdkmanager --list | grep "platforms;android"
-
-# Check build tools
-sdkmanager --list | grep "build-tools"
-
-# Verify Capacitor installation
-npx cap doctor
-```
-
-## Google Play Console Access
-
-### Developer Account Requirements
-
-- **Google Play Developer Account**: Required for app publishing
-- **Service Account**: Configured for API access
-- **App Registration**: Both Customer and Staff apps registered
-
-### Release Management
-
-- **Internal Testing**: Automated deployment target
-- **Production**: Manual promotion from internal testing
-- **Version Management**: Automated version code increment
-
-## Security Considerations
-
-### Local Development
-
-- **Debug Builds Only**: Never attempt release builds locally
-- **API Keys**: Use development API endpoints only
-- **Keystore**: Production keystore never stored locally
-
-### CI/CD Environment
-
-- **Encrypted Secrets**: All sensitive data encrypted in GitHub
-- **Service Account**: Limited permissions for deployment only
-- **Audit Trail**: All deployments logged and traceable
-
-## Support and Documentation
-
-### Additional Resources
-
-- [Capacitor Android Documentation](https://capacitorjs.com/docs/android)
-- [Google Play Console Help](https://support.google.com/googleplay/android-developer)
-- [Android Developer Documentation](https://developer.android.com/)
-
-### Internal Documentation
-
-- `GOOGLE_PLAY_SERVICE_ACCOUNT_FIX.md` - Service account configuration details
-- `MOBILE_DEPLOYMENT_CUSTOMER.md` - Customer app deployment guide
-- `MOBILE_DEPLOYMENT_STAFF.md` - Staff app deployment guide
+### 3. App Access
+
+#### Customer App
+- **Access Type**: Restricted Access
+- **Login Required**: Yes
+- **Account Requirements**: 
+  - Valid customer account with Arctic Ice Solutions
+  - Email verification required
+  - Role restriction: Customer role only
+- **Demo Account**: Available upon request for review purposes
+
+#### Staff App
+- **Access Type**: Restricted Access
+- **Login Required**: Yes
+- **Account Requirements**:
+  - Valid employee account with Arctic Ice Solutions
+  - Role-based access (Manager, Dispatcher, Driver, Technician)
+  - Role restriction: Staff roles only, customer role blocked
+- **Demo Account**: Available upon request for review purposes
+
+### 4. Ads
+
+**Ad Policy**: No Ads
+- Neither application contains advertisements
+- No third-party advertising networks
+- No promotional content from external sources
+- Business-focused applications with no monetization through ads
+
+### 5. Content Rating
+
+#### Customer App Content Rating
+- **Target Age Group**: 13+ (Teen)
+- **Content Descriptors**: None
+- **Interactive Elements**: 
+  - Users can interact online
+  - Shares location data
+- **Content Assessment**:
+  - No violence, sexual content, or inappropriate material
+  - Business application for ice delivery services
+  - Location sharing for delivery purposes only
+
+#### Staff App Content Rating
+- **Target Age Group**: 17+ (Mature 17+)
+- **Content Descriptors**: None
+- **Interactive Elements**:
+  - Users can interact online
+  - Shares location data
+  - Real-time GPS tracking
+- **Content Assessment**:
+  - Professional business application
+  - Location tracking for work purposes
+  - No inappropriate content
+
+### 6. Target Audience
+
+#### Customer App
+- **Primary Audience**: Business owners and consumers who need ice delivery services
+- **Age Range**: 18-65+
+- **Geographic Target**: Louisiana and Texas, USA
+- **User Characteristics**:
+  - Restaurant owners and managers
+  - Event planners
+  - Retail businesses
+  - Individual consumers
+  - Existing Arctic Ice Solutions customers
+
+#### Staff App
+- **Primary Audience**: Arctic Ice Solutions employees
+- **Age Range**: 18-65+
+- **Geographic Target**: Louisiana and Texas, USA
+- **User Characteristics**:
+  - Field technicians
+  - Delivery drivers
+  - Dispatchers
+  - Operations managers
+  - Maintenance staff
+
+### 7. Data Safety
+
+#### Data Collection and Usage
+
+**Customer App**:
+- **Personal Information**: Name, email, phone number, billing address
+- **Location Data**: Delivery address, real-time location for tracking
+- **Financial Information**: Payment methods, billing history (encrypted)
+- **Usage Data**: App interactions, order history
+
+**Staff App**:
+- **Personal Information**: Employee name, contact information
+- **Location Data**: Real-time GPS for route optimization and tracking
+- **Work Data**: Work orders, vehicle inspections, route information
+- **Usage Data**: App interactions, work performance metrics
+
+#### Data Security Measures
+- **Encryption**: All data transmitted using TLS/SSL encryption
+- **Authentication**: JWT-based secure authentication
+- **Access Control**: Role-based access restrictions
+- **Data Storage**: Secure cloud storage with regular backups
+- **Privacy**: No data sharing with third parties for marketing
+
+#### Data Retention
+- Customer data retained as long as account is active
+- Staff data retained during employment period
+- Deletion available upon account closure request
+- Compliance with applicable data protection laws
+
+### 8. Government Apps
+
+**Classification**: Not a Government App
+- Arctic Ice Solutions is a private business
+- Not affiliated with any government entity
+- Commercial ice manufacturing and distribution company
+- No government services or functions provided
+
+### 9. Financial Features
+
+#### Customer App Financial Features
+- **Payment Processing**: Yes
+- **In-App Purchases**: No
+- **Subscription Services**: No
+- **Financial Services**:
+  - Invoice viewing and payment
+  - Payment method management
+  - Billing history access
+  - Credit terms tracking
+
+**Compliance**:
+- PCI DSS compliance for payment processing
+- Secure payment gateway integration
+- No storage of sensitive payment information on device
+
+#### Staff App Financial Features
+- **Payment Processing**: No
+- **Financial Data Access**: Limited to work-related expenses and route costs
+- **No Consumer Financial Services**
+
+### 10. Health
+
+**Health-Related Content**: None
+- No health or medical information collected
+- No health-related services provided
+- Ice delivery is food service industry, not health/medical
+- No health claims or medical advice
+
+## Store Listing Assets Required
+
+### Icons
+- **512x512 PNG**: High-resolution app icon for Play Store
+- **Adaptive Icon**: Foreground and background layers
+- **Various Sizes**: 192x192, 144x144, 96x96, 72x72, 48x48
+
+### Screenshots
+- **Phone Screenshots**: Minimum 2, maximum 8 (16:9 aspect ratio)
+- **Tablet Screenshots**: Minimum 1, maximum 8 (16:10 aspect ratio)
+- **Feature Graphic**: 1024x500 PNG (optional but recommended)
+
+### Promotional Assets
+- **Feature Graphic**: 1024x500 PNG for Play Store featuring
+- **Promo Video**: Optional YouTube video showcasing app features
+
+## Release Management
+
+### Version Information
+- **Version Code**: Incremental integer (1, 2, 3...)
+- **Version Name**: Semantic versioning (1.0.0, 1.0.1, etc.)
+- **Release Notes**: Clear description of updates and new features
+
+### Testing
+- **Internal Testing**: Alpha track for development team
+- **Closed Testing**: Beta track for select customers/staff
+- **Open Testing**: Public beta before production release
+- **Production**: Full public release
+
+## Compliance Checklist
+
+### Pre-Launch Requirements
+- [ ] Privacy Policy published and accessible
+- [ ] Content rating completed accurately
+- [ ] Data safety form completed
+- [ ] App signing key configured
+- [ ] Store listing assets uploaded
+- [ ] App bundle (AAB) uploaded and tested
+- [ ] Target audience defined
+- [ ] Geographic restrictions set (if applicable)
+
+### Post-Launch Monitoring
+- [ ] Monitor user reviews and ratings
+- [ ] Track app performance metrics
+- [ ] Update privacy policy as needed
+- [ ] Maintain compliance with Play Store policies
+- [ ] Regular security updates and patches
+
+## Contact Information
+
+**Developer**: Arctic Ice Solutions
+**Support Email**: support@arcticicesolutions.com
+**Website**: https://arcticicesolutions.com
+**Business Address**: [Company Address]
+**Phone**: [Company Phone]
+
+## Notes
+
+1. Both apps require active internet connection for full functionality
+2. Location permissions are essential for delivery tracking features
+3. Apps are designed for business use in ice delivery industry
+4. Regular updates will be provided for feature enhancements and security
+5. Customer support available during business hours
+6. Apps comply with Google Play Store policies and guidelines
 
 ---
 
-**Last Updated**: August 11, 2025  
-**Author**: Devin AI  
-**Version**: 1.0  
-**Status**: ✅ Environment Setup Complete - Local Development Ready
+This setup guide ensures compliance with all Google Play Console requirements and provides comprehensive information for successful app publication and ongoing maintenance.

@@ -223,3 +223,4 @@ arctic-ice-solutions/
 # Force Vercel deployment - Thu Aug  7 19:04:36 UTC 2025
 # Force Vercel deployment - Thu Aug  7 19:25:24 UTC 2025
 # Trigger Play Store deployment - Mon Aug 12 05:59:00 UTC 2025
+# Force Android deployment workflow - Mon Aug 12 06:07:00 UTC 2025

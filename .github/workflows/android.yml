@@ -165,10 +165,47 @@ jobs:
         
         echo "✅ Service account JSON validation successful"
         
+    - name: Fix Google Play Service Account JSON formatting
+      id: fix_service_account_json
+      run: |
+        echo "🔧 Fixing Google Play service account JSON formatting..."
+        
+        # Get the raw JSON content
+        RAW_JSON='${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}'
+        
+        # Check if it's base64 encoded and decode if necessary
+        if echo "$RAW_JSON" | base64 -d > /dev/null 2>&1; then
+          echo "📝 Decoding base64 encoded service account JSON..."
+          DECODED_JSON=$(echo "$RAW_JSON" | base64 -d)
+          JSON_CONTENT="$DECODED_JSON"
+        else
+          JSON_CONTENT="$RAW_JSON"
+        fi
+        
+        # Fix escaped newlines in private_key field
+        echo "🔄 Converting escaped newlines to actual newlines in private_key..."
+        FIXED_PRIVATE_KEY=$(echo "$JSON_CONTENT" | jq -r '.private_key' | sed 's/\\n/\n/g')
+        
+        # Reconstruct the full JSON with the fixed private_key
+        FINAL_JSON=$(echo "$JSON_CONTENT" | jq --arg fixed_key "$FIXED_PRIVATE_KEY" '.private_key = $fixed_key')
+        
+        # Validate the final JSON
+        if ! echo "$FINAL_JSON" | jq empty; then
+          echo "❌ Failed to create valid JSON after formatting fixes"
+          exit 1
+        fi
+        
+        # Save to environment file for next step
+        echo "FIXED_SERVICE_ACCOUNT_JSON<<EOF" >> $GITHUB_ENV
+        echo "$FINAL_JSON" >> $GITHUB_ENV
+        echo "EOF" >> $GITHUB_ENV
+        
+        echo "✅ Service account JSON formatting fixed successfully"
+        
     - name: Deploy to Google Play Store
       uses: r0adkll/upload-google-play@v1
       with:
-        serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+        serviceAccountJsonPlainText: ${{ env.FIXED_SERVICE_ACCOUNT_JSON }}
         packageName: com.arcticeicesolutions.${{ matrix.app == 'frontend-customer' && 'customer' || 'staff' }}
         releaseFiles: ${{ matrix.app }}/android/app/build/outputs/bundle/release/*.aab
         track: internal

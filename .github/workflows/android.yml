@@ -203,7 +203,7 @@ jobs:
         echo "✅ Service account JSON formatting fixed successfully"
         
     - name: Deploy to Google Play Store
-      if: github.ref == 'refs/heads/main'
+      if: github.ref == 'refs/heads/main' || (startsWith(github.ref, 'refs/heads/devin/') && github.event_name == 'push')
       uses: r0adkll/upload-google-play@v1.1.3
       env:
         NODE_OPTIONS: "--openssl-legacy-provider"

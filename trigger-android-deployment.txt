@@ -1,0 +1,11 @@
+Android deployment trigger file created at: 2025-08-12T01:12:01Z
+
+This file was created to trigger the Android CI/CD workflow for Play Store deployment.
+
+Deployment targets:
+- Customer app: com.arcticeicesolutions.customer
+- Staff app: com.arcticeicesolutions.staff
+- Track: internal
+
+Created by: @basitwali1x
+Devin session: https://app.devin.ai/sessions/1eaf9ea933f244459ebf7881eea8fd30

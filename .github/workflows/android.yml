@@ -13,7 +13,7 @@ jobs:
     
     strategy:
       matrix:
-        app: [frontend-customer, frontend-staff]
+        app: [frontend-customer]
     
     steps:
     - name: Checkout code

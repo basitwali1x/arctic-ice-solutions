@@ -203,7 +203,7 @@ jobs:
         echo "✅ Service account JSON formatting fixed successfully"
         
     - name: Deploy to Google Play Store
-      uses: r0adkll/upload-google-play@v2.1.1
+      uses: r0adkll/upload-google-play@v1.1.3
       env:
         NODE_OPTIONS: "--openssl-legacy-provider"
       with:

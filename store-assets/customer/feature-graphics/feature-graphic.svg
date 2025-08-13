@@ -1,0 +1,30 @@
+<svg width="1024" height="500" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1024" height="500" fill="white"/>
+  
+  <!-- Arctic Ice Solutions Logo Area -->
+  <circle cx="200" cy="150" r="40" fill="#4F7FFF"/>
+  <text x="200" y="155" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="24" font-weight="bold">❄</text>
+  
+  <!-- Main Title -->
+  <text x="300" y="120" fill="#4F7FFF" font-family="Arial, sans-serif" font-size="36" font-weight="bold">Arctic Ice Solutions</text>
+  <text x="300" y="160" fill="#333333" font-family="Arial, sans-serif" font-size="28" font-weight="bold">Customer App</text>
+  
+  <!-- Key Features -->
+  <text x="100" y="250" fill="#333333" font-family="Arial, sans-serif" font-size="20">✓ Easy Ice Ordering</text>
+  <text x="100" y="280" fill="#333333" font-family="Arial, sans-serif" font-size="20">✓ Real-time Delivery Tracking</text>
+  <text x="100" y="310" fill="#333333" font-family="Arial, sans-serif" font-size="20">✓ Invoice Management</text>
+  <text x="100" y="340" fill="#333333" font-family="Arial, sans-serif" font-size="20">✓ Account Dashboard</text>
+  
+  <!-- Phone Mockup -->
+  <rect x="700" y="80" width="200" height="340" rx="20" fill="#f0f0f0" stroke="#ddd" stroke-width="2"/>
+  <rect x="720" y="120" width="160" height="260" fill="white"/>
+  <circle cx="800" cy="400" r="15" fill="#4F7FFF"/>
+  
+  <!-- App Interface Elements -->
+  <rect x="730" y="130" width="140" height="30" fill="#4F7FFF" rx="5"/>
+  <text x="800" y="150" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="12">Order Ice</text>
+  
+  <rect x="730" y="170" width="140" height="20" fill="#e0e0e0" rx="3"/>
+  <rect x="730" y="200" width="140" height="20" fill="#e0e0e0" rx="3"/>
+  <rect x="730" y="230" width="140" height="20" fill="#e0e0e0" rx="3"/>
+</svg>

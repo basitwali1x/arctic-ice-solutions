@@ -1,0 +1,34 @@
+<svg width="1024" height="500" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1024" height="500" fill="white"/>
+  
+  <!-- Arctic Ice Solutions Logo Area -->
+  <circle cx="200" cy="150" r="40" fill="#4F7FFF"/>
+  <text x="200" y="155" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="24" font-weight="bold">❄</text>
+  
+  <!-- Main Title -->
+  <text x="300" y="120" fill="#4F7FFF" font-family="Arial, sans-serif" font-size="36" font-weight="bold">Arctic Ice Solutions</text>
+  <text x="300" y="160" fill="#333333" font-family="Arial, sans-serif" font-size="28" font-weight="bold">Staff App</text>
+  
+  <!-- Key Features -->
+  <text x="100" y="250" fill="#333333" font-family="Arial, sans-serif" font-size="20">✓ Work Order Management</text>
+  <text x="100" y="280" fill="#333333" font-family="Arial, sans-serif" font-size="20">✓ Route Optimization</text>
+  <text x="100" y="310" fill="#333333" font-family="Arial, sans-serif" font-size="20">✓ Vehicle Inspection</text>
+  <text x="100" y="340" fill="#333333" font-family="Arial, sans-serif" font-size="20">✓ Driver Dashboard</text>
+  
+  <!-- Tablet Mockup -->
+  <rect x="650" y="60" width="300" height="380" rx="15" fill="#f0f0f0" stroke="#ddd" stroke-width="2"/>
+  <rect x="670" y="90" width="260" height="320" fill="white"/>
+  
+  <!-- App Interface Elements -->
+  <rect x="680" y="100" width="240" height="40" fill="#4F7FFF" rx="5"/>
+  <text x="800" y="125" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="14">Staff Dashboard</text>
+  
+  <!-- Work Order Cards -->
+  <rect x="680" y="150" width="110" height="80" fill="#e8f4ff" stroke="#4F7FFF" stroke-width="1" rx="5"/>
+  <text x="735" y="170" text-anchor="middle" fill="#4F7FFF" font-family="Arial, sans-serif" font-size="10">Work Orders</text>
+  <text x="735" y="185" text-anchor="middle" fill="#333" font-family="Arial, sans-serif" font-size="16" font-weight="bold">12</text>
+  
+  <rect x="810" y="150" width="110" height="80" fill="#e8f4ff" stroke="#4F7FFF" stroke-width="1" rx="5"/>
+  <text x="865" y="170" text-anchor="middle" fill="#4F7FFF" font-family="Arial, sans-serif" font-size="10">Routes</text>
+  <text x="865" y="185" text-anchor="middle" fill="#333" font-family="Arial, sans-serif" font-size="16" font-weight="bold">5</text>
+</svg>

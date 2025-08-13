@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form, status
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form, status, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
@@ -2607,6 +2607,105 @@ async def get_financial_data(current_user: UserInDB = Depends(get_current_user))
             {"method": "Check", "amount": total_revenue * 0.25, "percentage": 25.0},
             {"method": "Credit Card", "amount": total_revenue * 0.15, "percentage": 15.0}
         ]
+    }
+
+def calculate_customer_sales_by_period(customer, daily_revenue, period):
+    """Calculate customer sales based on time period"""
+    total_revenue = sum(daily_revenue.values()) if daily_revenue else 0
+    customer_share = customer.get("total_spent", 0) / max(total_revenue, 1)
+    
+    if period == "daily":
+        return customer_share * (total_revenue / max(len(daily_revenue), 1))
+    elif period == "weekly":
+        return customer_share * (total_revenue / max(len(daily_revenue) / 7, 1))
+    else:  # monthly
+        return customer_share * (total_revenue / max(len(daily_revenue) / 30, 1))
+
+@app.get("/api/sales/geo-temporal")
+async def get_geo_temporal_sales(
+    period: str = Query(..., regex="^(daily|weekly|monthly)$"),
+    location_ids: str = Query(None),
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """Returns geocoded sales data with time period filtering"""
+    from datetime import datetime, timedelta
+    
+    locations = [location_ids] if location_ids and "," not in location_ids else (location_ids.split(",") if location_ids else None)
+    
+    # Get customers with coordinates
+    if imported_customers and len(imported_customers) > 0:
+        customers = imported_customers
+    else:
+        customers = list(customers_db.values())
+    
+    if locations:
+        customers = [c for c in customers if c.get("location_id") in locations]
+    
+    customers = filter_by_location(customers, current_user)
+    
+    sales_data = []
+    if imported_financial_data:
+        daily_revenue = imported_financial_data.get("daily_revenue", {})
+        
+        for customer in customers:
+            if customer.get("coordinates"):
+                # Calculate sales for this customer based on period
+                customer_sales = calculate_customer_sales_by_period(customer, daily_revenue, period)
+                sales_data.append({
+                    "customer_id": customer["id"],
+                    "customer_name": customer["name"],
+                    "coordinates": customer["coordinates"],
+                    "sales_amount": customer_sales,
+                    "location_id": customer.get("location_id")
+                })
+            elif customer.get("address"):
+                geocoded = geocode_address(customer.get("address", ""))
+                if geocoded:
+                    customer_sales = calculate_customer_sales_by_period(customer, daily_revenue, period)
+                    sales_data.append({
+                        "customer_id": customer["id"],
+                        "customer_name": customer["name"],
+                        "coordinates": geocoded,
+                        "sales_amount": customer_sales,
+                        "location_id": customer.get("location_id")
+                    })
+    
+    return {"sales": sales_data, "period": period}
+
+@app.get("/api/performance/locations/{location_id}")
+async def get_location_performance(
+    location_id: str,
+    period: str = Query("weekly", regex="^(daily|weekly|monthly|quarterly)$"),
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """Returns performance metrics for a specific location"""
+    
+    location = locations_db.get(location_id)
+    if not location:
+        raise HTTPException(status_code=404, detail="Location not found")
+    
+    # Calculate metrics
+    customers = [c for c in (imported_customers or list(customers_db.values())) 
+                if c.get("location_id") == location_id]
+    customers = filter_by_location(customers, current_user)
+    
+    vehicles = [v for v in vehicles_db.values() if v.get("location_id") == location_id]
+    
+    location_revenue = 0
+    if imported_financial_data:
+        daily_revenue = imported_financial_data.get("daily_revenue", {})
+        total_customers = len(imported_customers or list(customers_db.values()))
+        location_revenue = sum(daily_revenue.values()) * (len(customers) / max(total_customers, 1))
+    
+    return {
+        "location": location,
+        "metrics": {
+            "sales_volume": location_revenue,
+            "customer_count": len(customers),
+            "vehicle_count": len(vehicles),
+            "efficiency": min(100, (len([v for v in vehicles if v.get("is_active")]) / max(len(vehicles), 1)) * 100)
+        },
+        "period": period
     }
 
 @app.post("/api/import/excel")

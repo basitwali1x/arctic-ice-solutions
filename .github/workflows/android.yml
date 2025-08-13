@@ -13,7 +13,7 @@ jobs:
     
     strategy:
       matrix:
-        app: [frontend-customer, frontend-staff]
+        app: [frontend-customer]  # Test single app first, then restore both apps
     
     steps:
     - name: Checkout code
@@ -52,25 +52,25 @@ jobs:
         
     - name: Decode keystore
       run: |
-        echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > ${{ matrix.app }}/android/app/keystore.jks
+        echo "${{ secrets.ANDROID_KEYSTORE_BASE64_NEW }}" | base64 -d > ${{ matrix.app }}/android/app/keystore.jks
         ls -la ${{ matrix.app }}/android/app/keystore.jks
         
     - name: Validate keystore
       run: |
         cd ${{ matrix.app }}/android
         echo "🔍 Validating keystore credentials..."
-        if ! keytool -list -keystore app/keystore.jks -storepass ${{ secrets.ANDROID_KEYSTORE_PASSWORD }} -alias ${{ secrets.KEY_ALIAS }} > /dev/null 2>&1; then
+        if ! keytool -list -keystore app/keystore.jks -storepass ${{ secrets.ANDROID_KEYSTORE_PASSWORD_NEW }} -alias ${{ secrets.KEY_ALIAS_NEW }} > /dev/null 2>&1; then
           echo "❌ Keystore validation failed. Possible issues:"
           echo "  - Incorrect ANDROID_KEYSTORE_PASSWORD"
           echo "  - Incorrect KEY_ALIAS (expected: yourchoiceice-key)"
           echo "  - Corrupted keystore file"
           echo "🔍 Available aliases in keystore:"
-          keytool -list -keystore app/keystore.jks -storepass ${{ secrets.ANDROID_KEYSTORE_PASSWORD }} || echo "Cannot list keystore contents"
+          keytool -list -keystore app/keystore.jks -storepass ${{ secrets.ANDROID_KEYSTORE_PASSWORD_NEW }} || echo "Cannot list keystore contents"
           exit 1
         fi
         echo "✅ Keystore validation successful"
       env:
-        KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD_NEW }}
         
     - name: Verify Keystore Path
       run: |
@@ -91,9 +91,9 @@ jobs:
         ./gradlew assembleRelease
       env:
         KEYSTORE_FILE: keystore.jks
-        KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-        KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-        KEY_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD_NEW }}
+        KEY_ALIAS: ${{ secrets.KEY_ALIAS_NEW }}
+        KEY_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD_NEW }}
         
     - name: Build release AAB
       run: |
@@ -101,9 +101,9 @@ jobs:
         ./gradlew bundleRelease
       env:
         KEYSTORE_FILE: keystore.jks
-        KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-        KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-        KEY_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD_NEW }}
+        KEY_ALIAS: ${{ secrets.KEY_ALIAS_NEW }}
+        KEY_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD_NEW }}
         
     - name: Upload APK artifacts
       uses: actions/upload-artifact@v4
@@ -131,10 +131,10 @@ jobs:
         echo "🔍 Validating Google Play service account JSON format..."
         
         # Check if secret is base64 encoded (common issue)
-        if echo '${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}' | base64 -d > /dev/null 2>&1; then
+        if echo '${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_NEW }}' | base64 -d > /dev/null 2>&1; then
           echo "⚠️  WARNING: Secret appears to be base64 encoded - it should be plain text JSON"
           echo "🔄 Attempting to decode and validate..."
-          DECODED_JSON=$(echo '${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}' | base64 -d)
+          DECODED_JSON=$(echo '${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_NEW }}' | base64 -d)
           if ! echo "$DECODED_JSON" | jq empty; then
             echo "❌ Invalid JSON format after base64 decode"
             exit 1
@@ -142,11 +142,11 @@ jobs:
           JSON_CONTENT="$DECODED_JSON"
         else
           # Validate as plain text JSON
-          if ! echo '${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}' | jq empty; then
-            echo "❌ Invalid JSON format in GOOGLE_PLAY_SERVICE_ACCOUNT_JSON"
+          if ! echo '${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_NEW }}' | jq empty; then
+            echo "❌ Invalid JSON format in GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_NEW"
             exit 1
           fi
-          JSON_CONTENT='${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}'
+          JSON_CONTENT='${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_NEW }}'
         fi
         
         # Check required fields
@@ -171,7 +171,7 @@ jobs:
         echo "🔧 Fixing Google Play service account JSON formatting..."
         
         # Get the raw JSON content
-        RAW_JSON='${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}'
+        RAW_JSON='${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_NEW }}'
         
         # Check if it's base64 encoded and decode if necessary
         if echo "$RAW_JSON" | base64 -d > /dev/null 2>&1; then

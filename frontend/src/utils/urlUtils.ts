@@ -15,7 +15,7 @@ class SafeURL {
 }
 
 export const buildAPIUrl = (path: string): string => {
-  const baseUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:8000';
+  const baseUrl = (import.meta as any).env?.VITE_API_URL || 'https://app-fzoofwnw.fly.dev';
   return new SafeURL(baseUrl, path).toString();
 };
 

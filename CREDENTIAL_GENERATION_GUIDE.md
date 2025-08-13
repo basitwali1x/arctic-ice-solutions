@@ -41,8 +41,129 @@ keytool -list -keystore test_keystore.jks -alias yourchoiceice-key -storepass "A
 ## Phase 2: Generate New Google Play Service Account
 
 ### Step 1: Access Google Cloud Console
-Navigate to: https://console.cloud.google.com/iam-admin/serviceaccounts/details/109698483018706418481/keys?project=fiery-emblem-467622-t0
+Navigate to: Let's systematically diagnose and resolve the OpenAI API key integration issue. Here's a step-by-step action plan:
 
+1. Verify Key Permissions & Account Status
+Check key permissions at OpenAI API Keys:
+
+Ensure the key has "All" permissions (not just "Read")
+
+Confirm the key isn't restricted to specific endpoints
+
+Verify account status:
+
+bash
+curl https://api.openai.com/v1/dashboard/billing/subscription \
+  -H "Authorization: Bearer YOUR_API_KEY"
+Look for "has_payment_method": true and "hard_limit_usd": >0
+
+2. Backend Configuration Audit
+Key Injection
+In your FastAPI backend (main.py), add debug logging:
+
+python
+# Add to startup (before routes)
+print(f"🔑 OpenAI Key Loaded: {'Yes' if os.getenv('OPENAI_API_KEY') else 'No'}")
+print(f"🔐 Key Starts With: {os.getenv('OPENAI_API_KEY')[:5]}...")  # First 5 chars
+
+# Modify client initialization
+openai_client = OpenAI(
+    api_key=os.getenv("OPENAI_API_KEY"),
+    organization=os.getenv("OPENAI_ORG_ID")  # If applicable
+)
+Fly.io Secrets Verification
+Confirm secrets are properly set:
+
+bash
+flyctl secrets list
+Update secrets if needed:
+
+bash
+flyctl secrets set OPENAI_API_KEY=sk-new-key-here OPENAI_ORG_ID=org-abc123
+3. Network & Headers Check
+Proxy/Header Issues
+Modify the OpenAI client call to log full requests:
+
+python
+from httpx import Transport, AsyncClient
+
+custom_transport = Transport(
+    verify=False,  # For debugging only
+    retries=3
+)
+
+openai_client = OpenAI(
+    api_key=os.getenv("OPENAI_API_KEY"),
+    http_client=AsyncClient(
+        transport=custom_transport,
+        timeout=30.0,
+        headers={
+            "User-Agent": "DocuGen-AI/1.0",
+            "X-Custom-Auth": "Bearer " + os.getenv("OPENAI_API_KEY")[-4:]  # Log last 4 chars
+        }
+    )
+)
+4. Test with Minimal Reproduction
+Create a test endpoint in FastAPI:
+
+python
+@app.get("/test-openai")
+async def test_openai():
+    try:
+        test = openai_client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": "Say 'TEST_OK'"}],
+            max_tokens=5
+        )
+        return {"status": "success", "response": test.choices[0].message.content}
+    except Exception as e:
+        return {"status": "error", "detail": str(e), "key_used": os.getenv("OPENAI_API_KEY")[:5] + "..."}
+Test via:
+
+bash
+curl https://your-backend.fly.dev/test-openai
+5. Fallback Strategies
+Key Rotation
+Create a new key with full permissions
+
+Update Fly.io secrets:
+
+bash
+flyctl secrets set OPENAI_API_KEY=sk-new-key-here
+flyctl deploy
+Alternative Auth
+If using Azure OpenAI:
+
+python
+openai_client = OpenAI(
+    api_key=os.getenv("AZURE_OPENAI_KEY"),
+    base_url="https://YOUR_RESOURCE.openai.azure.com/openai/deployments/YOUR_DEPLOYMENT"
+)
+Expected Outcomes
+Success: /test-openai returns TEST_OK → Focus on video generation logic
+
+Failure: Logs will show exact:
+
+Key used
+
+HTTP status code
+
+OpenAI error message
+
+Critical Checks
+Time Synchronization: Ensure server clock is accurate (TLS failures if >5min off)
+
+bash
+date && curl -I https://api.openai.com
+IP Restrictions: Whitelist Fly.io IPs in OpenAI Allowlist
+
+Let me know the /test-openai results, and we can pinpoint the exact layer failing. This is typically either:
+
+Key permissions
+
+Network egress
+
+Account limits
 ### Step 2: Create New Service Account Key
 ```bash
 # Using gcloud CLI (recommended)

@@ -229,3 +229,4 @@ arctic-ice-solutions/
 # Upload Staff app AAB for closed testing release - Mon Aug 12 15:58:00 UTC 2025
 # Fix Android deployment trigger to enable AAB upload - Mon Aug 12 16:06:00 UTC 2025
 # Test Staff app setup progress with 9/11 tasks complete - Mon Aug 12 17:12:00 UTC 2025
+# Deploy to Google Play Store - Tue Aug 13 00:09:00 UTC 2025

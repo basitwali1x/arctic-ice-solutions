@@ -31,9 +31,10 @@ const timePeriods: TimePeriod[] = [
 export const CustomerHeatmap: React.FC<CustomerHeatmapProps> = ({
   selectedLocationIds
 }) => {
+  const googleMapsApiKey = (import.meta as any).env?.VITE_GOOGLE_MAPS_API_KEY || '';
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
-    googleMapsApiKey: (import.meta as any).env?.VITE_GOOGLE_MAPS_API_KEY || '',
+    googleMapsApiKey,
     libraries
   });
 
@@ -91,7 +92,12 @@ export const CustomerHeatmap: React.FC<CustomerHeatmapProps> = ({
       </CardHeader>
       <CardContent>
         {loading && <div className="text-center py-4">Loading sales data...</div>}
-        {isLoaded ? (
+        {!googleMapsApiKey ? (
+          <div className="text-center py-8 bg-gray-50 rounded-lg">
+            <p className="text-gray-600 mb-2">Google Maps API key required for heatmap visualization</p>
+            <p className="text-sm text-gray-500">Add VITE_GOOGLE_MAPS_API_KEY to .env.local to enable maps</p>
+          </div>
+        ) : isLoaded ? (
           <GoogleMap
             mapContainerStyle={containerStyle}
             center={center}

@@ -21,7 +21,7 @@ from .google_sheets_import import process_google_sheets_data, test_google_sheets
 from .quickbooks_integration import QuickBooksClient, map_arctic_customer_to_qb, map_arctic_order_to_qb_invoice, map_arctic_payment_to_qb
 from .weather_service import weather_service
 try:
-    from .monitoring_service import monitoring_service
+    from .monitoring_service import router as monitoring_service
 except ImportError:
     monitoring_service = None
 from jose import JWTError, jwt

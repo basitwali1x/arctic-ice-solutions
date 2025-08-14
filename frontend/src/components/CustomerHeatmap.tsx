@@ -47,16 +47,16 @@ export const CustomerHeatmap: React.FC<CustomerHeatmapProps> = ({
     
     setLoading(true);
     try {
-      const locationParam = selectedLocationIds?.join(',') || '';
+      const locationParam = selectedLocationIds?.join(',') || 'loc_1,loc_2,loc_3,loc_4';
       const response = await apiRequest(`/api/sales/geo-temporal?period=${selectedPeriod}&location_ids=${locationParam}`);
       
       if (response?.ok) {
         const data = await response.json();
         
-        const heatmapPoints = data.sales.map((sale: GeoTemporalSales) => ({
+        const heatmapPoints = data.sales?.map((sale: GeoTemporalSales) => ({
           location: new google.maps.LatLng(sale.coordinates.lat, sale.coordinates.lng),
           weight: Math.max(1, sale.sales_amount / 1000)
-        }));
+        })) || [];
         
         setHeatmapData(heatmapPoints);
       }
@@ -94,13 +94,12 @@ export const CustomerHeatmap: React.FC<CustomerHeatmapProps> = ({
       </CardHeader>
       <CardContent>
         {loading && <div className="text-center py-4">Loading sales data...</div>}
-        {!googleMapsApiKey ? (
-          <div className="text-center py-8 bg-gray-50 rounded-lg">
-            <p className="text-gray-600 mb-2">Google Maps API key required for heatmap visualization</p>
-            <p className="text-sm text-gray-500">Add VITE_GOOGLE_MAPS_API_KEY to .env.local to enable maps</p>
-          </div>
-        ) : isLoaded ? (
-          <div className="heatmap-container" style={{ minHeight: '500px', background: '#f5f5f5' }}>
+        {isLoaded ? (
+          <div className="heatmap-container" style={{ 
+            minHeight: '500px', 
+            background: '#f5f5f5',
+            willChange: 'transform'
+          }}>
             <GoogleMap
               mapContainerStyle={containerStyle}
               center={center}
@@ -143,7 +142,13 @@ export const CustomerHeatmap: React.FC<CustomerHeatmapProps> = ({
             </GoogleMap>
           </div>
         ) : (
-          <div className="text-center py-4 bg-gray-50 rounded-lg" style={{ minHeight: '500px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="text-center py-4 bg-gray-50 rounded-lg" style={{ 
+            minHeight: '500px', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            willChange: 'transform'
+          }}>
             <div>Loading map...</div>
           </div>
         )}

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form, status
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form, status, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
@@ -23,6 +23,10 @@ from .weather_service import weather_service
 from .monitoring_service import monitoring_service
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from prophet import Prophet
+from sklearn.linear_model import LinearRegression
+import numpy as np
+import pandas as pd
 
 load_dotenv()
 
@@ -761,13 +765,13 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     try:
         token = credentials.credentials
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
+        username: str | None = payload.get("sub")
         if username is None:
             raise credentials_exception
         token_data = TokenData(username=username)
     except JWTError:
         raise credentials_exception
-    user = get_user(username=token_data.username)
+    user = get_user(username=username)
     if user is None:
         raise credentials_exception
     return user
@@ -2609,6 +2613,105 @@ async def get_financial_data(current_user: UserInDB = Depends(get_current_user))
         ]
     }
 
+def calculate_customer_sales_by_period(customer, daily_revenue, period):
+    """Calculate customer sales based on time period"""
+    total_revenue = sum(daily_revenue.values()) if daily_revenue else 0
+    customer_share = customer.get("total_spent", 0) / max(total_revenue, 1)
+    
+    if period == "daily":
+        return customer_share * (total_revenue / max(len(daily_revenue), 1))
+    elif period == "weekly":
+        return customer_share * (total_revenue / max(len(daily_revenue) / 7, 1))
+    else:  # monthly
+        return customer_share * (total_revenue / max(len(daily_revenue) / 30, 1))
+
+@app.get("/api/sales/geo-temporal")
+async def get_geo_temporal_sales(
+    period: str = Query(..., regex="^(daily|weekly|monthly)$"),
+    location_ids: str = Query(None),
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """Returns geocoded sales data with time period filtering"""
+    from datetime import datetime, timedelta
+    
+    locations = [location_ids] if location_ids and "," not in location_ids else (location_ids.split(",") if location_ids else None)
+    
+    # Get customers with coordinates
+    if imported_customers and len(imported_customers) > 0:
+        customers = imported_customers
+    else:
+        customers = list(customers_db.values())
+    
+    if locations:
+        customers = [c for c in customers if c.get("location_id") in locations]
+    
+    customers = filter_by_location(customers, current_user)
+    
+    sales_data = []
+    if imported_financial_data:
+        daily_revenue = imported_financial_data.get("daily_revenue", {})
+        
+        for customer in customers:
+            if customer.get("coordinates"):
+                # Calculate sales for this customer based on period
+                customer_sales = calculate_customer_sales_by_period(customer, daily_revenue, period)
+                sales_data.append({
+                    "customer_id": customer["id"],
+                    "customer_name": customer["name"],
+                    "coordinates": customer["coordinates"],
+                    "sales_amount": customer_sales,
+                    "location_id": customer.get("location_id")
+                })
+            elif customer.get("address"):
+                geocoded = geocode_address(customer.get("address", ""))
+                if geocoded:
+                    customer_sales = calculate_customer_sales_by_period(customer, daily_revenue, period)
+                    sales_data.append({
+                        "customer_id": customer["id"],
+                        "customer_name": customer["name"],
+                        "coordinates": geocoded,
+                        "sales_amount": customer_sales,
+                        "location_id": customer.get("location_id")
+                    })
+    
+    return {"sales": sales_data, "period": period}
+
+@app.get("/api/performance/locations/{location_id}")
+async def get_location_performance(
+    location_id: str,
+    period: str = Query("weekly", regex="^(daily|weekly|monthly|quarterly)$"),
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """Returns performance metrics for a specific location"""
+    
+    location = locations_db.get(location_id)
+    if not location:
+        raise HTTPException(status_code=404, detail="Location not found")
+    
+    # Calculate metrics
+    customers = [c for c in (imported_customers or list(customers_db.values())) 
+                if c.get("location_id") == location_id]
+    customers = filter_by_location(customers, current_user)
+    
+    vehicles = [v for v in vehicles_db.values() if v.get("location_id") == location_id]
+    
+    location_revenue = 0
+    if imported_financial_data:
+        daily_revenue = imported_financial_data.get("daily_revenue", {})
+        total_customers = len(imported_customers or list(customers_db.values()))
+        location_revenue = sum(daily_revenue.values()) * (len(customers) / max(total_customers, 1))
+    
+    return {
+        "location": location,
+        "metrics": {
+            "sales_volume": location_revenue,
+            "customer_count": len(customers),
+            "vehicle_count": len(vehicles),
+            "efficiency": min(100, (len([v for v in vehicles if v.get("is_active")]) / max(len(vehicles), 1)) * 100)
+        },
+        "period": period
+    }
+
 @app.post("/api/import/excel")
 async def import_excel_data(
     files: List[UploadFile] = File(...), 
@@ -3062,6 +3165,122 @@ async def create_production_entry(entry_data: ProductionEntryCreate, current_use
     save_data_to_disk()
     return entry
 
+@app.get("/api/inventory/forecast/{location_id}")
+async def forecast_inventory(
+    location_id: str,
+    days: int = 7,
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """
+    Returns AI-powered demand predictions for ice production using Prophet.
+    Integrates with existing production data structures.
+    """
+    try:
+        entries = [e for e in production_entries_db.values() if e.get("location_id") == location_id]
+        
+        if len(entries) < 7:
+            if entries:
+                avg_total = sum(e.get("total_pallets", 0) for e in entries) / len(entries)
+                return {
+                    "location_id": location_id,
+                    "forecast": [
+                        {
+                            "ds": (date.today() + timedelta(days=i)).isoformat(),
+                            "yhat": avg_total,
+                            "yhat_lower": avg_total * 0.8,
+                            "yhat_upper": avg_total * 1.2
+                        }
+                        for i in range(1, days + 1)
+                    ],
+                    "reorder_point": avg_total * 1.2,
+                    "method": "moving_average"
+                }
+            else:
+                return {
+                    "location_id": location_id,
+                    "forecast": [
+                        {
+                            "ds": (date.today() + timedelta(days=i)).isoformat(),
+                            "yhat": 100,
+                            "yhat_lower": 80,
+                            "yhat_upper": 120
+                        }
+                        for i in range(1, days + 1)
+                    ],
+                    "reorder_point": 120,
+                    "method": "default"
+                }
+        
+        df_data = []
+        for entry in entries:
+            entry_date = entry.get("date")
+            if isinstance(entry_date, str):
+                entry_date = datetime.fromisoformat(entry_date).date()
+            df_data.append({
+                "ds": entry_date,
+                "y": entry.get("total_pallets", 0)
+            })
+        
+        df = pd.DataFrame(df_data)
+        df = df.groupby("ds")["y"].sum().reset_index()  # Aggregate by date
+        df["ds"] = pd.to_datetime(df["ds"])
+        
+        model = Prophet(
+            daily_seasonality=True,
+            weekly_seasonality=True,
+            yearly_seasonality=False,
+            interval_width=0.8
+        )
+        model.fit(df)
+        
+        future = model.make_future_dataframe(periods=days)
+        forecast = model.predict(future)
+        
+        future_forecast = forecast.tail(days)
+        
+        # Calculate reorder point using safety stock formula
+        historical_demand = df["y"].values.astype(float)
+        avg_demand = float(np.mean(historical_demand))
+        std_demand = float(np.std(historical_demand))
+        safety_stock = 1.65 * std_demand  # 95% service level
+        reorder_point = max(avg_demand + safety_stock, 50)  # Minimum 50 pallets
+        
+        return {
+            "location_id": location_id,
+            "forecast": [
+                {
+                    "ds": row["ds"].strftime("%Y-%m-%d"),
+                    "yhat": max(0, row["yhat"]),
+                    "yhat_lower": max(0, row["yhat_lower"]),
+                    "yhat_upper": max(0, row["yhat_upper"])
+                }
+                for _, row in future_forecast.iterrows()
+            ],
+            "reorder_point": round(reorder_point, 0),
+            "method": "prophet",
+            "historical_avg": round(avg_demand, 1),
+            "safety_stock": round(safety_stock, 1)
+        }
+        
+    except Exception as e:
+        logger.error(f"Forecast error for location {location_id}: {str(e)}")
+        avg_pallets = 100
+        return {
+            "location_id": location_id,
+            "forecast": [
+                {
+                    "ds": (date.today() + timedelta(days=i)).isoformat(),
+                    "yhat": avg_pallets,
+                    "yhat_lower": avg_pallets * 0.8,
+                    "yhat_upper": avg_pallets * 1.2
+                }
+                for i in range(1, days + 1)
+            ],
+            "reorder_point": avg_pallets * 1.2,
+            "method": "fallback",
+            "error": str(e)
+        }
+
 @app.get("/api/expenses")
 async def get_expenses(location_id: Optional[str] = None, current_user: UserInDB = Depends(get_current_user)):
     expenses = list(expenses_db.values())
@@ -3122,7 +3341,7 @@ async def get_notifications(current_user: UserInDB = Depends(get_current_user)):
                     order_date = datetime.fromisoformat(order_date.replace('Z', '+00:00')).date()
                 except:
                     continue
-            elif hasattr(order_date, 'date'):
+            elif hasattr(order_date, 'date') and order_date is not None:
                 order_date = order_date.date()
             else:
                 continue
@@ -3306,7 +3525,7 @@ async def quickbooks_auth(auth_request: QuickBooksAuthRequest, current_user: Use
         raise HTTPException(status_code=403, detail="Only managers and accountants can configure QuickBooks")
     
     try:
-        authorization_url, state = quickbooks_client.get_authorization_url(auth_request.state)
+        authorization_url, state = quickbooks_client.get_authorization_url(auth_request.state or "")
         return {
             "authorization_url": authorization_url,
             "state": state
@@ -3417,7 +3636,9 @@ async def quickbooks_sync(sync_request: QuickBooksSyncRequest, current_user: Use
                 for order in arctic_orders[:10]:
                     customer_name = order.get("customer_name", "").lower()
                     if customer_name in customer_map:
-                        invoice_data = map_arctic_order_to_qb_invoice(order, customer_map[customer_name])
+                        customer_ref = customer_map[customer_name]
+                        if isinstance(customer_ref, str):
+                            invoice_data = map_arctic_order_to_qb_invoice(order, customer_ref)
                         quickbooks_client.create_invoice(access_token, realm_id, invoice_data)
                         sync_results["invoices_synced"] += 1
                         

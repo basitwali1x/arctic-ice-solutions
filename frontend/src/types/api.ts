@@ -442,3 +442,52 @@ export interface DriverLocation {
   heading?: number;
   accuracy?: number;
 }
+
+export interface GeoTemporalSales {
+  customer_id: string;
+  customer_name: string;
+  coordinates: {
+    lat: number;
+    lng: number;
+  };
+  sales_amount: number;
+  location_id: string;
+}
+
+export interface LocationPerformance {
+  location: Location;
+  metrics: {
+    sales_volume: number;
+    customer_count: number;
+    vehicle_count: number;
+    efficiency: number;
+  };
+  period: string;
+}
+
+export interface TimePeriod {
+  value: 'daily' | 'weekly' | 'monthly';
+  label: string;
+}
+
+export interface GeoTemporalSales {
+  customer_id: string;
+  customer_name: string;
+  coordinates: {
+    lat: number;
+    lng: number;
+  };
+  sales_amount: number;
+  location_id: string;
+}
+
+export interface LocationPerformance {
+  location: Location;
+  metrics: {
+    sales_volume: number;
+    customer_count: number;
+    vehicle_count: number;
+    efficiency: number;
+  };
+  period: string;
+}

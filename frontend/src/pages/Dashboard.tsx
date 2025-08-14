@@ -10,6 +10,8 @@ import { TrendingUp, Users, Truck, Package, DollarSign, MapPin, Clock, AlertCirc
 import { DashboardOverview, ProductionDashboard, FleetDashboard, FinancialDashboard, Location, Route } from '../types/api';
 import { apiRequest } from '../utils/api';
 import { useErrorToast } from '../hooks/useErrorToast';
+import { CustomerHeatmap } from '../components/CustomerHeatmap';
+import { LocationPerformance } from '../components/LocationPerformance';
 
 export function Dashboard() {
   const [dashboardState, setDashboardState] = useState<{
@@ -551,6 +553,15 @@ export function Dashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Customer Mapping and Location Performance */}
+      <div className="grid grid-cols-1 gap-6">
+        <CustomerHeatmap 
+          locations={dashboardState.locations}
+          selectedLocationIds={dashboardState.locations.map(loc => loc.id)}
+        />
+        <LocationPerformance locations={dashboardState.locations} />
+      </div>
 
       {/* Location Details Modal */}
       <Dialog open={showLocationModal} onOpenChange={setShowLocationModal}>

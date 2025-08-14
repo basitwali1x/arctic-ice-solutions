@@ -1,0 +1,9 @@
+This is a test file to verify that the auto-merge workflow fix is working correctly.
+
+The auto-merge workflow should:
+1. Trigger on both pull_request and check_suite events
+2. Auto-merge PRs from devin-ai-integration[bot]
+3. Generate a push event to main branch
+4. Trigger the Android CI/CD workflow on main branch
+
+Test created at: 2025-08-12T00:28:00Z

@@ -1,4 +1,4 @@
-package com.arcticeicesolutions.mobile;
+package com.arcticeicesolutions.customer;
 
 import com.getcapacitor.BridgeActivity;
 

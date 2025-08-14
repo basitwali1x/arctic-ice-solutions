@@ -1,6 +1,6 @@
 import { buildAPIUrl } from '../utils/urlUtils';
 
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://api.yourchoiceice.com';
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export const RouteService = {
   async optimizeRoute(locationId: string): Promise<any> {

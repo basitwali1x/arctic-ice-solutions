@@ -30,6 +30,12 @@ jobs:
           pnpm install
           pnpm build
           
+      - name: Fix API URL configuration in build
+        env:
+          VITE_API_URL: https://api.yourchoiceice.com
+        run: |
+          node force-env-update.js
+          
       - name: Deploy to Devin Platform
         run: |
           echo "Deploying frontend build artifacts to Devin Apps Platform"

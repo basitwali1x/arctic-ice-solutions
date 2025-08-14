@@ -56,7 +56,8 @@ if (fs.existsSync(assetsPath)) {
       /https:\/\/app-dfyyccxe\.fly\.dev/g,
       /https:\/\/app-eueptojk\.fly\.dev/g,
       /https:\/\/app-rawyclbe\.fly\.dev/g,
-      /https:\/\/app-[a-z0-9]+\.fly\.dev/g
+      /https:\/\/app-[a-z0-9]+\.fly\.dev/g,
+      /http:\/\/localhost:8000/g
     ];
     
     oldUrlPatterns.forEach(pattern => {

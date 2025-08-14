@@ -5,7 +5,8 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
   define: {
-    'import.meta.env.VITE_API_URL': JSON.stringify(process.env.VITE_API_URL || 'https://app-fzoofwnw.fly.dev')
+    'import.meta.env.VITE_API_URL': JSON.stringify(process.env.VITE_API_URL || 'https://app-fzoofwnw.fly.dev'),
+    'import.meta.env.VITE_GOOGLE_MAPS_API_KEY': JSON.stringify('AIzaSyDK0qyd2EEKFvb0g_5CYR3FKy_XXE7CaRQ')
   },
   plugins: [
     react(),

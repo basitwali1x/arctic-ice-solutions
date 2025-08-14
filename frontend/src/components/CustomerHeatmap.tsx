@@ -31,7 +31,7 @@ const timePeriods: TimePeriod[] = [
 export const CustomerHeatmap: React.FC<CustomerHeatmapProps> = ({
   selectedLocationIds
 }) => {
-  const googleMapsApiKey = (import.meta as any).env?.VITE_GOOGLE_MAPS_API_KEY || '';
+  const googleMapsApiKey = 'AIzaSyDK0qyd2EEKFvb0g_5CYR3FKy_XXE7CaRQ';
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey,

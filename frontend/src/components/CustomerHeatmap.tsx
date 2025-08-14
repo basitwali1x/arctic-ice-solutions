@@ -32,11 +32,15 @@ export const CustomerHeatmap: React.FC<CustomerHeatmapProps> = ({
   selectedLocationIds
 }) => {
   const googleMapsApiKey = 'AIzaSyDK0qyd2EEKFvb0g_5CYR3FKy_XXE7CaRQ';
-  const { isLoaded } = useJsApiLoader({
+  const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey,
     libraries
   });
+
+  console.log('CustomerHeatmap - API Key:', googleMapsApiKey);
+  console.log('CustomerHeatmap - isLoaded:', isLoaded);
+  console.log('CustomerHeatmap - loadError:', loadError);
 
   const [selectedPeriod, setSelectedPeriod] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
   const [loading, setLoading] = useState(false);
@@ -94,7 +98,12 @@ export const CustomerHeatmap: React.FC<CustomerHeatmapProps> = ({
       </CardHeader>
       <CardContent>
         {loading && <div className="text-center py-4">Loading sales data...</div>}
-        {isLoaded ? (
+        {loadError ? (
+          <div className="text-center py-8 bg-red-50 rounded-lg">
+            <p className="text-red-600 mb-2">Google Maps failed to load</p>
+            <p className="text-sm text-red-500">Error: {loadError.message}</p>
+          </div>
+        ) : isLoaded ? (
           <div className="heatmap-container" style={{ 
             minHeight: '500px', 
             background: '#f5f5f5',
@@ -149,7 +158,7 @@ export const CustomerHeatmap: React.FC<CustomerHeatmapProps> = ({
             justifyContent: 'center',
             willChange: 'transform'
           }}>
-            <div>Loading map...</div>
+            <div>Loading Google Maps...</div>
           </div>
         )}
       </CardContent>

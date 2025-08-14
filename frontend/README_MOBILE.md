@@ -190,7 +190,7 @@ pnpm build
 ```typescript
 // capacitor.config.ts
 export default {
-  appId: 'com.arcticeicesolutions.mobile',
+  appId: 'com.arcticeicesolutions.customer',
   appName: 'Arctic Ice Solutions',
   webDir: 'dist',
   plugins: {

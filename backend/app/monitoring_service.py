@@ -2,6 +2,9 @@ from datetime import datetime
 import socket
 import ssl
 from typing import Dict, Any
+from fastapi import APIRouter
+
+router = APIRouter()
 
 def check_ssl_expiry(domain: str, port: int = 443) -> Dict[str, Any]:
     """Check SSL certificate expiry with proper type safety"""
@@ -34,10 +37,22 @@ def check_ssl_expiry(domain: str, port: int = 443) -> Dict[str, Any]:
                     })
 
                 # Safe issuer extraction
-                issuer_info = cert.get('issuer', [{}])[0] if isinstance(cert.get('issuer'), list) else {}
-                result["issuer"] = str(issuer_info.get('organizationName', 'Unknown'))
+                issuer_data = cert.get('issuer', [])
+                if isinstance(issuer_data, list) and len(issuer_data) > 0:
+                    issuer_info = issuer_data[0]
+                    if isinstance(issuer_info, dict):
+                        result["issuer"] = str(issuer_info.get('organizationName', 'Unknown'))
+                    else:
+                        result["issuer"] = "Unknown"
+                else:
+                    result["issuer"] = "Unknown"
 
     except Exception as e:
         result["error"] = f"SSL check failed: {str(e)}"
 
     return result
+
+@router.get("/ssl-check/{domain}")
+async def check_ssl_status(domain: str):
+    """Check SSL certificate status for a domain"""
+    return check_ssl_expiry(domain)

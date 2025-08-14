@@ -765,13 +765,13 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     try:
         token = credentials.credentials
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
+        username: str | None = payload.get("sub")
         if username is None:
             raise credentials_exception
         token_data = TokenData(username=username)
     except JWTError:
         raise credentials_exception
-    user = get_user(username=token_data.username)
+    user = get_user(username=username)
     if user is None:
         raise credentials_exception
     return user
@@ -3140,9 +3140,9 @@ async def forecast_inventory(
         future_forecast = forecast.tail(days)
         
         # Calculate reorder point using safety stock formula
-        historical_demand = df["y"].values
-        avg_demand = np.mean(historical_demand)
-        std_demand = np.std(historical_demand)
+        historical_demand = df["y"].values.astype(float)
+        avg_demand = float(np.mean(historical_demand))
+        std_demand = float(np.std(historical_demand))
         safety_stock = 1.65 * std_demand  # 95% service level
         reorder_point = max(avg_demand + safety_stock, 50)  # Minimum 50 pallets
         
@@ -3242,7 +3242,7 @@ async def get_notifications(current_user: UserInDB = Depends(get_current_user)):
                     order_date = datetime.fromisoformat(order_date.replace('Z', '+00:00')).date()
                 except:
                     continue
-            elif hasattr(order_date, 'date'):
+            elif hasattr(order_date, 'date') and order_date is not None:
                 order_date = order_date.date()
             else:
                 continue
@@ -3426,7 +3426,7 @@ async def quickbooks_auth(auth_request: QuickBooksAuthRequest, current_user: Use
         raise HTTPException(status_code=403, detail="Only managers and accountants can configure QuickBooks")
     
     try:
-        authorization_url, state = quickbooks_client.get_authorization_url(auth_request.state)
+        authorization_url, state = quickbooks_client.get_authorization_url(auth_request.state or "")
         return {
             "authorization_url": authorization_url,
             "state": state
@@ -3537,7 +3537,9 @@ async def quickbooks_sync(sync_request: QuickBooksSyncRequest, current_user: Use
                 for order in arctic_orders[:10]:
                     customer_name = order.get("customer_name", "").lower()
                     if customer_name in customer_map:
-                        invoice_data = map_arctic_order_to_qb_invoice(order, customer_map[customer_name])
+                        customer_ref = customer_map[customer_name]
+                        if isinstance(customer_ref, str):
+                            invoice_data = map_arctic_order_to_qb_invoice(order, customer_ref)
                         quickbooks_client.create_invoice(access_token, realm_id, invoice_data)
                         sync_results["invoices_synced"] += 1
                         

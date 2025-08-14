@@ -127,6 +127,7 @@ Frontend and backend are automatically deployed when PRs are merged to the main 
 - Node.js 18+ and pnpm
 - Python 3.12+ and Poetry
 - Git
+- Google Maps API key (for mapping functionality)
 
 ### Frontend Setup
 ```bash
@@ -143,10 +144,30 @@ poetry run fastapi dev app/main.py
 ```
 
 ### Environment Variables
-Create `.env` file in frontend directory:
+Create `.env` files in each frontend directory:
+
+**frontend/.env:**
 ```
 VITE_API_URL=http://localhost:8000
+VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
 ```
+
+**frontend-staff/.env:**
+```
+VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
+```
+
+**frontend-customer/.env:**
+```
+VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
+```
+
+### Security Configuration
+
+- **Never commit API keys to the repository**
+- Use environment variables for all sensitive configuration
+- See `SECURITY_REMEDIATION.md` for detailed security setup instructions
+- Configure API key restrictions in Google Cloud Console
 
 ## Deployment URLs
 

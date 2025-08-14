@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Factory, Package, Clock, AlertCircle, RefreshCw } from 'lucide-react';
+import { Factory, Package, Clock, AlertCircle, RefreshCw, TrendingUp, Brain } from 'lucide-react';
 import { apiRequest } from '../utils/api';
 import { useErrorToast } from '../hooks/useErrorToast';
 
@@ -26,8 +26,24 @@ interface ProductionTarget {
   shift_2_target: number;
 }
 
+interface ForecastData {
+  location_id: string;
+  forecast: {
+    ds: string;
+    yhat: number;
+    yhat_lower: number;
+    yhat_upper: number;
+  }[];
+  reorder_point: number;
+  method: string;
+  historical_avg?: number;
+  safety_stock?: number;
+}
+
 export function ProductionManager() {
   const [productionEntries, setProductionEntries] = useState<ProductionEntry[]>([]);
+  const [forecastData, setForecastData] = useState<ForecastData | null>(null);
+  const [forecastLoading, setForecastLoading] = useState(false);
   const [targets] = useState<ProductionTarget>({
     daily_target: 160,
     shift_1_target: 80,
@@ -69,8 +85,25 @@ export function ProductionManager() {
     }
   };
 
+  const fetchForecastData = async () => {
+    try {
+      setForecastLoading(true);
+      
+      const response = await apiRequest('/api/inventory/forecast/loc_1?days=7');
+      const data = await response?.json();
+      
+      setForecastData(data);
+    } catch (error) {
+      console.error('Error fetching forecast data:', error);
+      setForecastData(null);
+    } finally {
+      setForecastLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchProductionData();
+    fetchForecastData();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -236,6 +269,114 @@ export function ProductionManager() {
           </CardContent>
         </Card>
       </div>
+
+      {/* AI Forecast Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Brain className="h-5 w-5 text-purple-600" />
+            <span>AI Demand Forecast</span>
+            <Badge variant="outline" className="ml-2">
+              {forecastData?.method || 'Loading...'}
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {forecastLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <RefreshCw className="h-6 w-6 animate-spin mr-2" />
+              <span>Generating AI predictions...</span>
+            </div>
+          ) : forecastData ? (
+            <div className="space-y-6">
+              {/* Forecast Summary */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <div className="text-sm font-medium text-blue-800">Reorder Point</div>
+                  <div className="text-2xl font-bold text-blue-900">{forecastData.reorder_point}</div>
+                  <div className="text-xs text-blue-600">pallets</div>
+                </div>
+                {forecastData.historical_avg && (
+                  <div className="bg-green-50 p-4 rounded-lg">
+                    <div className="text-sm font-medium text-green-800">Historical Average</div>
+                    <div className="text-2xl font-bold text-green-900">{forecastData.historical_avg}</div>
+                    <div className="text-xs text-green-600">pallets/day</div>
+                  </div>
+                )}
+                {forecastData.safety_stock && (
+                  <div className="bg-orange-50 p-4 rounded-lg">
+                    <div className="text-sm font-medium text-orange-800">Safety Stock</div>
+                    <div className="text-2xl font-bold text-orange-900">{forecastData.safety_stock}</div>
+                    <div className="text-xs text-orange-600">pallets buffer</div>
+                  </div>
+                )}
+              </div>
+
+              {/* 7-Day Forecast Chart */}
+              <div className="space-y-4">
+                <h4 className="font-medium flex items-center">
+                  <TrendingUp className="h-4 w-4 mr-2" />
+                  7-Day Production Forecast
+                </h4>
+                <div className="space-y-2">
+                  {forecastData.forecast.map((day) => {
+                    const date = new Date(day.ds);
+                    const dayName = date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                    const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+                    
+                    return (
+                      <div key={day.ds} className={`flex items-center justify-between p-3 rounded-lg border ${isWeekend ? 'bg-gray-50' : 'bg-white'}`}>
+                        <div className="flex items-center space-x-3">
+                          <div className="text-sm font-medium w-20">{dayName}</div>
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2">
+                              <div className="text-lg font-semibold">{Math.round(day.yhat)}</div>
+                              <div className="text-sm text-gray-500">
+                                ({Math.round(day.yhat_lower)}-{Math.round(day.yhat_upper)})
+                              </div>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                              <div 
+                                className="bg-purple-600 h-2 rounded-full" 
+                                style={{ width: `${Math.min((day.yhat / targets.daily_target) * 100, 100)}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {((day.yhat / targets.daily_target) * 100).toFixed(0)}% of target
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Reorder Alert */}
+              {todayTotal > 0 && todayTotal < forecastData.reorder_point && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <div className="flex items-center">
+                    <AlertCircle className="h-5 w-5 text-yellow-600 mr-2" />
+                    <div>
+                      <div className="font-medium text-yellow-800">Reorder Recommended</div>
+                      <div className="text-sm text-yellow-700">
+                        Current production ({todayTotal} pallets) is below the AI-calculated reorder point ({forecastData.reorder_point} pallets).
+                        Consider increasing production to meet upcoming demand.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <Brain className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+              <div>No forecast data available</div>
+              <div className="text-sm">Add more production entries to enable AI predictions</div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>

@@ -3,6 +3,7 @@ import requests
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 import logging
+from fastapi import APIRouter
 
 logger = logging.getLogger(__name__)
 
@@ -99,4 +100,15 @@ class WeatherService:
             logger.error(f"Route weather analysis error: {e}")
             return {"impact": "unknown", "message": "Weather analysis failed"}
 
+router = APIRouter()
 weather_service = WeatherService()
+
+@router.get("/current/{lat}/{lng}")
+async def get_current_weather_endpoint(lat: float, lng: float):
+    """Get current weather for coordinates"""
+    return await weather_service.get_current_weather(lat, lng)
+
+@router.get("/route-impact")
+async def get_route_weather_impact_endpoint(route_stops: List[Dict]):
+    """Analyze weather impact on route"""
+    return await weather_service.get_route_weather_impact(route_stops)

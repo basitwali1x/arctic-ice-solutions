@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { GoogleMap, HeatmapLayer, useJsApiLoader } from '@react-google-maps/api';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -43,7 +43,7 @@ export const CustomerHeatmap: React.FC<CustomerHeatmapProps> = ({
   const [heatmapData, setHeatmapData] = useState<google.maps.visualization.WeightedLocation[]>([]);
 
   const fetchSalesData = useCallback(async () => {
-    if (!isLoaded) return;
+    if (!isLoaded || !window.google) return;
     
     setLoading(true);
     try {
@@ -66,6 +66,8 @@ export const CustomerHeatmap: React.FC<CustomerHeatmapProps> = ({
       setLoading(false);
     }
   }, [isLoaded, selectedPeriod, selectedLocationIds]);
+
+  const memoizedHeatmapData = useMemo(() => heatmapData, [heatmapData]);
 
   useEffect(() => {
     fetchSalesData();
@@ -98,39 +100,52 @@ export const CustomerHeatmap: React.FC<CustomerHeatmapProps> = ({
             <p className="text-sm text-gray-500">Add VITE_GOOGLE_MAPS_API_KEY to .env.local to enable maps</p>
           </div>
         ) : isLoaded ? (
-          <GoogleMap
-            mapContainerStyle={containerStyle}
-            center={center}
-            zoom={10}
-          >
-            {heatmapData.length > 0 && (
-              <HeatmapLayer
-                data={heatmapData}
-                options={{
-                  radius: 20,
-                  opacity: 0.6,
-                  gradient: [
-                    'rgba(0, 255, 255, 0)',
-                    'rgba(0, 255, 255, 1)',
-                    'rgba(0, 191, 255, 1)',
-                    'rgba(0, 127, 255, 1)',
-                    'rgba(0, 63, 255, 1)',
-                    'rgba(0, 0, 255, 1)',
-                    'rgba(0, 0, 223, 1)',
-                    'rgba(0, 0, 191, 1)',
-                    'rgba(0, 0, 159, 1)',
-                    'rgba(0, 0, 127, 1)',
-                    'rgba(63, 0, 91, 1)',
-                    'rgba(127, 0, 63, 1)',
-                    'rgba(191, 0, 31, 1)',
-                    'rgba(255, 0, 0, 1)'
-                  ]
-                }}
-              />
-            )}
-          </GoogleMap>
+          <div className="heatmap-container" style={{ minHeight: '500px', background: '#f5f5f5' }}>
+            <GoogleMap
+              mapContainerStyle={containerStyle}
+              center={center}
+              zoom={10}
+              options={{
+                styles: [
+                  {
+                    featureType: 'all',
+                    elementType: 'geometry',
+                    stylers: [{ color: '#f5f5f5' }]
+                  }
+                ]
+              }}
+            >
+              {memoizedHeatmapData.length > 0 && (
+                <HeatmapLayer
+                  data={memoizedHeatmapData}
+                  options={{
+                    radius: 20,
+                    opacity: 0.6,
+                    gradient: [
+                      'rgba(0, 255, 255, 0)',
+                      'rgba(0, 255, 255, 1)',
+                      'rgba(0, 191, 255, 1)',
+                      'rgba(0, 127, 255, 1)',
+                      'rgba(0, 63, 255, 1)',
+                      'rgba(0, 0, 255, 1)',
+                      'rgba(0, 0, 223, 1)',
+                      'rgba(0, 0, 191, 1)',
+                      'rgba(0, 0, 159, 1)',
+                      'rgba(0, 0, 127, 1)',
+                      'rgba(63, 0, 91, 1)',
+                      'rgba(127, 0, 63, 1)',
+                      'rgba(191, 0, 31, 1)',
+                      'rgba(255, 0, 0, 1)'
+                    ]
+                  }}
+                />
+              )}
+            </GoogleMap>
+          </div>
         ) : (
-          <div className="text-center py-4">Loading map...</div>
+          <div className="text-center py-4 bg-gray-50 rounded-lg" style={{ minHeight: '500px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div>Loading map...</div>
+          </div>
         )}
       </CardContent>
     </Card>

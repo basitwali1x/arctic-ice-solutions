@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { GoogleMap, HeatmapLayer, useJsApiLoader } from '@react-google-maps/api';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,31 +31,36 @@ const timePeriods: TimePeriod[] = [
 export const CustomerHeatmap: React.FC<CustomerHeatmapProps> = ({
   selectedLocationIds
 }) => {
-  const { isLoaded } = useJsApiLoader({
+  const googleMapsApiKey = 'AIzaSyDK0qyd2EEKFvb0g_5CYR3FKy_XXE7CaRQ';
+  const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
-    googleMapsApiKey: (import.meta as any).env?.VITE_GOOGLE_MAPS_API_KEY || '',
+    googleMapsApiKey,
     libraries
   });
+
+  console.log('CustomerHeatmap - API Key:', googleMapsApiKey);
+  console.log('CustomerHeatmap - isLoaded:', isLoaded);
+  console.log('CustomerHeatmap - loadError:', loadError);
 
   const [selectedPeriod, setSelectedPeriod] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
   const [loading, setLoading] = useState(false);
   const [heatmapData, setHeatmapData] = useState<google.maps.visualization.WeightedLocation[]>([]);
 
   const fetchSalesData = useCallback(async () => {
-    if (!isLoaded) return;
+    if (!isLoaded || !window.google) return;
     
     setLoading(true);
     try {
-      const locationParam = selectedLocationIds?.join(',') || '';
+      const locationParam = selectedLocationIds?.join(',') || 'loc_1,loc_2,loc_3,loc_4';
       const response = await apiRequest(`/api/sales/geo-temporal?period=${selectedPeriod}&location_ids=${locationParam}`);
       
       if (response?.ok) {
         const data = await response.json();
         
-        const heatmapPoints = data.sales.map((sale: GeoTemporalSales) => ({
+        const heatmapPoints = data.sales?.map((sale: GeoTemporalSales) => ({
           location: new google.maps.LatLng(sale.coordinates.lat, sale.coordinates.lng),
           weight: Math.max(1, sale.sales_amount / 1000)
-        }));
+        })) || [];
         
         setHeatmapData(heatmapPoints);
       }
@@ -65,6 +70,8 @@ export const CustomerHeatmap: React.FC<CustomerHeatmapProps> = ({
       setLoading(false);
     }
   }, [isLoaded, selectedPeriod, selectedLocationIds]);
+
+  const memoizedHeatmapData = useMemo(() => heatmapData, [heatmapData]);
 
   useEffect(() => {
     fetchSalesData();
@@ -91,40 +98,59 @@ export const CustomerHeatmap: React.FC<CustomerHeatmapProps> = ({
       </CardHeader>
       <CardContent>
         {loading && <div className="text-center py-4">Loading sales data...</div>}
-        {isLoaded ? (
-          <GoogleMap
-            mapContainerStyle={containerStyle}
-            center={center}
-            zoom={10}
-          >
-            {heatmapData.length > 0 && (
-              <HeatmapLayer
-                data={heatmapData}
-                options={{
-                  radius: 20,
-                  opacity: 0.6,
-                  gradient: [
-                    'rgba(0, 255, 255, 0)',
-                    'rgba(0, 255, 255, 1)',
-                    'rgba(0, 191, 255, 1)',
-                    'rgba(0, 127, 255, 1)',
-                    'rgba(0, 63, 255, 1)',
-                    'rgba(0, 0, 255, 1)',
-                    'rgba(0, 0, 223, 1)',
-                    'rgba(0, 0, 191, 1)',
-                    'rgba(0, 0, 159, 1)',
-                    'rgba(0, 0, 127, 1)',
-                    'rgba(63, 0, 91, 1)',
-                    'rgba(127, 0, 63, 1)',
-                    'rgba(191, 0, 31, 1)',
-                    'rgba(255, 0, 0, 1)'
-                  ]
-                }}
-              />
-            )}
-          </GoogleMap>
+        {loadError ? (
+          <div className="text-center py-8 bg-red-50 rounded-lg">
+            <p className="text-red-600 mb-2">Google Maps failed to load</p>
+            <p className="text-sm text-red-500">Error: {loadError.message}</p>
+          </div>
+        ) : isLoaded ? (
+          <div className="heatmap-container" style={{ 
+            minHeight: '500px', 
+            background: '#f5f5f5',
+            willChange: 'transform'
+          }}>
+            <GoogleMap
+              mapContainerStyle={containerStyle}
+              center={center}
+              zoom={10}
+              options={{
+                styles: [
+                  {
+                    featureType: 'all',
+                    elementType: 'geometry',
+                    stylers: [{ color: '#f5f5f5' }]
+                  }
+                ]
+              }}
+            >
+              {memoizedHeatmapData.length > 0 && (
+                <HeatmapLayer
+                  data={memoizedHeatmapData}
+                  options={{
+                    radius: 20,
+                    opacity: 0.6,
+                    gradient: [
+                      'rgba(102, 255, 0, 0)',
+                      'rgba(102, 255, 0, 1)',
+                      'rgba(255, 255, 0, 1)',
+                      'rgba(255, 140, 0, 1)',
+                      'rgba(255, 0, 0, 1)'
+                    ]
+                  }}
+                />
+              )}
+            </GoogleMap>
+          </div>
         ) : (
-          <div className="text-center py-4">Loading map...</div>
+          <div className="text-center py-4 bg-gray-50 rounded-lg" style={{ 
+            minHeight: '500px', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            willChange: 'transform'
+          }}>
+            <div>Loading Google Maps...</div>
+          </div>
         )}
       </CardContent>
     </Card>

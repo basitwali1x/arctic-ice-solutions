@@ -219,9 +219,46 @@ arctic-ice-solutions/
 3. Monitor client-side errors via browser console
 4. Escalate to Devin platform support if deployment fails
 
+## Dashboard Flickering Fix - COMPLETED ✅
+
+### Issue Resolution Status
+**RESOLVED**: Dashboard flickering on deployed version at `https://git-pr-helper-a1lqq6oq.devinapps.com/dashboard`
+
+### Applied Fixes (PR #136 - Merged)
+1. **Performance Optimizations Applied to All Frontend Variants**:
+   - `frontend-customer/src/pages/Dashboard.tsx` ✅
+   - `frontend-staff/src/pages/Dashboard.tsx` ✅ 
+   - `frontend/src/pages/Dashboard.tsx` ✅ (from PR #135)
+
+2. **Specific Optimizations**:
+   - Added `useMemo` wrapping for `productionData`, `paymentData`, and `fleetData`
+   - Removed `showError` dependency from `fetchDashboardData` useCallback
+   - Replaced real-time `new Date().toLocaleTimeString()` with static "Just now" text
+   - Prevents unnecessary re-renders and constant timestamp updates
+
+### Verification Results
+- ✅ **Deployed URL Tested**: https://git-pr-helper-a1lqq6oq.devinapps.com/dashboard
+- ✅ **Login Successful**: Manager credentials work correctly
+- ✅ **Dashboard Loading**: All components render properly without flickering
+- ✅ **Static Timestamp**: "Last updated: 7:09:32 AM" remains stable
+- ✅ **All Features Present**: CustomerHeatmap, AI Route Optimization, QuickBooks integration
+- ✅ **Performance**: Smooth operation for 30+ seconds without visual issues
+
+### Branch Information
+- **Fix Branch**: `devin/1755155099-fix-deployed-dashboard-flickering` (merged to main)
+- **Commits**: 
+  - `f7bf30c` - Fix dashboard flickering in deployed frontend variants
+  - `45d9968` - Fix real-time timestamp flickering in deployed frontend variants
+- **Files Modified**: 2 files, +18 -20 changes
+
+### CI Status
+- ✅ **GitHub Actions**: Builds passing
+- ❌ **Vercel Deployments**: Failed (expected, documented as ignorable)
+- ✅ **PR #136**: Successfully merged
+
 ---
 
-**Last Updated**: August 11, 2025  
+**Last Updated**: August 14, 2025  
 **Deployment Platform**: Devin Apps Platform  
 **Domain**: https://yourchoiceice.com  
-**Status**: Active and Operational
+**Status**: Active and Operational - Dashboard Flickering RESOLVED

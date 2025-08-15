@@ -68,6 +68,8 @@ jobs:
           exit 1
         fi
         echo "✅ Keystore validation successful"
+        echo "🔍 SHA1 Fingerprint:"
+        keytool -list -keystore app/keystore.jks -storepass ${{ secrets.ANDROID_KEYSTORE_PASSWORD_NEW }} -alias ${{ secrets.KEY_ALIAS_NEW }} -v | grep "SHA1:"
       env:
         KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD_NEW }}
         
@@ -128,6 +130,8 @@ jobs:
     - name: Deploy to Google Play Store
       if: github.ref == 'refs/heads/main'
       uses: r0adkll/upload-google-play@v1
+      env:
+        NODE_OPTIONS: "--openssl-legacy-provider"
       with:
         serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_NEW }}
         packageName: com.arcticeicesolutions.${{ matrix.app == 'frontend-customer' && 'customer' || 'staff' }}

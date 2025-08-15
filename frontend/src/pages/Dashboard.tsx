@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import './Dashboard.css';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -68,25 +68,24 @@ export function Dashboard() {
       });
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
-      showError(error, 'Failed to load dashboard data');
       setDashboardState(prev => ({
         ...prev,
         loading: false,
         error: 'Failed to load dashboard data'
       }));
     }
-  }, [showError]);
+  }, []);
 
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  const productionData = [
+  const productionData = useMemo(() => [
     { name: 'Shift 1', pallets: dashboardState.data.production?.shift_1_pallets || 45 },
     { name: 'Shift 2', pallets: dashboardState.data.production?.shift_2_pallets || 35 },
-  ];
+  ], [dashboardState.data.production]);
 
-  const paymentData = dashboardState.data.financial?.payment_breakdown ? [
+  const paymentData = useMemo(() => dashboardState.data.financial?.payment_breakdown ? [
     { name: 'Cash', value: dashboardState.data.financial.payment_breakdown.cash, color: '#0088FE' },
     { name: 'Check', value: dashboardState.data.financial.payment_breakdown.check, color: '#00C49F' },
     { name: 'Credit', value: dashboardState.data.financial.payment_breakdown.credit, color: '#FFBB28' }
@@ -94,12 +93,12 @@ export function Dashboard() {
     { name: 'Cash', value: 45, color: '#0088FE' },
     { name: 'Check', value: 30, color: '#00C49F' },
     { name: 'Credit', value: 25, color: '#FFBB28' }
-  ];
+  ], [dashboardState.data.financial]);
 
-  const fleetData = Object.entries(dashboardState.data.fleet?.vehicles_by_location || {}).map(([location, count]) => ({
+  const fleetData = useMemo(() => Object.entries(dashboardState.data.fleet?.vehicles_by_location || {}).map(([location, count]) => ({
     location,
     vehicles: count
-  }));
+  })), [dashboardState.data.fleet]);
 
   const handleLocationClick = (locationName: string) => {
     const location = dashboardState.locations.find(loc => 
@@ -229,7 +228,7 @@ export function Dashboard() {
         <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
         <div className="flex items-center space-x-2 text-sm text-gray-600">
           <Clock className="h-4 w-4" />
-          <span>Last updated: {new Date().toLocaleTimeString()}</span>
+          <span>Last updated: {dashboardState.loading ? 'Loading...' : 'Just now'}</span>
         </div>
       </div>
 
@@ -367,7 +366,7 @@ export function Dashboard() {
                   fill="#8884d8"
                   dataKey="value"
                 >
-                  {paymentData.map((entry, index) => (
+                  {paymentData.map((entry: any, index: number) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>

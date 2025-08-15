@@ -428,16 +428,26 @@ def optimize_route_ai(customers: List[dict], orders: List[dict], vehicle: dict, 
     for order in orders:
         customer = next((c for c in customers if c["id"] == order["customer_id"]), None)
         if customer:
-            quantity_pallets = max(1, order["quantity"] // 50)  # At least 1 pallet per order
+            if "quantity" in order:
+                quantity_pallets = max(1, order["quantity"] // 50)
+                original_quantity = order["quantity"]
+            elif "items" in order and order["items"]:
+                total_quantity = sum(item.get("quantity", 1) for item in order["items"])
+                quantity_pallets = max(1, total_quantity // 50)
+                original_quantity = total_quantity
+            else:
+                quantity_pallets = 1
+                original_quantity = 1
+            
             stops.append({
                 "order_id": order["id"],
                 "customer_id": customer["id"],
                 "address": customer["address"],
                 "quantity": quantity_pallets,
-                "original_quantity": order["quantity"],
+                "original_quantity": original_quantity,
                 "customer_name": customer["name"]
             })
-            print(f"DEBUG AI: Added stop for customer {customer['name']} with {order['quantity']} units = {quantity_pallets} pallets")
+            print(f"DEBUG AI: Added stop for customer {customer['name']} with {original_quantity} units = {quantity_pallets} pallets")
         else:
             print(f"DEBUG AI: No customer found for order {order['id']} with customer_id {order['customer_id']}")
     
@@ -2519,12 +2529,31 @@ async def get_customer_heatmap(
     location_ids: str = "",
     current_user: UserInDB = Depends(get_current_user)
 ):
+    location_list = location_ids.split(",") if location_ids else []
+    
+    all_customers = list(customers_db.values())
+    if location_list:
+        all_customers = [c for c in all_customers if c["location_id"] in location_list]
+    
+    heatmap_data = []
+    for customer in all_customers:
+        customer_orders = [o for o in orders_db.values() if o.get("customer_id") == customer["id"]]
+        
+        heatmap_data.append({
+            "customer_name": customer["name"],
+            "address": customer["address"],
+            "city": customer.get("city", ""),
+            "state": customer.get("state", ""),
+            "order_count": len(customer_orders),
+            "total_revenue": sum(o.get("total_amount", 0) for o in customer_orders),
+            "location_id": customer["location_id"]
+        })
+    
     return {
-        "heatmap_data": [],
+        "heatmap_data": heatmap_data,
         "period": period,
-        "location_ids": location_ids.split(",") if location_ids else []
+        "location_ids": location_list
     }
-
 @app.get("/api/dashboard/financial")
 async def get_financial_dashboard(current_user: UserInDB = Depends(get_current_user)):
     total_expenses = sum(e["amount"] for e in expenses_db.values())
@@ -2792,6 +2821,63 @@ async def import_excel_data(
     except Exception as e:
         logger.error(f"Unexpected error processing Excel files: {e}")
         raise HTTPException(status_code=500, detail=f"Error processing Excel files: {str(e)}")
+    
+    finally:
+        for temp_file in temp_files:
+            try:
+                os.unlink(temp_file)
+            except:
+                pass
+
+@app.post("/api/import/order-sheet")
+async def import_order_sheet_data(
+    files: List[UploadFile] = File(...), 
+    location_id: str = Form("loc_3"),
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """Import order sheet data from Excel files"""
+    global customers_db, orders_db
+    
+    if not files:
+        raise HTTPException(status_code=400, detail="No files provided")
+    
+    temp_files = []
+    try:
+        for file in files:
+            if not file.filename.endswith(('.xlsx', '.xls', '.xlsm')):
+                raise HTTPException(status_code=400, detail=f"Invalid file type: {file.filename}")
+            
+            file_ext = os.path.splitext(file.filename)[1] if file.filename else '.xlsx'
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=file_ext)
+            content = await file.read()
+            temp_file.write(content)
+            temp_file.close()
+            temp_files.append(temp_file.name)
+        
+        from .excel_import import process_order_sheet_files
+        processed_data = process_order_sheet_files(temp_files, location_id)
+        
+        for customer in processed_data["customers"]:
+            customers_db[customer["id"]] = customer
+        
+        for order in processed_data["orders"]:
+            orders_db[order["id"]] = order
+        
+        save_data_to_disk()
+        
+        return {
+            "success": True,
+            "message": f"Order sheet imported successfully",
+            "summary": {
+                "customers_imported": processed_data["customers_imported"],
+                "orders_imported": processed_data["orders_imported"],
+                "total_records": processed_data["total_records"]
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error processing order sheet: {e}")
+        raise HTTPException(status_code=500, detail=f"Error processing order sheet: {str(e)}")
     
     finally:
         for temp_file in temp_files:

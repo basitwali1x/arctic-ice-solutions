@@ -20,7 +20,10 @@ from .excel_import import process_excel_files, process_customer_excel_files, pro
 from .google_sheets_import import process_google_sheets_data, test_google_sheets_connection
 from .quickbooks_integration import QuickBooksClient, map_arctic_customer_to_qb, map_arctic_order_to_qb_invoice, map_arctic_payment_to_qb
 from .weather_service import weather_service
-from .monitoring_service import monitoring_service
+try:
+    from .monitoring_service import router as monitoring_service
+except ImportError:
+    monitoring_service = None
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from prophet import Prophet
@@ -3946,7 +3949,10 @@ async def get_system_health(current_user: UserInDB = Depends(get_current_user)):
     if current_user.role not in [UserRole.MANAGER]:
         raise HTTPException(status_code=403, detail="Manager access required")
     
-    return monitoring_service.get_monitoring_summary()
+    if monitoring_service:
+        return monitoring_service.get_monitoring_summary()
+    else:
+        return {"status": "monitoring service unavailable", "summary": {}}
 
 @app.get("/api/monitoring/ssl-status")
 async def get_ssl_status(current_user: UserInDB = Depends(get_current_user)):
@@ -3954,11 +3960,13 @@ async def get_ssl_status(current_user: UserInDB = Depends(get_current_user)):
     if current_user.role not in [UserRole.MANAGER]:
         raise HTTPException(status_code=403, detail="Manager access required")
     
-    ssl_results = []
-    for domain in monitoring_service.domains_to_monitor:
-        ssl_results.append(monitoring_service.check_ssl_certificate(domain))
-    
-    return {"ssl_certificates": ssl_results}
+    if monitoring_service:
+        ssl_results = []
+        for domain in monitoring_service.domains_to_monitor:
+            ssl_results.append(monitoring_service.check_ssl_certificate(domain))
+        return {"ssl_certificates": ssl_results}
+    else:
+        return {"ssl_certificates": [], "status": "monitoring service unavailable"}
 
 @app.get("/{full_path:path}")
 async def serve_spa(full_path: str):

@@ -2554,7 +2554,6 @@ async def get_customer_heatmap(
         "period": period,
         "location_ids": location_list
     }
-
 @app.get("/api/dashboard/financial")
 async def get_financial_dashboard(current_user: UserInDB = Depends(get_current_user)):
     total_expenses = sum(e["amount"] for e in expenses_db.values())

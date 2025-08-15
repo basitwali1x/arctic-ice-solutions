@@ -2513,6 +2513,18 @@ async def get_fleet_dashboard(current_user: UserInDB = Depends(get_current_user)
         }
     }
 
+@app.get("/api/analytics/customer-heatmap")
+async def get_customer_heatmap(
+    period: str = "weekly",
+    location_ids: str = "",
+    current_user: UserInDB = Depends(get_current_user)
+):
+    return {
+        "heatmap_data": [],
+        "period": period,
+        "location_ids": location_ids.split(",") if location_ids else []
+    }
+
 @app.get("/api/dashboard/financial")
 async def get_financial_dashboard(current_user: UserInDB = Depends(get_current_user)):
     total_expenses = sum(e["amount"] for e in expenses_db.values())

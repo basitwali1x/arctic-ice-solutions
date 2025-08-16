@@ -12,6 +12,7 @@ import { Vehicle, Location, FleetDashboard, Route } from '../types/api';
 import { apiRequest } from '../utils/api';
 import { useErrorToast } from '../hooks/useErrorToast';
 import { useToast } from '../hooks/use-toast';
+import GoogleMapsNavigation from '../components/GoogleMapsNavigation';
 
 
 export function FleetManagement() {
@@ -30,6 +31,8 @@ export function FleetManagement() {
   const [selectedLocationId, setSelectedLocationId] = useState('');
   const [selectedOptimizeLocation, setSelectedOptimizeLocation] = useState<string>('');
   const [isOptimizing, setIsOptimizing] = useState(false);
+  const [showRouteMapModal, setShowRouteMapModal] = useState(false);
+  const [selectedRoute, setSelectedRoute] = useState<any>(null);
   const [newVehicle, setNewVehicle] = useState({
     license_plate: '',
     vehicle_type: '53ft_reefer',
@@ -215,6 +218,13 @@ export function FleetManagement() {
     setSelectedLocationId('');
   };
 
+  const handleRouteCardClick = (route: any) => {
+    if (route.status === 'planned' && route.stops && route.stops.length > 0) {
+      setSelectedRoute(route);
+      setShowRouteMapModal(true);
+    }
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center h-64">Loading...</div>;
   }
@@ -380,10 +390,23 @@ export function FleetManagement() {
                   <p className="text-gray-500">No routes scheduled for today</p>
                 ) : (
                   routes.map((route) => (
-                    <div key={route.id} className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                    <div 
+                      key={route.id} 
+                      className={`flex items-center justify-between p-3 bg-green-50 rounded-lg ${
+                        route.status === 'planned' && route.stops && route.stops.length > 0 
+                          ? 'cursor-pointer hover:bg-green-100 transition-colors' 
+                          : ''
+                      }`}
+                      onClick={() => handleRouteCardClick(route)}
+                    >
                       <div>
                         <p className="font-medium">{route.name}</p>
-                        <p className="text-sm text-gray-600">{route.stops?.length || 0} stops • {route.estimated_duration_hours}h estimated</p>
+                        <p className="text-sm text-gray-600">
+                          {route.stops?.length || 0} stops • {route.estimated_duration_hours}h estimated
+                          {route.status === 'planned' && route.stops && route.stops.length > 0 && (
+                            <span className="ml-2 text-blue-600">• Click to view map</span>
+                          )}
+                        </p>
                       </div>
                       <Badge className={`${
                         route.status === 'active' ? 'bg-green-100 text-green-800' :
@@ -580,6 +603,52 @@ export function FleetManagement() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Route Map Modal */}
+      <Dialog open={showRouteMapModal} onOpenChange={setShowRouteMapModal}>
+        <DialogContent className="max-w-4xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedRoute?.name || 'Route Map'}
+            </DialogTitle>
+            <DialogDescription>
+              View route stops and navigation on the map
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {selectedRoute && selectedRoute.stops && selectedRoute.stops.length > 0 ? (
+              <div className="h-96">
+                <GoogleMapsNavigation
+                  stops={selectedRoute.stops.map((stop: any) => ({
+                    id: stop.id,
+                    order_id: stop.order_id || stop.id,
+                    customer_id: stop.customer_id,
+                    stop_number: stop.stop_number || 1,
+                    estimated_arrival: stop.estimated_arrival || '',
+                    status: stop.status || 'pending',
+                    customer_name: stop.customer_name,
+                    address: stop.address,
+                    coordinates: stop.coordinates,
+                    delivery_instructions: '',
+                    priority: 1,
+                    time_window_start: '',
+                    time_window_end: '',
+                    completed_at: stop.status === 'completed' ? new Date().toISOString() : undefined
+                  }))}
+                  onDirectionsChange={(directions: any) => {
+                    console.log('Route directions updated:', directions);
+                  }}
+                />
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                No route stops available or coordinates missing
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

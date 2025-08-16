@@ -752,6 +752,21 @@ export function Financial() {
           <CardContent>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
+                <span className="text-sm">Location</span>
+                <Select value={selectedLocation} onValueChange={setSelectedLocation}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue placeholder="Select location" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {locations.map((location) => (
+                      <SelectItem key={location.id} value={location.id}>
+                        {location.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center justify-between">
                 <span className="text-sm">Connection Status</span>
                 <Badge className={
                   quickbooksStatus.is_connected 

@@ -1587,8 +1587,32 @@ def initialize_sample_data():
     for exp in sample_expenses:
         expenses_db[exp["id"]] = exp
 
+    is_production = os.getenv("PRODUCTION_MODE", "false").lower() == "true"
     demo_password = os.getenv("DEMO_USER_PASSWORD", "dev-password-change-in-production")
-    print(f"DEBUG: Using demo password: '{demo_password}' (length: {len(demo_password)})")
+    
+    if is_production:
+        print("DEBUG: Production mode enabled - demo credentials disabled")
+        admin_username = os.getenv("ADMIN_USERNAME", "admin")
+        admin_password = os.getenv("ADMIN_PASSWORD")
+        
+        if admin_password and admin_username not in [u.get("username") for u in users_db.values()]:
+            admin_user = {
+                "id": "admin_prod",
+                "username": admin_username,
+                "email": f"{admin_username}@arcticeice.com",
+                "full_name": "Production Administrator",
+                "role": "manager",
+                "location_id": "loc_1",
+                "is_active": True,
+                "hashed_password": get_password_hash(admin_password)
+            }
+            users_db[admin_user["id"]] = admin_user
+            print(f"DEBUG: Created production admin user: {admin_username}")
+        
+        print("DEBUG: Skipping demo user creation in production mode")
+        return
+    else:
+        print(f"DEBUG: Development mode - using demo password: '{demo_password}' (length: {len(demo_password)})")
     
     sample_users = [
         {
@@ -1834,6 +1858,18 @@ training_modules_db = {
 @app.post("/api/auth/login", response_model=Token)
 async def login(login_request: LoginRequest):
     print(f"DEBUG: Login attempt for username: {login_request.username}")
+    
+    is_production = os.getenv("PRODUCTION_MODE", "false").lower() == "true"
+    demo_usernames = ["manager", "dispatcher", "accountant", "driver", "employee", "customer1", "customer2", "steve", "francis", "employee2"]
+    
+    if is_production and login_request.username in demo_usernames:
+        print(f"DEBUG: Blocked demo credential login attempt in production: {login_request.username}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Demo credentials are disabled in production",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
     user = authenticate_user(login_request.username, login_request.password)
     if not user:
         print(f"DEBUG: Authentication failed for username: {login_request.username}")

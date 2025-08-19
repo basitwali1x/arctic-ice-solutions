@@ -88,15 +88,17 @@ export const LoginPage: React.FC = () => {
             </button>
           </div>
 
-          <div className="text-sm text-gray-600 text-center">
-            <p>Demo credentials:</p>
-            <p>Manager: manager / dev-password-change-in-production</p>
-            <p>Dispatcher: dispatcher / dev-password-change-in-production</p>
-            <p>Accountant: accountant / dev-password-change-in-production</p>
-            <p>Driver: driver / dev-password-change-in-production</p>
-            <p>Employee: employee / dev-password-change-in-production</p>
-            <p>Customer: customer1 / dev-password-change-in-production</p>
-          </div>
+          {process.env.NODE_ENV === 'development' && (
+            <div className="text-sm text-gray-600 text-center">
+              <p>Demo credentials (Development Only):</p>
+              <p>Manager: manager / dev-password-change-in-production</p>
+              <p>Dispatcher: dispatcher / dev-password-change-in-production</p>
+              <p>Accountant: accountant / dev-password-change-in-production</p>
+              <p>Driver: driver / dev-password-change-in-production</p>
+              <p>Employee: employee / dev-password-change-in-production</p>
+              <p>Customer: customer1 / dev-password-change-in-production</p>
+            </div>
+          )}
         </form>
       </div>
     </div>

@@ -3993,3 +3993,8 @@ async def serve_spa(full_path: str):
         raise HTTPException(status_code=404, detail="File not found")
     
     return FileResponse("../frontend/dist/index.html")
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)

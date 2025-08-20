@@ -1784,7 +1784,10 @@ def initialize_sample_data():
     print(f"DEBUG: Final counts - customers_db: {len(customers_db)}, orders_db: {len(orders_db)}, routes_db: {len(routes_db)}")
     print(f"DEBUG: Final counts - imported_customers: {len(imported_customers)}, imported_orders: {len(imported_orders)}")
 
-initialize_sample_data()
+if os.getenv("ENVIRONMENT", "development") == "development":
+    initialize_sample_data()
+else:
+    print("Production mode: Skipping sample data initialization to conserve memory")
 
 training_modules_db = {
     "ice-handling-safety": {

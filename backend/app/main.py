@@ -26,10 +26,16 @@ except ImportError:
     monitoring_service = None
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from prophet import Prophet
-from sklearn.linear_model import LinearRegression
-import numpy as np
-import pandas as pd
+if os.getenv("ENVIRONMENT", "development") == "development":
+    from prophet import Prophet
+    from sklearn.linear_model import LinearRegression
+    import numpy as np
+    import pandas as pd
+else:
+    Prophet = None
+    LinearRegression = None
+    np = None
+    pd = None
 
 load_dotenv()
 

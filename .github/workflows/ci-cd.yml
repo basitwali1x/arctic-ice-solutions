@@ -13,7 +13,7 @@ jobs:
         run: echo "Build completed"
           
   deploy:
-    needs: build-and-test
+    needs: build
     runs-on: ubuntu-latest
     if: >-
       (github.event_name == 'push' && 
@@ -80,7 +80,7 @@ jobs:
           echo "✅ Build configuration verification completed"
           
       - name: Deploy to Production (Main Branch Only)
-        if: github.ref == 'refs/heads/devin/1752750425-arctic-ice-solutions-initial-commit'
+        if: github.ref == 'refs/heads/main'
         run: |
           echo "Skipping deployment to Devin Apps Platform due to potential missing secrets"
           echo "Build verification:"
@@ -102,7 +102,7 @@ jobs:
           echo "Deployment skipped, but build artifacts are ready for deployment"
           
       - name: Deploy Preview (PR Branches)
-        if: github.ref != 'refs/heads/devin/1752750425-arctic-ice-solutions-initial-commit'
+        if: github.ref != 'refs/heads/main'
         run: |
           echo "Skipping PR preview deployment due to potential missing secrets"
           

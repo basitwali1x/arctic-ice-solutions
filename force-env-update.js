@@ -4,7 +4,8 @@ const path = require('path');
 const distPath = path.join(__dirname, 'frontend/dist');
 const env = {
   VITE_API_URL: process.env.VITE_API_URL || 'https://app-gkwjwdji.fly.dev',
-  VITE_GOOGLE_MAPS_API_KEY: process.env.VITE_GOOGLE_MAPS_API_KEY || ''
+  VITE_GOOGLE_MAPS_API_KEY: process.env.VITE_GOOGLE_MAPS_API_KEY || '',
+  MODE: process.env.NODE_ENV || 'production'
 };
 
 console.log('🔧 Starting comprehensive environment update...');
@@ -60,9 +61,21 @@ if (fs.existsSync(assetsPath)) {
       /http:\/\/localhost:8000/g
     ];
     
+    const oldModePatterns = [
+      /"development"/g,
+      /'development'/g
+    ];
+    
     oldUrlPatterns.forEach(pattern => {
       if (pattern.test(content)) {
         content = content.replace(pattern, env.VITE_API_URL);
+        modified = true;
+      }
+    });
+    
+    oldModePatterns.forEach(pattern => {
+      if (pattern.test(content)) {
+        content = content.replace(pattern, `"${env.MODE}"`);
         modified = true;
       }
     });

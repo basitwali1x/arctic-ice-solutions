@@ -89,56 +89,68 @@ def extract_customers_from_excel(df: pd.DataFrame, location_id: str = "loc_3", l
             "area_code": "337",
             "state": "Louisiana",
             "zip_base": 71446,
-            "city": "Leesville"
+            "city": "Leesville",
+            "keywords": ["leesville"]
         },
         "loc_2": {  # Lake Charles Distribution
             "area_code": "337",
             "state": "Louisiana",
             "zip_base": 70601,
-            "city": "Lake Charles"
+            "city": "Lake Charles",
+            "keywords": ["lake charles", "lakecharles"]
         },
         "loc_3": {  # Lufkin Distribution
             "area_code": "936",
             "state": "Texas",
             "zip_base": 75901,
-            "city": "Lufkin"
+            "city": "Lufkin",
+            "keywords": ["lufkin"]
         },
         "loc_4": {  # Jasper Warehouse
             "area_code": "903",
             "state": "Texas",
             "zip_base": 75951,
-            "city": "Jasper"
+            "city": "Jasper",
+            "keywords": ["jasper"]
         }
     }
 
-    config = location_config.get(location_id, location_config["loc_3"])
-    area_code = config["area_code"]
-    state = config["state"]
-    zip_base = config["zip_base"]
-    city = config["city"]
+    def detect_location_from_name(customer_name: str) -> str:
+        """Detect location based on customer name keywords"""
+        name_lower = customer_name.lower()
+        for loc_id, config in location_config.items():
+            for keyword in config["keywords"]:
+                if keyword in name_lower:
+                    return loc_id
+        return location_id
 
     for i, customer_name in enumerate(unique_customers):
         if pd.isna(customer_name) or customer_name == 'nan':
             continue
 
+        detected_location_id = detect_location_from_name(customer_name)
+        config = location_config.get(detected_location_id, location_config["loc_3"])
+        
         customer_data = df[df['Name'] == customer_name]
         total_orders = len(customer_data)
         total_spent = customer_data['Amount'].sum()
         last_order = customer_data['Date'].max()
 
         customers.append({
-            "id": f"{city.lower()}_customer_{i+1}",
+            "id": f"{config['city'].lower()}_customer_{i+1}",
             "name": customer_name,
+            "contact_person": "",
+            "phone": f"({config['area_code']}) 555-{1000 + i:04d}",
             "email": f"{customer_name.lower().replace(' ', '').replace('#', '').replace('-', '').replace('.', '').replace(',', '')}@email.com",
-            "phone": f"({area_code}) 555-{1000 + i:04d}",
-            "address": f"{100 + i} Customer St, {city}, {state} {zip_base + (i % 100)}",
-            "location_id": location_id,
+            "address": f"{100 + i} Customer St",
+            "city": config['city'],
+            "state": config['state'],
+            "zip_code": str(config['zip_base'] + (i % 100)),
+            "location_id": detected_location_id,
             "credit_limit": 5000.0,
-            "current_balance": 0.0,
-            "total_orders": int(total_orders),
-            "total_spent": float(total_spent),
-            "last_order_date": last_order.isoformat() if pd.notna(last_order) else None,
-            "status": "active"
+            "payment_terms": 30,
+            "is_active": True,
+            "coordinates": None
         })
 
     return customers
@@ -147,9 +159,28 @@ def extract_orders_from_excel(df: pd.DataFrame, location_id: str = "loc_3", loca
     """Extract orders from Excel data"""
     orders = []
 
+    location_config = {
+        "loc_1": {"keywords": ["leesville"], "city": "leesville"},
+        "loc_2": {"keywords": ["lake charles", "lakecharles"], "city": "lakecharles"},
+        "loc_3": {"keywords": ["lufkin"], "city": "lufkin"},
+        "loc_4": {"keywords": ["jasper"], "city": "jasper"}
+    }
+
+    def detect_location_from_name(customer_name: str) -> str:
+        """Detect location based on customer name keywords"""
+        name_lower = customer_name.lower()
+        for loc_id, config in location_config.items():
+            for keyword in config["keywords"]:
+                if keyword in name_lower:
+                    return loc_id
+        return location_id
+
     for i, row in df.iterrows():
         if pd.isna(row['Name']) or pd.isna(row['Date']) or row['Amount'] <= 0:
             continue
+
+        detected_location_id = detect_location_from_name(row['Name'])
+        city_name = location_config.get(detected_location_id, {"city": "lufkin"})["city"]
 
         item_desc = str(row['Item']).lower()
         qty = row['Qty']
@@ -161,14 +192,6 @@ def extract_orders_from_excel(df: pd.DataFrame, location_id: str = "loc_3", loca
             product_type = "20lb_bag"
         else:  # Default to 8lb bags
             product_type = "8lb_bag"
-
-        location_cities = {
-            "loc_1": "leesville",
-            "loc_2": "lakecharles",
-            "loc_3": "lufkin",
-            "loc_4": "jasper"
-        }
-        city_name = location_cities.get(location_id, "lufkin")
 
         orders.append({
             "id": f"{city_name}_order_{i+1}",
@@ -182,7 +205,7 @@ def extract_orders_from_excel(df: pd.DataFrame, location_id: str = "loc_3", loca
             "total_amount": float(row['Amount']),
             "status": "completed",
             "payment_method": "cash",
-            "location_id": location_id
+            "location_id": detected_location_id
         })
 
     return orders

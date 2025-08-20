@@ -2240,6 +2240,18 @@ async def set_customer_pricing(customer_id: str, pricing_data: dict, current_use
     save_data_to_disk()
     return pricing_record
 
+@app.delete("/api/customers/{customer_id}")
+async def delete_customer(customer_id: str, current_user: UserInDB = Depends(get_current_user)):
+    if current_user.role != UserRole.MANAGER:
+        raise HTTPException(status_code=403, detail="Only managers can delete customers")
+    
+    if customer_id not in customers_db:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    del customers_db[customer_id]
+    save_data_to_disk()
+    return {"message": "Customer deleted successfully"}
+
 @app.delete("/api/customers/{customer_id}/pricing/{product_id}")
 async def delete_customer_pricing(customer_id: str, product_id: str, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role != UserRole.MANAGER:

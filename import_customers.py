@@ -47,7 +47,7 @@ def analyze_customer_addresses(df):
     
     return location_assignments
 
-def import_customers_to_location(excel_file_path, sheet_name, location_id, api_base_url="http://localhost:8000"):
+def import_customers_to_location(excel_file_path, sheet_name, location_id, api_base_url="https://app-gkwjwdji.fly.dev"):
     """Import customers from a specific sheet to a specific location"""
     
     import os

@@ -2878,7 +2878,7 @@ async def import_google_sheets_data(
 @app.post("/api/customers/bulk-import")
 async def bulk_import_customers_excel(
     files: List[UploadFile] = File(...), 
-    location_id: str = Form("loc_3"),
+    location_id: str = Form("auto"),
     current_user: UserInDB = Depends(get_current_user)
 ):
     """Bulk import customers from Excel files and add to customers database"""
@@ -2888,18 +2888,19 @@ async def bulk_import_customers_excel(
         raise HTTPException(status_code=400, detail="No files provided")
     
     # Validate location_id
-    valid_locations = ["loc_1", "loc_2", "loc_3", "loc_4"]
+    valid_locations = ["loc_1", "loc_2", "loc_3", "loc_4", "auto"]
     if location_id not in valid_locations:
         raise HTTPException(status_code=400, detail=f"Invalid location_id. Must be one of: {valid_locations}")
     
-    if current_user.role != UserRole.MANAGER and location_id != current_user.location_id:
+    if location_id != "auto" and current_user.role != UserRole.MANAGER and location_id != current_user.location_id:
         raise HTTPException(status_code=403, detail="Cannot import customers for different location")
     
     location_names = {
         "loc_1": "Leesville",
         "loc_2": "Lake Charles", 
         "loc_3": "Lufkin",
-        "loc_4": "Jasper"
+        "loc_4": "Jasper",
+        "auto": "Auto-Detect"
     }
     location_name = location_names[location_id]
     
@@ -2918,10 +2919,15 @@ async def bulk_import_customers_excel(
         
         processed_data = process_customer_excel_files(temp_files, location_id, location_name)
         
-        # Add customers to customers_db instead of imported_customers
         customers_imported = 0
+        location_distribution = {}
+        
         for customer_data in processed_data["customers"]:
             customer_id = str(uuid.uuid4())
+            actual_location_id = customer_data["location_id"]
+            
+            location_distribution[actual_location_id] = location_distribution.get(actual_location_id, 0) + 1
+            
             customer_record = {
                 "id": customer_id,
                 "name": customer_data["name"],
@@ -2932,7 +2938,7 @@ async def bulk_import_customers_excel(
                 "city": customer_data.get("city", ""),
                 "state": customer_data.get("state", ""),
                 "zip_code": customer_data.get("zip_code", ""),
-                "location_id": location_id,
+                "location_id": actual_location_id,
                 "credit_limit": customer_data.get("credit_limit", 5000.0),
                 "payment_terms": 30,
                 "is_active": True
@@ -2944,12 +2950,13 @@ async def bulk_import_customers_excel(
         
         return {
             "success": True,
-            "message": f"Customers imported successfully to {location_name}",
+            "message": f"Customers imported successfully with {location_name}",
             "summary": {
                 "customers_imported": customers_imported,
                 "total_records": processed_data["total_records"],
                 "location_id": location_id,
                 "location_name": location_name,
+                "location_distribution": location_distribution,
                 "duplicates_removed": processed_data.get("duplicates_removed", 0)
             }
         }
@@ -3046,10 +3053,15 @@ async def bulk_import_customers_sheets(
     try:
         processed_data = process_google_sheets_data(sheets_url, location_id, location_name, worksheet_name)
         
-        # Add customers to customers_db instead of imported_customers
         customers_imported = 0
+        location_distribution = {}
+        
         for customer_data in processed_data["customers"]:
             customer_id = str(uuid.uuid4())
+            actual_location_id = customer_data["location_id"]
+            
+            location_distribution[actual_location_id] = location_distribution.get(actual_location_id, 0) + 1
+            
             customer_record = {
                 "id": customer_id,
                 "name": customer_data["name"],
@@ -3060,7 +3072,7 @@ async def bulk_import_customers_sheets(
                 "city": customer_data.get("city", ""),
                 "state": customer_data.get("state", ""),
                 "zip_code": customer_data.get("zip_code", ""),
-                "location_id": location_id,
+                "location_id": actual_location_id,
                 "credit_limit": customer_data.get("credit_limit", 5000.0),
                 "payment_terms": 30,
                 "is_active": True

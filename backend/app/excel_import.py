@@ -7,6 +7,63 @@ from fastapi import UploadFile
 
 logger = logging.getLogger(__name__)
 
+def detect_customer_location(customer_name: str, address: str, phone: str = '') -> str:
+    """Detect customer location based on address, city, and phone area code"""
+    
+    location_patterns = {
+        'loc_1': {
+            'cities': ['leesville', 'deridder', 'many', 'zwolle', 'vernon', 'new llano', 'anacoco'],
+            'area_codes': ['337'],
+            'states': ['la', 'louisiana'],
+            'zip_prefixes': ['714']
+        },
+        'loc_2': {
+            'cities': ['lake charles', 'sulphur', 'westlake', 'vinton', 'cameron'],
+            'area_codes': ['337'],
+            'states': ['la', 'louisiana'],
+            'zip_prefixes': ['706', '707']
+        },
+        'loc_3': {
+            'cities': ['lufkin', 'huntsville', 'crockett', 'livingston', 'nacogdoches'],
+            'area_codes': ['936', '409'],
+            'states': ['tx', 'texas'],
+            'zip_prefixes': ['759']
+        },
+        'loc_4': {
+            'cities': ['jasper', 'newton', 'hemphill', 'woodville', 'kirbyville'],
+            'area_codes': ['903'],
+            'states': ['tx', 'texas'],
+            'zip_prefixes': ['759']
+        }
+    }
+    
+    address_lower = address.lower() if address else ''
+    
+    for loc_id, patterns in location_patterns.items():
+        if any(city in address_lower for city in patterns['cities']):
+            return loc_id
+    
+    phone_digits = ''.join(filter(str.isdigit, str(phone)))
+    area_code = phone_digits[:3] if len(phone_digits) >= 10 else ''
+    
+    for loc_id, patterns in location_patterns.items():
+        if any(state in address_lower for state in patterns['states']):
+            if area_code in patterns['area_codes']:
+                return loc_id
+            return loc_id
+    
+    for loc_id, patterns in location_patterns.items():
+        if area_code in patterns['area_codes']:
+            return loc_id
+    
+    if any(state in address_lower for state in ['la', 'louisiana']):
+        return 'loc_1'
+    
+    if any(state in address_lower for state in ['tx', 'texas']):
+        return 'loc_3'
+    
+    return 'loc_1'
+
 def clean_excel_data(df: pd.DataFrame) -> pd.DataFrame:
     """Clean and standardize Excel data"""
     required_cols = ['Type', 'Date', 'Name', 'Amount']
@@ -214,7 +271,7 @@ def calculate_financial_metrics(df: pd.DataFrame) -> Dict[str, Any]:
         }
     }
 
-def extract_customers_from_customer_list(df: pd.DataFrame, location_id: str = "loc_3", location_name: str = "Lufkin") -> List[Dict[str, Any]]:
+def extract_customers_from_customer_list(df: pd.DataFrame, location_id: str = "auto", location_name: str = "Auto-Detect") -> List[Dict[str, Any]]:
     """Extract customers from customer list format (Customer, Address, Main Phone)"""
     customers = []
 
@@ -245,15 +302,20 @@ def extract_customers_from_customer_list(df: pd.DataFrame, location_id: str = "l
         }
     }
 
-    config = location_config.get(location_id, location_config["loc_3"])
-
     for i, row in df.iterrows():
         if pd.isna(row.get('Customer')) or str(row.get('Customer')).strip() == '':
             continue
 
         customer_name = str(row['Customer']).strip()
         address = str(row.get('Address', '')).strip() if pd.notna(row.get('Address')) else f"{100 + i} Customer St"
-        phone = str(row.get('Main Phone', '')).strip() if pd.notna(row.get('Main Phone')) else f"({config['area_code']}) 555-{1000 + i:04d}"
+        phone = str(row.get('Main Phone', '')).strip() if pd.notna(row.get('Main Phone')) else ""
+
+        if location_id == "auto":
+            detected_location_id = detect_customer_location(customer_name, address, phone)
+        else:
+            detected_location_id = location_id
+
+        config = location_config.get(detected_location_id, location_config["loc_3"])
 
         if phone and phone != 'nan':
             phone = re.sub(r'[^\d\-\(\)\s\+ext]', '', phone)
@@ -294,7 +356,7 @@ def extract_customers_from_customer_list(df: pd.DataFrame, location_id: str = "l
             "city": city,
             "state": state,
             "zip_code": zip_code,
-            "location_id": location_id,
+            "location_id": detected_location_id,
             "credit_limit": 5000.0,
             "payment_terms": 30,
             "is_active": True

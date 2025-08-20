@@ -666,15 +666,18 @@ export function CustomerManagement() {
             
             <form onSubmit={handleBulkImport} className="space-y-4">
               <div>
-                <Label htmlFor="location_id">Target Location *</Label>
+                <Label htmlFor="location_id">Location Assignment *</Label>
                 <Select value={selectedLocationId} onValueChange={setSelectedLocationId}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select location for imported customers" />
+                    <SelectValue placeholder="Select location assignment method" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="auto">
+                      Auto-Detect (Recommended) - Assign customers based on address and phone
+                    </SelectItem>
                     {locations.map((location) => (
                       <SelectItem key={location.id} value={location.id}>
-                        {location.name}
+                        {location.name} - Assign all customers to this location
                       </SelectItem>
                     ))}
                   </SelectContent>

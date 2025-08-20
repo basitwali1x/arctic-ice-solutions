@@ -3,7 +3,7 @@ const path = require('path');
 
 const distPath = path.join(__dirname, 'frontend/dist');
 const env = {
-  VITE_API_URL: process.env.VITE_API_URL || 'https://api.yourchoiceice.com',
+  VITE_API_URL: process.env.VITE_API_URL || 'https://app-gkwjwdji.fly.dev',
   VITE_GOOGLE_MAPS_API_KEY: process.env.VITE_GOOGLE_MAPS_API_KEY || ''
 };
 
@@ -16,9 +16,9 @@ if (!fs.existsSync(distPath)) {
   process.exit(1);
 }
 
-if (!env.VITE_API_URL.includes('api.yourchoiceice.com') && !env.VITE_API_URL.includes('fly.dev')) {
+if (!env.VITE_API_URL.includes('app-gkwjwdji.fly.dev') && !env.VITE_API_URL.includes('api.yourchoiceice.com')) {
   console.error('❌ Error: Incorrect API URL detected:', env.VITE_API_URL);
-  console.error('Expected URL should contain: api.yourchoiceice.com or fly.dev');
+  console.error('Expected URL should contain: app-gkwjwdji.fly.dev or api.yourchoiceice.com');
   process.exit(1);
 }
 
@@ -56,7 +56,7 @@ if (fs.existsSync(assetsPath)) {
       /https:\/\/app-dfyyccxe\.fly\.dev/g,
       /https:\/\/app-eueptojk\.fly\.dev/g,
       /https:\/\/app-rawyclbe\.fly\.dev/g,
-      /https:\/\/app-[a-z0-9]+\.fly\.dev/g,
+      /https:\/\/api\.yourchoiceice\.com/g,
       /http:\/\/localhost:8000/g
     ];
     
@@ -95,7 +95,7 @@ if (fs.existsSync(assetsPath)) {
   const verificationFailed = jsFiles.some(file => {
     const filePath = path.join(assetsPath, file);
     const content = fs.readFileSync(filePath, 'utf8');
-    return content.includes('localhost:8000') && !content.includes('api.yourchoiceice.com');
+    return content.includes('localhost:8000') && !content.includes('app-gkwjwdji.fly.dev');
   });
   
   if (verificationFailed) {
@@ -137,7 +137,7 @@ const runtimeConfigContent = `
   const originalFetch = window.fetch;
   window.fetch = function(url, options) {
     if (typeof url === 'string') {
-      if (url.includes('localhost:8000') && !url.includes('api.yourchoiceice.com')) {
+      if (url.includes('localhost:8000') && !url.includes('app-gkwjwdji.fly.dev')) {
         url = url.replace(/http:\\/\\/localhost:8000/, "${env.VITE_API_URL}");
         console.log('🔄 Redirected API call to:', url);
       }

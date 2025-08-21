@@ -7,10 +7,10 @@ dockerfile = "Dockerfile"
 [env]
 PORT = "8000"
 
-[vm]
-memory = "1gb"
+[[vm]]
 cpu_kind = "shared"
 cpus = 1
+memory_mb = 2048
 
 [[services]]
 http_checks = []

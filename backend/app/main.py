@@ -732,6 +732,30 @@ def load_data_from_disk():
 
 load_data_from_disk()
 
+def initialize_production_admin():
+    """Create admin user in production if no users exist"""
+    global users_db
+    
+    if len(users_db) == 0:
+        admin_username = os.getenv("ADMIN_USERNAME", "admin")
+        admin_password = os.getenv("ADMIN_PASSWORD", "secure-production-password-2024")
+        
+        admin_user = {
+            "id": "admin_user",
+            "username": admin_username,
+            "email": f"{admin_username}@arcticeice.com",
+            "full_name": "System Administrator",
+            "role": "manager",
+            "location_id": "loc_1",
+            "is_active": True,
+            "hashed_password": get_password_hash(admin_password)
+        }
+        
+        users_db[admin_user["id"]] = admin_user
+        print(f"DEBUG: Created production admin user: {admin_username}")
+    else:
+        print(f"DEBUG: Users already exist ({len(users_db)} users), skipping admin creation")
+
 # In-memory storage for current driver locations
 driver_locations = {}
 
@@ -1794,6 +1818,7 @@ if os.getenv("ENVIRONMENT", "development") == "development":
     initialize_sample_data()
 else:
     print("Production mode: Skipping sample data initialization to conserve memory")
+    initialize_production_admin()
 
 training_modules_db = {
     "ice-handling-safety": {

@@ -25,8 +25,15 @@ else:
     process_route_excel_files = None
     process_google_sheets_data = None
     test_google_sheets_connection = None
-from .quickbooks_integration import QuickBooksClient, map_arctic_customer_to_qb, map_arctic_order_to_qb_invoice, map_arctic_payment_to_qb
-from .weather_service import weather_service
+if os.getenv("ENVIRONMENT", "development") == "development":
+    from .quickbooks_integration import QuickBooksClient, map_arctic_customer_to_qb, map_arctic_order_to_qb_invoice, map_arctic_payment_to_qb
+    from .weather_service import weather_service
+else:
+    QuickBooksClient = None
+    map_arctic_customer_to_qb = None
+    map_arctic_order_to_qb_invoice = None
+    map_arctic_payment_to_qb = None
+    weather_service = None
 try:
     from .monitoring_service import router as monitoring_service
 except ImportError:

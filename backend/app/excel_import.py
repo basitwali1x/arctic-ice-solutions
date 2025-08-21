@@ -1,9 +1,14 @@
-import pandas as pd
 from datetime import datetime
 from typing import List, Dict, Any
 import logging
 import re
+import os
 from fastapi import UploadFile
+
+if os.getenv("ENVIRONMENT", "development") == "development":
+    import pandas as pd
+else:
+    pd = None
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +71,8 @@ def detect_customer_location(customer_name: str, address: str, phone: str = '') 
 
 def clean_excel_data(df: pd.DataFrame) -> pd.DataFrame:
     """Clean and standardize Excel data"""
+    if pd is None:
+        import pandas as pd
     required_cols = ['Type', 'Date', 'Name', 'Amount']
     missing_cols = [col for col in required_cols if col not in df.columns]
     if missing_cols:
@@ -93,6 +100,8 @@ def clean_excel_data(df: pd.DataFrame) -> pd.DataFrame:
 
 def extract_timesheet_sales_data(df: pd.DataFrame, date_from_filename: str = None) -> pd.DataFrame:
     """Extract sales data from timesheet format and convert to standard format"""
+    if pd is None:
+        import pandas as pd
     sales_data = []
 
     for i, row in df.iterrows():
@@ -138,6 +147,8 @@ def extract_timesheet_sales_data(df: pd.DataFrame, date_from_filename: str = Non
 
 def extract_customers_from_excel(df: pd.DataFrame, location_id: str = "loc_3", location_name: str = "Lufkin") -> List[Dict[str, Any]]:
     """Extract unique customers from Excel data with proper location mapping"""
+    if pd is None:
+        import pandas as pd
     customers = []
     unique_customers = df['Name'].unique()
 
@@ -202,6 +213,8 @@ def extract_customers_from_excel(df: pd.DataFrame, location_id: str = "loc_3", l
 
 def extract_orders_from_excel(df: pd.DataFrame, location_id: str = "loc_3", location_name: str = "Lufkin") -> List[Dict[str, Any]]:
     """Extract orders from Excel data"""
+    if pd is None:
+        import pandas as pd
     orders = []
 
     for i, row in df.iterrows():
@@ -246,6 +259,8 @@ def extract_orders_from_excel(df: pd.DataFrame, location_id: str = "loc_3", loca
 
 def calculate_financial_metrics(df: pd.DataFrame) -> Dict[str, Any]:
     """Calculate financial metrics from Excel data"""
+    if pd is None:
+        import pandas as pd
     total_revenue = df['Amount'].sum()
     total_transactions = len(df)
 
@@ -273,6 +288,8 @@ def calculate_financial_metrics(df: pd.DataFrame) -> Dict[str, Any]:
 
 def extract_customers_from_customer_list(df: pd.DataFrame, location_id: str = "auto", location_name: str = "Auto-Detect") -> List[Dict[str, Any]]:
     """Extract customers from customer list format (Customer, Address, Main Phone)"""
+    if pd is None:
+        import pandas as pd
     customers = []
 
     location_config = {

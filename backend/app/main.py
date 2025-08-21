@@ -16,8 +16,15 @@ import json
 import math
 from pathlib import Path
 from dotenv import load_dotenv
-from .excel_import import process_excel_files, process_customer_excel_files, process_route_excel_files
-from .google_sheets_import import process_google_sheets_data, test_google_sheets_connection
+if os.getenv("ENVIRONMENT", "development") == "development":
+    from .excel_import import process_excel_files, process_customer_excel_files, process_route_excel_files
+    from .google_sheets_import import process_google_sheets_data, test_google_sheets_connection
+else:
+    process_excel_files = None
+    process_customer_excel_files = None
+    process_route_excel_files = None
+    process_google_sheets_data = None
+    test_google_sheets_connection = None
 from .quickbooks_integration import QuickBooksClient, map_arctic_customer_to_qb, map_arctic_order_to_qb_invoice, map_arctic_payment_to_qb
 from .weather_service import weather_service
 try:
@@ -2871,6 +2878,8 @@ async def import_google_sheets_data(
     location_name = location_names[location_id]
     
     try:
+        if process_google_sheets_data is None:
+            from .google_sheets_import import process_google_sheets_data
         processed_data = process_google_sheets_data(sheets_url, location_id, location_name, worksheet_name)
         
         imported_customers = processed_data["customers"]
@@ -2942,6 +2951,8 @@ async def bulk_import_customers_excel(
             temp_file.close()
             temp_files.append(temp_file.name)
         
+        if process_customer_excel_files is None:
+            from .excel_import import process_customer_excel_files
         processed_data = process_customer_excel_files(temp_files, location_id, location_name)
         
         customers_imported = 0
@@ -3076,6 +3087,8 @@ async def bulk_import_customers_sheets(
     location_name = location_names[location_id]
     
     try:
+        if process_google_sheets_data is None:
+            from .google_sheets_import import process_google_sheets_data
         processed_data = process_google_sheets_data(sheets_url, location_id, location_name, worksheet_name)
         
         customers_imported = 0

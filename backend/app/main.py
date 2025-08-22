@@ -4115,15 +4115,9 @@ async def get_ssl_status(current_user: UserInDB = Depends(get_current_user)):
         return {"ssl_certificates": [], "status": "monitoring service unavailable"}
 
 @app.get("/{full_path:path}")
-async def serve_spa(full_path: str):
-    """Serve React SPA for all non-API routes"""
+async def catch_all(full_path: str):
+    """Return 404 for all non-API routes"""
     if full_path.startswith("api/") or full_path.startswith("docs") or full_path.startswith("redoc") or full_path.startswith("openapi.json"):
-        raise HTTPException(status_code=404, detail="Not found")
+        raise HTTPException(status_code=404, detail="API endpoint not found")
     
-    if full_path.startswith("assets/"):
-        file_path = f"../frontend/dist/{full_path}"
-        if os.path.exists(file_path):
-            return FileResponse(file_path)
-        raise HTTPException(status_code=404, detail="File not found")
-    
-    return FileResponse("../frontend/dist/index.html")
+    raise HTTPException(status_code=404, detail="Not found")

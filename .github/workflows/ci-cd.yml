@@ -13,7 +13,7 @@ jobs:
         run: echo "Build completed"
           
   deploy:
-    needs: build-and-test
+    needs: build
     runs-on: ubuntu-latest
     if: >-
       (github.event_name == 'push' && 

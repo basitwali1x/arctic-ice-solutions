@@ -90,6 +90,7 @@ export const LoginPage: React.FC = () => {
 
           <div className="text-sm text-gray-600 text-center">
             <p>Demo credentials:</p>
+            <p><strong>Admin: admin / dev-password-change-in-production</strong></p>
             <p>Manager: manager / dev-password-change-in-production</p>
             <p>Dispatcher: dispatcher / dev-password-change-in-production</p>
             <p>Accountant: accountant / dev-password-change-in-production</p>

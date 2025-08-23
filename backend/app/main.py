@@ -1578,9 +1578,21 @@ def initialize_sample_data():
         expenses_db[exp["id"]] = exp
 
     demo_password = os.getenv("DEMO_USER_PASSWORD", "dev-password-change-in-production")
+    admin_password = os.getenv("ADMIN_PASSWORD", demo_password)
     print(f"DEBUG: Using demo password: '{demo_password}' (length: {len(demo_password)})")
+    print(f"DEBUG: Using admin password: '{admin_password}' (length: {len(admin_password)})")
     
     sample_users = [
+        {
+            "id": "admin_user",
+            "username": "admin",
+            "email": "admin@arcticeice.com",
+            "full_name": "System Administrator",
+            "role": "manager",
+            "location_id": "loc_1",
+            "is_active": True,
+            "hashed_password": get_password_hash(admin_password)
+        },
         {
             "id": "user_1",
             "username": "manager",

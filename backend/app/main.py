@@ -894,6 +894,18 @@ def import_route_json_data():
     
     return customers_imported
 
+def is_production_mode():
+    """Detect if running in production environment"""
+    environment = os.getenv("ENVIRONMENT", "").lower()
+    fly_app_name = os.getenv("FLY_APP_NAME", "")
+    port = os.getenv("PORT", "")
+    
+    return (
+        environment == "production" or
+        fly_app_name == "arctic-ice-api" or
+        port == "8000"
+    )
+
 def initialize_sample_data():
     print("DEBUG: Initializing sample data...")
     locations = [
@@ -1578,9 +1590,17 @@ def initialize_sample_data():
         expenses_db[exp["id"]] = exp
 
     demo_password = os.getenv("DEMO_USER_PASSWORD", "dev-password-change-in-production")
-    admin_password = os.getenv("ADMIN_PASSWORD", demo_password)
+    
+    if is_production_mode():
+        admin_password = os.getenv("ADMIN_PASSWORD")
+        if not admin_password:
+            print("ERROR: ADMIN_PASSWORD environment variable is required in production")
+            raise ValueError("ADMIN_PASSWORD environment variable must be set in production")
+    else:
+        admin_password = os.getenv("ADMIN_PASSWORD", demo_password)
+    
     print(f"DEBUG: Using demo password: '{demo_password}' (length: {len(demo_password)})")
-    print(f"DEBUG: Using admin password: '{admin_password}' (length: {len(admin_password)})")
+    print(f"DEBUG: Using admin password: {'***' if is_production_mode() else admin_password} (length: {len(admin_password) if admin_password else 0})")
     
     sample_users = [
         {
@@ -1592,108 +1612,113 @@ def initialize_sample_data():
             "location_id": "loc_1",
             "is_active": True,
             "hashed_password": get_password_hash(admin_password)
-        },
-        {
-            "id": "user_1",
-            "username": "manager",
-            "email": "manager@arcticeice.com",
-            "full_name": "John Manager",
-            "role": "manager",
-            "location_id": "loc_1",
-            "is_active": True,
-            "hashed_password": get_password_hash(demo_password)
-        },
-        {
-            "id": "user_2", 
-            "username": "dispatcher",
-            "email": "dispatcher@arcticeice.com",
-            "full_name": "Sarah Dispatcher",
-            "role": "dispatcher",
-            "location_id": "loc_2",
-            "is_active": True,
-            "hashed_password": get_password_hash(demo_password)
-        },
-        {
-            "id": "user_3",
-            "username": "accountant",
-            "email": "accountant@arcticeice.com", 
-            "full_name": "Mike Accountant",
-            "role": "accountant",
-            "location_id": "loc_3",
-            "is_active": True,
-            "hashed_password": get_password_hash(demo_password)
-        },
-        {
-            "id": "user_4",
-            "username": "driver",
-            "email": "driver@arcticeice.com",
-            "full_name": "Carlos Driver",
-            "role": "driver", 
-            "location_id": "loc_4",
-            "is_active": True,
-            "hashed_password": get_password_hash(demo_password)
-        },
-        {
-            "id": "user_5",
-            "username": "customer1",
-            "email": "customer1@example.com",
-            "full_name": "Jane Customer",
-            "role": "customer",
-            "location_id": "loc_1",
-            "is_active": True,
-            "hashed_password": get_password_hash(demo_password)
-        },
-        {
-            "id": "user_6", 
-            "username": "customer2",
-            "email": "customer2@example.com",
-            "full_name": "Bob Customer",
-            "role": "customer",
-            "location_id": "loc_2",
-            "is_active": True,
-            "hashed_password": get_password_hash(demo_password)
-        },
-        {
-            "id": "user_7",
-            "username": "steve",
-            "email": "steve@arcticeice.com",
-            "full_name": "Steve",
-            "role": "driver",
-            "location_id": "loc_2",
-            "is_active": True,
-            "hashed_password": get_password_hash(demo_password)
-        },
-        {
-            "id": "user_8",
-            "username": "francis",
-            "email": "francis@arcticeice.com",
-            "full_name": "Francis",
-            "role": "driver",
-            "location_id": "loc_2",
-            "is_active": True,
-            "hashed_password": get_password_hash(demo_password)
-        },
-        {
-            "id": "user_9",
-            "username": "employee",
-            "email": "employee@arcticeice.com",
-            "full_name": "Alex Employee",
-            "role": "employee",
-            "location_id": "loc_1",
-            "is_active": True,
-            "hashed_password": get_password_hash(demo_password)
-        },
-        {
-            "id": "user_10",
-            "username": "employee2",
-            "email": "employee2@arcticeice.com",
-            "full_name": "Jordan Employee",
-            "role": "employee",
-            "location_id": "loc_2",
-            "is_active": True,
-            "hashed_password": get_password_hash(demo_password)
         }
     ]
+    
+    if not is_production_mode():
+        demo_users = [
+            {
+                "id": "user_1",
+                "username": "manager",
+                "email": "manager@arcticeice.com",
+                "full_name": "John Manager",
+                "role": "manager",
+                "location_id": "loc_1",
+                "is_active": True,
+                "hashed_password": get_password_hash(demo_password)
+            },
+            {
+                "id": "user_2", 
+                "username": "dispatcher",
+                "email": "dispatcher@arcticeice.com",
+                "full_name": "Sarah Dispatcher",
+                "role": "dispatcher",
+                "location_id": "loc_2",
+                "is_active": True,
+                "hashed_password": get_password_hash(demo_password)
+            },
+            {
+                "id": "user_3",
+                "username": "accountant",
+                "email": "accountant@arcticeice.com", 
+                "full_name": "Mike Accountant",
+                "role": "accountant",
+                "location_id": "loc_3",
+                "is_active": True,
+                "hashed_password": get_password_hash(demo_password)
+            },
+            {
+                "id": "user_4",
+                "username": "driver",
+                "email": "driver@arcticeice.com",
+                "full_name": "Carlos Driver",
+                "role": "driver", 
+                "location_id": "loc_4",
+                "is_active": True,
+                "hashed_password": get_password_hash(demo_password)
+            },
+            {
+                "id": "user_5",
+                "username": "customer1",
+                "email": "customer1@example.com",
+                "full_name": "Jane Customer",
+                "role": "customer",
+                "location_id": "loc_1",
+                "is_active": True,
+                "hashed_password": get_password_hash(demo_password)
+            },
+            {
+                "id": "user_6", 
+                "username": "customer2",
+                "email": "customer2@example.com",
+                "full_name": "Bob Customer",
+                "role": "customer",
+                "location_id": "loc_2",
+                "is_active": True,
+                "hashed_password": get_password_hash(demo_password)
+            },
+            {
+                "id": "user_7",
+                "username": "steve",
+                "email": "steve@arcticeice.com",
+                "full_name": "Steve",
+                "role": "driver",
+                "location_id": "loc_2",
+                "is_active": True,
+                "hashed_password": get_password_hash(demo_password)
+            },
+            {
+                "id": "user_8",
+                "username": "francis",
+                "email": "francis@arcticeice.com",
+                "full_name": "Francis",
+                "role": "driver",
+                "location_id": "loc_2",
+                "is_active": True,
+                "hashed_password": get_password_hash(demo_password)
+            },
+            {
+                "id": "user_9",
+                "username": "employee",
+                "email": "employee@arcticeice.com",
+                "full_name": "Alex Employee",
+                "role": "employee",
+                "location_id": "loc_1",
+                "is_active": True,
+                "hashed_password": get_password_hash(demo_password)
+            },
+            {
+                "id": "user_10",
+                "username": "employee2",
+                "email": "employee2@arcticeice.com",
+                "full_name": "Jordan Employee",
+                "role": "employee",
+                "location_id": "loc_2",
+                "is_active": True,
+                "hashed_password": get_password_hash(demo_password)
+            }
+        ]
+        sample_users.extend(demo_users)
     
     for user in sample_users:
         users_db[user["id"]] = user

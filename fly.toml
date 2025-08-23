@@ -1,11 +1,12 @@
 app = "arctic-ice-api"
 primary_region = "iad"
 
-[build]
-dockerfile = "Dockerfile"
-
 [env]
 PORT = "8000"
+ENVIRONMENT = "production"
+
+[build]
+dockerfile = "Dockerfile"
 
 [[services]]
 http_checks = []

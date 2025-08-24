@@ -334,7 +334,7 @@ class TrainingModule(BaseModel):
     type: str
     status: str = "available"
     progress: int = 0
-    
+
 class EmployeeCertification(BaseModel):
     id: str
     employee_id: str
@@ -351,14 +351,14 @@ def calculate_distance(addr1: str, addr2: str, coordinates1: Optional[dict] = No
     try:
         import googlemaps
         gmaps = googlemaps.Client(key=os.getenv('GOOGLE_MAPS_API_KEY', ''))
-        
+
         if coordinates1 and coordinates2:
             origin = (coordinates1['lat'], coordinates1['lng'])
             destination = (coordinates2['lat'], coordinates2['lng'])
         else:
             origin = addr1
             destination = addr2
-        
+
         result = gmaps.distance_matrix(
             origins=[origin],
             destinations=[destination],
@@ -366,7 +366,7 @@ def calculate_distance(addr1: str, addr2: str, coordinates1: Optional[dict] = No
             units="imperial",
             avoid="tolls"
         )
-        
+
         if result['status'] == 'OK' and result['rows'][0]['elements'][0]['status'] == 'OK':
             distance_miles = result['rows'][0]['elements'][0]['distance']['value'] * 0.000621371
             return distance_miles
@@ -397,10 +397,10 @@ def haversine_distance(lat1: float, lng1: float, lat2: float, lng2: float) -> fl
     lat2_rad = math.radians(lat2)
     delta_lat = math.radians(lat2 - lat1)
     delta_lng = math.radians(lng2 - lng1)
-    
+
     a = math.sin(delta_lat/2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(delta_lng/2)**2
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
-    
+
     return R * c
 
 def geocode_address(address: str) -> Optional[dict]:
@@ -409,7 +409,7 @@ def geocode_address(address: str) -> Optional[dict]:
         import googlemaps
         gmaps = googlemaps.Client(key=os.getenv('GOOGLE_MAPS_API_KEY', ''))
         result = gmaps.geocode(address)
-        
+
         if result:
             location = result[0]['geometry']['location']
             return {'lat': location['lat'], 'lng': location['lng']}
@@ -423,7 +423,7 @@ def optimize_route_ai(customers: List[dict], orders: List[dict], vehicle: dict, 
     if not orders:
         print("DEBUG AI: No orders provided")
         return []
-    
+
     stops = []
     for order in orders:
         customer = next((c for c in customers if c["id"] == order["customer_id"]), None)
@@ -438,7 +438,7 @@ def optimize_route_ai(customers: List[dict], orders: List[dict], vehicle: dict, 
             else:
                 quantity_pallets = 1
                 original_quantity = 1
-            
+
             stops.append({
                 "order_id": order["id"],
                 "customer_id": customer["id"],
@@ -450,26 +450,26 @@ def optimize_route_ai(customers: List[dict], orders: List[dict], vehicle: dict, 
             print(f"DEBUG AI: Added stop for customer {customer['name']} with {original_quantity} units = {quantity_pallets} pallets")
         else:
             print(f"DEBUG AI: No customer found for order {order['id']} with customer_id {order['customer_id']}")
-    
+
     print(f"DEBUG AI: Created {len(stops)} stops from orders")
     if not stops:
         print("DEBUG AI: No stops created")
         return []
-    
+
     route_stops = []
     remaining_stops = stops.copy()
     current_location = depot_address
     current_capacity = 0
     vehicle_capacity = vehicle.get("capacity_pallets", 20)
     print(f"DEBUG AI: Vehicle capacity: {vehicle_capacity} pallets")
-    
+
     remaining_stops.sort(key=lambda x: x["quantity"])
     print(f"DEBUG AI: Sorted stops by pallet quantity: {[s['quantity'] for s in remaining_stops]}")
-    
+
     while remaining_stops:
         best_stop = None
         best_distance = float('inf')
-        
+
         for stop in remaining_stops:
             if current_capacity + stop["quantity"] <= vehicle_capacity:
                 distance = calculate_distance(current_location, stop["address"])
@@ -479,11 +479,11 @@ def optimize_route_ai(customers: List[dict], orders: List[dict], vehicle: dict, 
                     print(f"DEBUG AI: Stop {stop['customer_name']} ({stop['quantity']} pallets) fits in remaining capacity")
             else:
                 print(f"DEBUG AI: Stop {stop['customer_name']} ({stop['quantity']} pallets) would exceed capacity (current: {current_capacity}, vehicle: {vehicle_capacity})")
-        
+
         if best_stop is None:
             print(f"DEBUG AI: No more stops can fit in vehicle (current capacity: {current_capacity}/{vehicle_capacity} pallets)")
             break
-        
+
         print(f"DEBUG AI: Adding stop {best_stop['customer_name']} to route")
         route_stops.append({
             "id": str(uuid.uuid4()),
@@ -495,12 +495,12 @@ def optimize_route_ai(customers: List[dict], orders: List[dict], vehicle: dict, 
             "customer_name": best_stop["customer_name"],
             "address": best_stop["address"]
         })
-        
+
         current_location = best_stop["address"]
         current_capacity += best_stop["quantity"]
         remaining_stops.remove(best_stop)
         print(f"DEBUG AI: Added stop {best_stop['customer_name']}, new capacity: {current_capacity}/{vehicle_capacity} pallets")
-    
+
     print(f"DEBUG AI: Final route has {len(route_stops)} stops")
     return route_stops
 
@@ -509,25 +509,25 @@ def optimize_with_ortools(locations, demands, coordinates, vehicle_capacity):
     try:
         from ortools.constraint_solver import routing_enums_pb2
         from ortools.constraint_solver import pywrapcp
-        
+
         distance_matrix = create_distance_matrix(coordinates)
-        
+
         manager = pywrapcp.RoutingIndexManager(len(locations), 1, 0)
-        
+
         routing = pywrapcp.RoutingModel(manager)
-        
+
         def distance_callback(from_index, to_index):
             from_node = manager.IndexToNode(from_index)
             to_node = manager.IndexToNode(to_index)
             return distance_matrix[from_node][to_node]
-        
+
         transit_callback_index = routing.RegisterTransitCallback(distance_callback)
         routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index)
-        
+
         def demand_callback(from_index):
             from_node = manager.IndexToNode(from_index)
             return demands[from_node]
-        
+
         demand_callback_index = routing.RegisterUnaryTransitCallback(demand_callback)
         routing.AddDimensionWithVehicleCapacity(
             demand_callback_index,
@@ -536,7 +536,7 @@ def optimize_with_ortools(locations, demands, coordinates, vehicle_capacity):
             True,  # start cumul to zero
             'Capacity'
         )
-        
+
         search_parameters = pywrapcp.DefaultRoutingSearchParameters()
         search_parameters.first_solution_strategy = (
             routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
@@ -545,9 +545,9 @@ def optimize_with_ortools(locations, demands, coordinates, vehicle_capacity):
             routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH
         )
         search_parameters.time_limit.seconds = 10
-        
+
         solution = routing.SolveWithParameters(search_parameters)
-        
+
         if solution:
             route = []
             index = routing.Start(0)
@@ -555,11 +555,11 @@ def optimize_with_ortools(locations, demands, coordinates, vehicle_capacity):
                 node_index = manager.IndexToNode(index)
                 route.append(node_index)
                 index = solution.Value(routing.NextVar(index))
-            
+
             return route[1:]  # Remove depot from start
-        
+
         return None
-        
+
     except Exception as e:
         logging.error(f"OR-Tools optimization error: {e}")
         return None
@@ -568,18 +568,18 @@ def create_distance_matrix(coordinates):
     """Create distance matrix using Google Maps API or haversine fallback"""
     size = len(coordinates)
     matrix = [[0 for _ in range(size)] for _ in range(size)]
-    
+
     try:
         import googlemaps
         gmaps = googlemaps.Client(key=os.getenv('GOOGLE_MAPS_API_KEY', ''))
-        
+
         result = gmaps.distance_matrix(
             origins=coordinates,
             destinations=coordinates,
             mode="driving",
             units="imperial"
         )
-        
+
         if result['status'] == 'OK':
             for i in range(size):
                 for j in range(size):
@@ -600,7 +600,7 @@ def create_distance_matrix(coordinates):
                         lat2, lng2 = coordinates[j]
                         distance_miles = haversine_distance(lat1, lng1, lat2, lng2)
                         matrix[i][j] = int(distance_miles * 1609.34)  # Convert to meters
-                        
+
     except Exception as e:
         logging.warning(f"Distance matrix API failed: {e}")
         for i in range(size):
@@ -610,7 +610,7 @@ def create_distance_matrix(coordinates):
                     lat2, lng2 = coordinates[j]
                     distance_miles = haversine_distance(lat1, lng1, lat2, lng2)
                     matrix[i][j] = int(distance_miles * 1609.34)  # Convert to meters
-    
+
     return matrix
 
     receipt_url: Optional[str] = None
@@ -660,7 +660,7 @@ def save_data_to_disk():
     try:
         data_file = Path("data/arctic_ice_data.json")
         data_file.parent.mkdir(exist_ok=True)
-        
+
         with open(data_file, 'w') as f:
             json.dump({
                 'users': users_db,
@@ -678,9 +678,9 @@ def save_data_to_disk():
                 'imported_orders': imported_orders,
                 'quickbooks_connection': quickbooks_connection
             }, f, indent=2, default=str)
-        
+
         DATA_DIR.mkdir(exist_ok=True)
-        
+
         with open(CUSTOMERS_FILE, 'w') as f:
             json.dump(imported_customers, f, indent=2, default=str)
         with open(ORDERS_FILE, 'w') as f:
@@ -701,7 +701,7 @@ def load_data_from_disk():
     """Load all data from disk on startup"""
     global imported_customers, imported_orders, imported_financial_data
     global work_orders_db, production_entries_db, expenses_db
-    
+
     try:
         if CUSTOMERS_FILE.exists():
             with open(CUSTOMERS_FILE, 'r') as f:
@@ -798,10 +798,10 @@ def get_customer_price_for_product(customer_id: str, product_id: str) -> float:
     for pricing_id, pricing in customer_pricing_db.items():
         if pricing['customer_id'] == customer_id and pricing['product_id'] == product_id:
             return pricing['custom_price']
-    
+
     if product_id in products_db:
         return products_db[product_id]['price']
-    
+
     return 0.0
 
 def get_all_customer_pricing(customer_id: str) -> list:
@@ -811,14 +811,14 @@ def import_route_json_data():
     """Import customer data from route JSON files"""
     import json
     import os
-    
+
     customers_imported = []
-    
+
     lake_charles_file = "lake_charles_routes.json"
     if os.path.exists(lake_charles_file):
         with open(lake_charles_file, 'r') as f:
             data = json.load(f)
-        
+
         customer_names = set()
         for day, routes in data.items():
             if isinstance(routes, list):
@@ -827,7 +827,7 @@ def import_route_json_data():
                         customer_name = route[0]
                         if customer_name not in ['Customer', 'CUSTOMER', 'LAKE CHARLES ROUTE SHEET-SMITTY-CHURCHPOINT']:
                             customer_names.add(customer_name)
-        
+
         for i, name in enumerate(sorted(customer_names), 1):
             customer_id = f"lc_route_{i:03d}"
             customer = {
@@ -846,12 +846,12 @@ def import_route_json_data():
                 "payment_terms": "Net 30"
             }
             customers_imported.append(customer)
-    
+
     smitty_file = "smitty_routes.json"
     if os.path.exists(smitty_file):
         with open(smitty_file, 'r') as f:
             data = json.load(f)
-        
+
         customer_names = set()
         for day, routes in data.items():
             if isinstance(routes, list):
@@ -860,7 +860,7 @@ def import_route_json_data():
                         customer_name = route[0]
                         if customer_name not in ['Customer', 'CUSTOMER', 'LAKE CHARLES ROUTE SHEET-SMITTY-CHURCHPOINT']:
                             customer_names.add(customer_name)
-        
+
         existing_count = len(customers_imported)
         for i, name in enumerate(sorted(customer_names), existing_count + 1):
             customer_id = f"lc_route_{i:03d}"
@@ -871,7 +871,7 @@ def import_route_json_data():
                 "email": f"contact@{name.lower().replace(' ', '').replace('(', '').replace(')', '').replace('#', '').replace('-', '')}example.com",
                 "phone": "(337) 555-0200",
                 "address": f"Lake Charles Address {i}",
-                "city": "Lake Charles", 
+                "city": "Lake Charles",
                 "state": "LA",
                 "zip_code": "70601",
                 "location_id": "loc_2",
@@ -880,7 +880,7 @@ def import_route_json_data():
                 "payment_terms": "Net 30"
             }
             customers_imported.append(customer)
-    
+
     current_count = len(customers_imported)
     if current_count < 62:
         for i in range(current_count + 1, 63):
@@ -893,7 +893,7 @@ def import_route_json_data():
                 "phone": "(337) 555-0300",
                 "address": f"Lake Charles Address {i}",
                 "city": "Lake Charles",
-                "state": "LA", 
+                "state": "LA",
                 "zip_code": "70601",
                 "location_id": "loc_2",
                 "is_active": True,
@@ -901,8 +901,20 @@ def import_route_json_data():
                 "payment_terms": "Net 30"
             }
             customers_imported.append(customer)
-    
+
     return customers_imported
+
+def is_production_mode():
+    """Detect if running in production environment"""
+    environment = os.getenv("ENVIRONMENT", "").lower()
+    fly_app_name = os.getenv("FLY_APP_NAME", "")
+    port = os.getenv("PORT", "")
+
+    return (
+        environment == "production" or
+        fly_app_name == "arctic-ice-api" or
+        port == "8000"
+    )
 
 def initialize_sample_data():
     print("DEBUG: Initializing sample data...")
@@ -917,11 +929,11 @@ def initialize_sample_data():
             location_type=LocationType.HEADQUARTERS
         ),
         Location(
-            id="loc_2", 
+            id="loc_2",
             name="Lake Charles Distribution",
             address="456 Distribution Ave",
             city="Lake Charles",
-            state="Louisiana", 
+            state="Louisiana",
             zip_code="70601",
             location_type=LocationType.DISTRIBUTION
         ),
@@ -944,20 +956,20 @@ def initialize_sample_data():
             location_type=LocationType.WAREHOUSE
         )
     ]
-    
+
     for location in locations:
         locations_db[location.id] = location.dict()
     print(f"DEBUG: Added {len(locations)} locations")
-    
+
     products = [
         Product(id="prod_1", name="8lb Ice Bag", product_type=ProductType.BAG_8LB, price=3.50, weight_lbs=8.0),
         Product(id="prod_2", name="20lb Ice Bag", product_type=ProductType.BAG_20LB, price=7.00, weight_lbs=20.0),
         Product(id="prod_3", name="Block Ice", product_type=ProductType.BLOCK_ICE, price=15.00, weight_lbs=25.0)
     ]
-    
+
     for product in products:
         products_db[product.id] = product.dict()
-    
+
     vehicles = [
         Vehicle(id="veh_1", license_plate="LA-ICE-01", vehicle_type=VehicleType.REEFER_53, capacity_pallets=26, location_id="loc_1"),
         Vehicle(id="veh_2", license_plate="LA-ICE-02", vehicle_type=VehicleType.REEFER_42, capacity_pallets=20, location_id="loc_2"),
@@ -968,10 +980,10 @@ def initialize_sample_data():
         Vehicle(id="veh_7", license_plate="TX-ICE-03", vehicle_type=VehicleType.REEFER_16, capacity_pallets=8, location_id="loc_3"),
         Vehicle(id="veh_8", license_plate="LA-ICE-05", vehicle_type=VehicleType.REEFER_16, capacity_pallets=8, location_id="loc_1")
     ]
-    
+
     for vehicle in vehicles:
         vehicles_db[vehicle.id] = vehicle.dict()
-    
+
     sample_work_orders = [
         {
             "id": "wo_1",
@@ -987,14 +999,14 @@ def initialize_sample_data():
             "estimated_hours": 4.0
         },
         {
-            "id": "wo_2", 
+            "id": "wo_2",
             "vehicle_id": "veh_3",
             "vehicle_name": "TX-ICE-01 (20ft Reefer)",
             "technician_name": "Carlos Rodriguez",
             "issue_description": "Brake pads need replacement, squeaking noise when stopping",
             "priority": "medium",
             "status": "approved",
-            "work_type": "mechanical", 
+            "work_type": "mechanical",
             "submitted_date": (datetime.now() - timedelta(days=1)).isoformat(),
             "estimated_cost": 320.0,
             "estimated_hours": 2.0,
@@ -1045,10 +1057,10 @@ def initialize_sample_data():
             "approved_date": (datetime.now() - timedelta(hours=4)).isoformat()
         }
     ]
-    
+
     for wo in sample_work_orders:
         work_orders_db[wo["id"]] = wo
-    
+
     sample_customers = [
         {
             "id": "leesville_customer_1",
@@ -1168,7 +1180,7 @@ def initialize_sample_data():
             "status": "active"
         },
         {
-            "id": "lufkin_customer_2", 
+            "id": "lufkin_customer_2",
             "name": "Piney Woods Convenience",
             "contact_person": "Maria Rodriguez",
             "email": "maria@pineywoodsconv.com",
@@ -1184,7 +1196,7 @@ def initialize_sample_data():
             "id": "lufkin_customer_3",
             "name": "Angelina County Events",
             "contact_person": "David Wilson",
-            "email": "david@angelinaevents.com", 
+            "email": "david@angelinaevents.com",
             "phone": "(936) 555-1003",
             "address": "890 Event Center Dr, Lufkin, TX 75902",
             "location_id": "loc_3",
@@ -1259,10 +1271,10 @@ def initialize_sample_data():
             "status": "active"
         }
     ]
-    
+
     for customer in sample_customers:
         customers_db[customer["id"]] = customer
-    
+
     sample_orders = [
         {
             "id": "leesville_order_1",
@@ -1421,7 +1433,7 @@ def initialize_sample_data():
         {
             "id": "lufkin_order_2",
             "customer_id": "lufkin_customer_2",
-            "product_id": "prod_2", 
+            "product_id": "prod_2",
             "quantity": 50,
             "unit_price": 7.00,
             "total_amount": 350.00,
@@ -1517,7 +1529,7 @@ def initialize_sample_data():
             "notes": "County fair vendor booths"
         }
     ]
-    
+
     for order in sample_orders:
         orders_db[order["id"]] = order
 
@@ -1583,158 +1595,159 @@ def initialize_sample_data():
             "submitted_at": (datetime.now() - timedelta(days=3)).isoformat()
         }
     ]
-    
+
     for exp in sample_expenses:
         expenses_db[exp["id"]] = exp
 
-    is_production = os.getenv("PRODUCTION_MODE", "false").lower() == "true"
     demo_password = os.getenv("DEMO_USER_PASSWORD", "dev-password-change-in-production")
-    
-    if is_production:
-        print("DEBUG: Production mode enabled - demo credentials disabled")
-        admin_username = os.getenv("ADMIN_USERNAME", "admin")
+
+    if is_production_mode():
         admin_password = os.getenv("ADMIN_PASSWORD")
-        
-        if admin_password and admin_username not in [u.get("username") for u in users_db.values()]:
-            admin_user = {
-                "id": "admin_prod",
-                "username": admin_username,
-                "email": f"{admin_username}@arcticeice.com",
-                "full_name": "Production Administrator",
-                "role": "manager",
-                "location_id": "loc_1",
-                "is_active": True,
-                "hashed_password": get_password_hash(admin_password)
-            }
-            users_db[admin_user["id"]] = admin_user
-            print(f"DEBUG: Created production admin user: {admin_username}")
-        
-        print("DEBUG: Skipping demo user creation in production mode")
-        return
+        if not admin_password:
+            print("ERROR: ADMIN_PASSWORD environment variable is required in production")
+            raise ValueError("ADMIN_PASSWORD environment variable must be set in production")
     else:
-        print(f"DEBUG: Development mode - using demo password: '{demo_password}' (length: {len(demo_password)})")
-    
+        admin_password = os.getenv("ADMIN_PASSWORD", demo_password)
+
+    print(f"DEBUG: Using demo password: '{demo_password}' (length: {len(demo_password)})")
+    print(f"DEBUG: Using admin password: {'***' if is_production_mode() else admin_password} (length: {len(admin_password) if admin_password else 0})")
+
     sample_users = [
         {
-            "id": "user_1",
-            "username": "manager",
-            "email": "manager@arcticeice.com",
-            "full_name": "John Manager",
+            "id": "admin_user",
+            "username": "admin",
+            "email": "admin@arcticeice.com",
+            "full_name": "System Administrator",
             "role": "manager",
             "location_id": "loc_1",
             "is_active": True,
-            "hashed_password": get_password_hash(demo_password)
-        },
-        {
-            "id": "user_2", 
-            "username": "dispatcher",
-            "email": "dispatcher@arcticeice.com",
-            "full_name": "Sarah Dispatcher",
-            "role": "dispatcher",
-            "location_id": "loc_2",
-            "is_active": True,
-            "hashed_password": get_password_hash(demo_password)
-        },
-        {
-            "id": "user_3",
-            "username": "accountant",
-            "email": "accountant@arcticeice.com", 
-            "full_name": "Mike Accountant",
-            "role": "accountant",
-            "location_id": "loc_3",
-            "is_active": True,
-            "hashed_password": get_password_hash(demo_password)
-        },
-        {
-            "id": "user_4",
-            "username": "driver",
-            "email": "driver@arcticeice.com",
-            "full_name": "Carlos Driver",
-            "role": "driver", 
-            "location_id": "loc_4",
-            "is_active": True,
-            "hashed_password": get_password_hash(demo_password)
-        },
-        {
-            "id": "user_5",
-            "username": "customer1",
-            "email": "customer1@example.com",
-            "full_name": "Jane Customer",
-            "role": "customer",
-            "location_id": "loc_1",
-            "is_active": True,
-            "hashed_password": get_password_hash(demo_password)
-        },
-        {
-            "id": "user_6", 
-            "username": "customer2",
-            "email": "customer2@example.com",
-            "full_name": "Bob Customer",
-            "role": "customer",
-            "location_id": "loc_2",
-            "is_active": True,
-            "hashed_password": get_password_hash(demo_password)
-        },
-        {
-            "id": "user_7",
-            "username": "steve",
-            "email": "steve@arcticeice.com",
-            "full_name": "Steve",
-            "role": "driver",
-            "location_id": "loc_2",
-            "is_active": True,
-            "hashed_password": get_password_hash(demo_password)
-        },
-        {
-            "id": "user_8",
-            "username": "francis",
-            "email": "francis@arcticeice.com",
-            "full_name": "Francis",
-            "role": "driver",
-            "location_id": "loc_2",
-            "is_active": True,
-            "hashed_password": get_password_hash(demo_password)
-        },
-        {
-            "id": "user_9",
-            "username": "employee",
-            "email": "employee@arcticeice.com",
-            "full_name": "Alex Employee",
-            "role": "employee",
-            "location_id": "loc_1",
-            "is_active": True,
-            "hashed_password": get_password_hash(demo_password)
-        },
-        {
-            "id": "user_10",
-            "username": "employee2",
-            "email": "employee2@arcticeice.com",
-            "full_name": "Jordan Employee",
-            "role": "employee",
-            "location_id": "loc_2",
-            "is_active": True,
-            "hashed_password": get_password_hash(demo_password)
+            "hashed_password": get_password_hash(admin_password)
         }
     ]
-    
+
+    if not is_production_mode():
+        demo_users = [
+            {
+                "id": "user_1",
+                "username": "manager",
+                "email": "manager@arcticeice.com",
+                "full_name": "John Manager",
+                "role": "manager",
+                "location_id": "loc_1",
+                "is_active": True,
+                "hashed_password": get_password_hash(demo_password)
+            },
+            {
+                "id": "user_2",
+                "username": "dispatcher",
+                "email": "dispatcher@arcticeice.com",
+                "full_name": "Sarah Dispatcher",
+                "role": "dispatcher",
+                "location_id": "loc_2",
+                "is_active": True,
+                "hashed_password": get_password_hash(demo_password)
+            },
+            {
+                "id": "user_3",
+                "username": "accountant",
+                "email": "accountant@arcticeice.com",
+                "full_name": "Mike Accountant",
+                "role": "accountant",
+                "location_id": "loc_3",
+                "is_active": True,
+                "hashed_password": get_password_hash(demo_password)
+            },
+            {
+                "id": "user_4",
+                "username": "driver",
+                "email": "driver@arcticeice.com",
+                "full_name": "Carlos Driver",
+                "role": "driver",
+                "location_id": "loc_4",
+                "is_active": True,
+                "hashed_password": get_password_hash(demo_password)
+            },
+            {
+                "id": "user_5",
+                "username": "customer1",
+                "email": "customer1@example.com",
+                "full_name": "Jane Customer",
+                "role": "customer",
+                "location_id": "loc_1",
+                "is_active": True,
+                "hashed_password": get_password_hash(demo_password)
+            },
+            {
+                "id": "user_6",
+                "username": "customer2",
+                "email": "customer2@example.com",
+                "full_name": "Bob Customer",
+                "role": "customer",
+                "location_id": "loc_2",
+                "is_active": True,
+                "hashed_password": get_password_hash(demo_password)
+            },
+            {
+                "id": "user_7",
+                "username": "steve",
+                "email": "steve@arcticeice.com",
+                "full_name": "Steve",
+                "role": "driver",
+                "location_id": "loc_2",
+                "is_active": True,
+                "hashed_password": get_password_hash(demo_password)
+            },
+            {
+                "id": "user_8",
+                "username": "francis",
+                "email": "francis@arcticeice.com",
+                "full_name": "Francis",
+                "role": "driver",
+                "location_id": "loc_2",
+                "is_active": True,
+                "hashed_password": get_password_hash(demo_password)
+            },
+            {
+                "id": "user_9",
+                "username": "employee",
+                "email": "employee@arcticeice.com",
+                "full_name": "Alex Employee",
+                "role": "employee",
+                "location_id": "loc_1",
+                "is_active": True,
+                "hashed_password": get_password_hash(demo_password)
+            },
+            {
+                "id": "user_10",
+                "username": "employee2",
+                "email": "employee2@arcticeice.com",
+                "full_name": "Jordan Employee",
+                "role": "employee",
+                "location_id": "loc_2",
+                "is_active": True,
+                "hashed_password": get_password_hash(demo_password)
+            }
+        ]
+        sample_users.extend(demo_users)
+
     for user in sample_users:
         users_db[user["id"]] = user
     print(f"DEBUG: Added {len(sample_users)} users")
-    
+
     imported_customers = import_route_json_data()
     for customer in imported_customers:
         customers_db[customer["id"]] = customer
     print(f"DEBUG: Imported {len(imported_customers)} customers from route JSON files")
-    
+
     # Add sample customers to customers_db (not just imported_customers)
     for customer in sample_customers:
         customers_db[customer["id"]] = customer
     print(f"DEBUG: Added {len(sample_customers)} customers to customers_db")
-    
+
     for order in sample_orders:
         orders_db[order["id"]] = order
     print(f"DEBUG: Added {len(sample_orders)} orders to orders_db")
-    
+
     sample_routes = [
         {
             "id": "route_1",
@@ -1757,10 +1770,10 @@ def initialize_sample_data():
                     "status": "completed"
                 },
                 {
-                    "id": "stop_2", 
+                    "id": "stop_2",
                     "route_id": "route_1",
                     "customer_id": "leesville_customer_2",
-                    "order_id": "leesville_order_2", 
+                    "order_id": "leesville_order_2",
                     "stop_number": 2,
                     "estimated_arrival": (datetime.now() + timedelta(hours=2)).isoformat(),
                     "status": "pending"
@@ -1810,11 +1823,11 @@ def initialize_sample_data():
             ]
         }
     ]
-    
+
     for route in sample_routes:
         routes_db[route["id"]] = route
     print(f"DEBUG: Added {len(sample_routes)} routes")
-    
+
     print(f"DEBUG: Final counts - customers_db: {len(customers_db)}, orders_db: {len(orders_db)}, routes_db: {len(routes_db)}")
     print(f"DEBUG: Final counts - imported_customers: {len(imported_customers)}, imported_orders: {len(imported_orders)}")
 
@@ -1830,7 +1843,7 @@ training_modules_db = {
         "status": "available"
     },
     "equipment-operation": {
-        "id": "equipment-operation", 
+        "id": "equipment-operation",
         "title": "Equipment Operation Training",
         "description": "Proper operation of ice production and handling equipment",
         "duration": "60 minutes",
@@ -1839,7 +1852,7 @@ training_modules_db = {
     },
     "customer-service": {
         "id": "customer-service",
-        "title": "Customer Service Excellence", 
+        "title": "Customer Service Excellence",
         "description": "Best practices for customer interactions and service delivery",
         "duration": "30 minutes",
         "type": "service",
@@ -1848,7 +1861,7 @@ training_modules_db = {
     "quality-control": {
         "id": "quality-control",
         "title": "Quality Control Standards",
-        "description": "Understanding and maintaining ice quality standards", 
+        "description": "Understanding and maintaining ice quality standards",
         "duration": "40 minutes",
         "type": "quality",
         "status": "available"
@@ -1858,18 +1871,17 @@ training_modules_db = {
 @app.post("/api/auth/login", response_model=Token)
 async def login(login_request: LoginRequest):
     print(f"DEBUG: Login attempt for username: {login_request.username}")
-    
-    is_production = os.getenv("PRODUCTION_MODE", "false").lower() == "true"
+
     demo_usernames = ["manager", "dispatcher", "accountant", "driver", "employee", "customer1", "customer2", "steve", "francis", "employee2"]
-    
-    if is_production and login_request.username in demo_usernames:
+
+    if is_production_mode() and login_request.username in demo_usernames:
         print(f"DEBUG: Blocked demo credential login attempt in production: {login_request.username}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Demo credentials are disabled in production",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     user = authenticate_user(login_request.username, login_request.password)
     if not user:
         print(f"DEBUG: Authentication failed for username: {login_request.username}")
@@ -1901,21 +1913,21 @@ async def healthz():
 async def get_users(role: Optional[str] = None, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role != UserRole.MANAGER:
         raise HTTPException(status_code=403, detail="Only managers can access user management")
-    
+
     users = list(users_db.values())
     if role:
         users = [u for u in users if u["role"] == role]
-    
+
     return [User(**{k: v for k, v in user.items() if k != "hashed_password"}) for user in users]
 
 @app.post("/api/users", response_model=User)
 async def create_user(user_data: dict, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role != UserRole.MANAGER:
         raise HTTPException(status_code=403, detail="Only managers can create users")
-    
+
     if any(u["username"] == user_data["username"] for u in users_db.values()):
         raise HTTPException(status_code=400, detail="Username already exists")
-    
+
     user_id = str(uuid.uuid4())
     new_user = {
         "id": user_id,
@@ -1927,7 +1939,7 @@ async def create_user(user_data: dict, current_user: UserInDB = Depends(get_curr
         "is_active": user_data.get("is_active", True),
         "hashed_password": get_password_hash(user_data["password"])
     }
-    
+
     users_db[user_id] = new_user
     return User(**{k: v for k, v in new_user.items() if k != "hashed_password"})
 
@@ -1935,22 +1947,22 @@ async def create_user(user_data: dict, current_user: UserInDB = Depends(get_curr
 async def update_user(user_id: str, user_data: dict, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role != UserRole.MANAGER:
         raise HTTPException(status_code=403, detail="Only managers can update users")
-    
+
     if user_id not in users_db:
         raise HTTPException(status_code=404, detail="User not found")
-    
+
     user = users_db[user_id]
-    
+
     if "username" in user_data and user_data["username"] != user["username"]:
         if any(u["username"] == user_data["username"] for u in users_db.values()):
             raise HTTPException(status_code=400, detail="Username already exists")
-    
+
     for key, value in user_data.items():
         if key == "password":
             user["hashed_password"] = get_password_hash(value)
         elif key != "id":
             user[key] = value
-    
+
     users_db[user_id] = user
     return User(**{k: v for k, v in user.items() if k != "hashed_password"})
 
@@ -1958,13 +1970,13 @@ async def update_user(user_id: str, user_data: dict, current_user: UserInDB = De
 async def delete_user(user_id: str, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role != UserRole.MANAGER:
         raise HTTPException(status_code=403, detail="Only managers can delete users")
-    
+
     if user_id not in users_db:
         raise HTTPException(status_code=404, detail="User not found")
-    
+
     if user_id == current_user.id:
         raise HTTPException(status_code=400, detail="Cannot delete your own account")
-    
+
     del users_db[user_id]
     return {"message": "User deleted successfully"}
 
@@ -1987,16 +1999,16 @@ async def get_location(location_id: str, current_user: UserInDB = Depends(get_cu
 async def update_location(location_id: str, location_data: dict, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role != UserRole.MANAGER:
         raise HTTPException(status_code=403, detail="Only managers can update locations")
-    
+
     if location_id not in locations_db:
         raise HTTPException(status_code=404, detail="Location not found")
-    
+
     location = locations_db[location_id]
-    
+
     for key, value in location_data.items():
         if key != "id":
             location[key] = value
-    
+
     locations_db[location_id] = location
     save_data_to_disk()
     return Location(**location)
@@ -2031,7 +2043,7 @@ async def get_vehicle(vehicle_id: str, current_user: UserInDB = Depends(get_curr
 async def create_vehicle(vehicle_data: VehicleCreate, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role != UserRole.MANAGER and vehicle_data.location_id != current_user.location_id:
         raise HTTPException(status_code=403, detail="Cannot create vehicle for different location")
-    
+
     vehicle_id = str(uuid.uuid4())
     vehicle = Vehicle(
         id=vehicle_id,
@@ -2047,10 +2059,10 @@ async def get_customers(location_id: Optional[str] = None, current_user: UserInD
         customers = imported_customers
     else:
         customers = list(customers_db.values())
-    
+
     if location_id:
         customers = [c for c in customers if c.get("location_id") == location_id]
-    
+
     return filter_by_location(customers, current_user)
 
 @app.get("/api/customers/by-location")
@@ -2060,20 +2072,20 @@ async def get_customers_by_location(current_user: UserInDB = Depends(get_current
         customers = imported_customers
     else:
         customers = list(customers_db.values())
-    
+
     all_locations = list(locations_db.values())
     filtered_locations = filter_by_location(all_locations, current_user, location_key="id")
-    
+
     location_counts = []
     for location in filtered_locations:
         location_customers = [c for c in customers if c.get("location_id") == location["id"]]
-        
+
         location_counts.append({
             "location_id": location["id"],
             "location_name": location["name"],
             "customer_count": len(location_customers)
         })
-    
+
     return location_counts
 
 @app.post("/api/customers", response_model=Customer)
@@ -2174,10 +2186,10 @@ async def create_customer_order(customer_id: str, order_data: dict, current_user
 async def get_customer_pricing(customer_id: str, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role != UserRole.MANAGER:
         raise HTTPException(status_code=403, detail="Only managers can access customer pricing")
-    
+
     pricing_records = get_all_customer_pricing(customer_id)
     products = list(products_db.values())
-    
+
     result = []
     for product in products:
         custom_price = None
@@ -2185,42 +2197,42 @@ async def get_customer_pricing(customer_id: str, current_user: UserInDB = Depend
             if pricing['product_id'] == product['id']:
                 custom_price = pricing['custom_price']
                 break
-        
+
         result.append({
             "product_id": product['id'],
             "product_name": product['name'],
             "default_price": product['price'],
             "custom_price": custom_price
         })
-    
+
     return result
 
 @app.post("/api/customers/{customer_id}/pricing")
 async def set_customer_pricing(customer_id: str, pricing_data: dict, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role != UserRole.MANAGER:
         raise HTTPException(status_code=403, detail="Only managers can set customer pricing")
-    
+
     product_id = pricing_data.get('product_id')
     custom_price = pricing_data.get('custom_price')
-    
+
     if not product_id or custom_price is None:
         raise HTTPException(status_code=400, detail="product_id and custom_price are required")
-    
+
     if custom_price < 0:
         raise HTTPException(status_code=400, detail="Price must be non-negative")
-    
+
     if product_id not in products_db:
         raise HTTPException(status_code=404, detail="Product not found")
-    
+
     if customer_id not in customers_db:
         raise HTTPException(status_code=404, detail="Customer not found")
-    
+
     existing_pricing_id = None
     for pricing_id, pricing in customer_pricing_db.items():
         if pricing['customer_id'] == customer_id and pricing['product_id'] == product_id:
             existing_pricing_id = pricing_id
             break
-    
+
     if existing_pricing_id:
         customer_pricing_db[existing_pricing_id]['custom_price'] = custom_price
         customer_pricing_db[existing_pricing_id]['updated_by'] = current_user.username
@@ -2236,7 +2248,7 @@ async def set_customer_pricing(customer_id: str, pricing_data: dict, current_use
             "updated_by": current_user.username
         }
         customer_pricing_db[pricing_id] = pricing_record
-    
+
     save_data_to_disk()
     return pricing_record
 
@@ -2244,10 +2256,10 @@ async def set_customer_pricing(customer_id: str, pricing_data: dict, current_use
 async def delete_customer(customer_id: str, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role != UserRole.MANAGER:
         raise HTTPException(status_code=403, detail="Only managers can delete customers")
-    
+
     if customer_id not in customers_db:
         raise HTTPException(status_code=404, detail="Customer not found")
-    
+
     del customers_db[customer_id]
     save_data_to_disk()
     return {"message": "Customer deleted successfully"}
@@ -2256,16 +2268,16 @@ async def delete_customer(customer_id: str, current_user: UserInDB = Depends(get
 async def delete_customer_pricing(customer_id: str, product_id: str, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role != UserRole.MANAGER:
         raise HTTPException(status_code=403, detail="Only managers can delete customer pricing")
-    
+
     pricing_id_to_delete = None
     for pricing_id, pricing in customer_pricing_db.items():
         if pricing['customer_id'] == customer_id and pricing['product_id'] == product_id:
             pricing_id_to_delete = pricing_id
             break
-    
+
     if not pricing_id_to_delete:
         raise HTTPException(status_code=404, detail="Custom pricing not found")
-    
+
     del customer_pricing_db[pricing_id_to_delete]
     save_data_to_disk()
     return {"message": "Custom pricing deleted successfully"}
@@ -2316,7 +2328,7 @@ async def get_invoices(customer_id: Optional[str] = None, current_user: UserInDB
             "paymentTerms": "Net 30"
         }
     ]
-    
+
     if customer_id:
         return [inv for inv in sample_invoices if inv["customerId"] == customer_id]
     return sample_invoices
@@ -2330,7 +2342,7 @@ async def download_invoice_pdf(invoice_id: str, current_user: UserInDB = Depends
     from reportlab.lib import colors
     from io import BytesIO
     from fastapi.responses import StreamingResponse
-    
+
     invoice_data = {
         "invoiceNumber": "INV-2025-001",
         "issueDate": "2025-01-20",
@@ -2346,12 +2358,12 @@ async def download_invoice_pdf(invoice_id: str, current_user: UserInDB = Depends
         "totalAmount": 297.50,
         "paymentTerms": "Net 30"
     }
-    
+
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
-    
+
     elements = []
-    
+
     styles = getSampleStyleSheet()
     title_style = ParagraphStyle(
         'CustomTitle',
@@ -2360,20 +2372,20 @@ async def download_invoice_pdf(invoice_id: str, current_user: UserInDB = Depends
         spaceAfter=30,
         textColor=colors.HexColor('#1f2937')
     )
-    
+
     elements.append(Paragraph("Arctic Ice Solutions", title_style))
     elements.append(Paragraph("Ice Manufacturing & Distribution", styles['Normal']))
     elements.append(Spacer(1, 20))
-    
+
     elements.append(Paragraph(f"INVOICE #{invoice_data['invoiceNumber']}", styles['Heading2']))
     elements.append(Spacer(1, 12))
-    
+
     invoice_details = [
         ['Issue Date:', invoice_data['issueDate']],
         ['Due Date:', invoice_data['dueDate']],
         ['Payment Terms:', invoice_data['paymentTerms']]
     ]
-    
+
     details_table = Table(invoice_details, colWidths=[2*inch, 3*inch])
     details_table.setStyle(TableStyle([
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
@@ -2383,12 +2395,12 @@ async def download_invoice_pdf(invoice_id: str, current_user: UserInDB = Depends
     ]))
     elements.append(details_table)
     elements.append(Spacer(1, 20))
-    
+
     elements.append(Paragraph("Bill To:", styles['Heading3']))
     elements.append(Paragraph(invoice_data['customerName'], styles['Normal']))
     elements.append(Paragraph(invoice_data['customerAddress'], styles['Normal']))
     elements.append(Spacer(1, 20))
-    
+
     items_data = [['Description', 'Quantity', 'Unit Price', 'Total']]
     for item in invoice_data['items']:
         items_data.append([
@@ -2397,7 +2409,7 @@ async def download_invoice_pdf(invoice_id: str, current_user: UserInDB = Depends
             f"${item['unitPrice']:.2f}",
             f"${item['total']:.2f}"
         ])
-    
+
     items_table = Table(items_data, colWidths=[3*inch, 1*inch, 1*inch, 1*inch])
     items_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
@@ -2412,13 +2424,13 @@ async def download_invoice_pdf(invoice_id: str, current_user: UserInDB = Depends
     ]))
     elements.append(items_table)
     elements.append(Spacer(1, 20))
-    
+
     totals_data = [
         ['Subtotal:', f"${invoice_data['subtotal']:.2f}"],
         ['Tax:', f"${invoice_data['tax']:.2f}"],
         ['Total Amount:', f"${invoice_data['totalAmount']:.2f}"]
     ]
-    
+
     totals_table = Table(totals_data, colWidths=[4*inch, 2*inch])
     totals_table.setStyle(TableStyle([
         ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
@@ -2428,10 +2440,10 @@ async def download_invoice_pdf(invoice_id: str, current_user: UserInDB = Depends
         ('LINEABOVE', (0, -1), (-1, -1), 2, colors.black),
     ]))
     elements.append(totals_table)
-    
+
     doc.build(elements)
     buffer.seek(0)
-    
+
     return StreamingResponse(
         BytesIO(buffer.read()),
         media_type="application/pdf",
@@ -2464,7 +2476,7 @@ async def get_orders(location_id: Optional[str] = None, status: Optional[str] = 
             orders = [o for o in orders if customers_db.get(o["customer_id"], {}).get("location_id") == location_id]
         if status:
             orders = [o for o in orders if o["status"] == status]
-        
+
         if current_user.role != UserRole.MANAGER:
             orders = [o for o in orders if customers_db.get(o["customer_id"], {}).get("location_id") == current_user.location_id]
         return orders
@@ -2487,10 +2499,10 @@ async def get_dashboard_overview(current_user: UserInDB = Depends(get_current_us
         customers = imported_customers
     else:
         customers = list(customers_db.values())
-    
+
     filtered_customers = filter_by_location(customers, current_user)
     total_customers = len(filtered_customers)
-    
+
     if imported_orders is not None and len(imported_orders) > 0:
         filtered_orders = filter_by_location(imported_orders, current_user)
         total_orders_today = len([o for o in filtered_orders if o.get("order_date", "") and datetime.fromisoformat(o["order_date"].replace('Z', '+00:00')).date() == date.today()])
@@ -2499,10 +2511,10 @@ async def get_dashboard_overview(current_user: UserInDB = Depends(get_current_us
         filtered_orders = filter_by_location(list(orders_db.values()), current_user)
         total_orders_today = len([o for o in filtered_orders if o.get("order_date") and datetime.fromisoformat(o["order_date"].replace('Z', '+00:00')).date() == date.today()])
         total_revenue = 125000.0
-    
+
     filtered_vehicles = filter_by_location(list(vehicles_db.values()), current_user)
     filtered_routes = filter_by_location(list(routes_db.values()), current_user)
-    
+
     return {
         "total_customers": total_customers,
         "total_vehicles": len(filtered_vehicles),
@@ -2515,7 +2527,7 @@ async def get_dashboard_overview(current_user: UserInDB = Depends(get_current_us
 @app.get("/api/dashboard/production")
 async def get_production_dashboard(current_user: UserInDB = Depends(get_current_user)):
     filtered_production = filter_by_location(list(production_entries_db.values()), current_user)
-    
+
     return {
         "daily_production_pallets": len([p for p in filtered_production if p.get("date") == str(date.today())]) * 10,
         "target_production_pallets": 160,
@@ -2533,30 +2545,30 @@ async def get_production_dashboard(current_user: UserInDB = Depends(get_current_
 async def get_fleet_dashboard(current_user: UserInDB = Depends(get_current_user)):
     vehicles = list(vehicles_db.values())
     filtered_vehicles = filter_by_location(vehicles, current_user)
-    
+
     active_vehicles = [v for v in filtered_vehicles if v.get("is_active", True)]
     total_vehicles = len(active_vehicles)
-    
+
     work_orders = list(work_orders_db.values())
     vehicles_in_maintenance = set()
     for wo in work_orders:
         if wo.get("status") in ["pending", "approved"]:
             vehicles_in_maintenance.add(wo.get("vehicle_id"))
-    
+
     routes = list(routes_db.values())
     today_str = str(date.today())
     vehicles_in_use = set()
     for route in routes:
         if route.get("date") == today_str and route.get("status") in ["planned", "in_progress"]:
             vehicles_in_use.add(route.get("vehicle_id"))
-    
+
     maintenance_count = len([vid for vid in vehicles_in_maintenance if any(v["id"] == vid for v in active_vehicles)])
     in_use_count = len([vid for vid in vehicles_in_use if any(v["id"] == vid for v in active_vehicles)])
-    
+
     available_count = max(0, total_vehicles - in_use_count - maintenance_count)
-    
+
     fleet_utilization = (in_use_count / total_vehicles * 100) if total_vehicles > 0 else 0.0
-    
+
     return {
         "total_vehicles": total_vehicles,
         "vehicles_in_use": in_use_count,
@@ -2605,22 +2617,22 @@ async def get_customer_heatmap(
 @app.get("/api/dashboard/financial")
 async def get_financial_dashboard(current_user: UserInDB = Depends(get_current_user)):
     total_expenses = sum(e["amount"] for e in expenses_db.values())
-    
+
     if imported_financial_data:
         total_revenue = imported_financial_data.get("total_revenue", 0)
         daily_revenue_data = imported_financial_data.get("daily_revenue", {})
-        
+
         from datetime import date
         today = str(date.today())
         today_revenue = daily_revenue_data.get(today, 0)
-        
+
         recent_daily = list(daily_revenue_data.values())[-7:] if daily_revenue_data else [0]
         avg_daily = sum(recent_daily) / len(recent_daily) if recent_daily else 0
-        
+
         monthly_revenue_data = imported_financial_data.get("monthly_revenue", {})
         recent_monthly = list(monthly_revenue_data.values())[-1:] if monthly_revenue_data else [0]
         current_monthly = recent_monthly[0] if recent_monthly else 0
-        
+
         return {
             "daily_revenue": today_revenue,
             "daily_revenue_average": avg_daily,
@@ -2680,19 +2692,19 @@ async def get_financial_data(current_user: UserInDB = Depends(get_current_user))
                 {"method": "Check", "amount": 22500.0, "percentage": 18.0}
             ]
         }
-    
+
     daily_revenue = [
         {"date": date_str, "amount": amount}
         for date_str, amount in imported_financial_data.get("daily_revenue", {}).items()
     ]
-    
+
     monthly_revenue = [
         {"month": month_str, "amount": amount}
         for month_str, amount in imported_financial_data.get("monthly_revenue", {}).items()
     ]
-    
+
     total_revenue = imported_financial_data.get("total_revenue", 0.0)
-    
+
     return {
         "daily_revenue": daily_revenue[-30:],  # Last 30 days
         "monthly_revenue": monthly_revenue,
@@ -2709,7 +2721,7 @@ def calculate_customer_sales_by_period(customer, daily_revenue, period):
     """Calculate customer sales based on time period"""
     total_revenue = sum(daily_revenue.values()) if daily_revenue else 0
     customer_share = customer.get("total_spent", 0) / max(total_revenue, 1)
-    
+
     if period == "daily":
         return customer_share * (total_revenue / max(len(daily_revenue), 1))
     elif period == "weekly":
@@ -2725,24 +2737,24 @@ async def get_geo_temporal_sales(
 ):
     """Returns geocoded sales data with time period filtering"""
     from datetime import datetime, timedelta
-    
+
     locations = [location_ids] if location_ids and "," not in location_ids else (location_ids.split(",") if location_ids else None)
-    
+
     # Get customers with coordinates
     if imported_customers and len(imported_customers) > 0:
         customers = imported_customers
     else:
         customers = list(customers_db.values())
-    
+
     if locations:
         customers = [c for c in customers if c.get("location_id") in locations]
-    
+
     customers = filter_by_location(customers, current_user)
-    
+
     sales_data = []
     if imported_financial_data:
         daily_revenue = imported_financial_data.get("daily_revenue", {})
-        
+
         for customer in customers:
             if customer.get("coordinates"):
                 # Calculate sales for this customer based on period
@@ -2765,7 +2777,7 @@ async def get_geo_temporal_sales(
                         "sales_amount": customer_sales,
                         "location_id": customer.get("location_id")
                     })
-    
+
     return {"sales": sales_data, "period": period}
 
 @app.get("/api/performance/locations/{location_id}")
@@ -2775,24 +2787,24 @@ async def get_location_performance(
     current_user: UserInDB = Depends(get_current_user)
 ):
     """Returns performance metrics for a specific location"""
-    
+
     location = locations_db.get(location_id)
     if not location:
         raise HTTPException(status_code=404, detail="Location not found")
-    
+
     # Calculate metrics
-    customers = [c for c in (imported_customers or list(customers_db.values())) 
+    customers = [c for c in (imported_customers or list(customers_db.values()))
                 if c.get("location_id") == location_id]
     customers = filter_by_location(customers, current_user)
-    
+
     vehicles = [v for v in vehicles_db.values() if v.get("location_id") == location_id]
-    
+
     location_revenue = 0
     if imported_financial_data:
         daily_revenue = imported_financial_data.get("daily_revenue", {})
         total_customers = len(imported_customers or list(customers_db.values()))
         location_revenue = sum(daily_revenue.values()) * (len(customers) / max(total_customers, 1))
-    
+
     return {
         "location": location,
         "metrics": {
@@ -2806,50 +2818,50 @@ async def get_location_performance(
 
 @app.post("/api/import/excel")
 async def import_excel_data(
-    files: List[UploadFile] = File(...), 
+    files: List[UploadFile] = File(...),
     location_id: str = Form("loc_3"),
     current_user: UserInDB = Depends(get_current_user)
 ):
     """Import historical sales data from Excel files with location mapping"""
     global imported_customers, imported_orders, imported_financial_data
-    
+
     if not files:
         raise HTTPException(status_code=400, detail="No files provided")
-    
+
     # Validate location_id
     valid_locations = ["loc_1", "loc_2", "loc_3", "loc_4"]
     if location_id not in valid_locations:
         raise HTTPException(status_code=400, detail=f"Invalid location_id. Must be one of: {valid_locations}")
-    
+
     location_names = {
         "loc_1": "Leesville",
-        "loc_2": "Lake Charles", 
+        "loc_2": "Lake Charles",
         "loc_3": "Lufkin",
         "loc_4": "Jasper"
     }
     location_name = location_names[location_id]
-    
+
     temp_files = []
     try:
         for file in files:
             if not file.filename.endswith(('.xlsx', '.xls', '.xlsm')):
                 raise HTTPException(status_code=400, detail=f"Invalid file type: {file.filename}")
-            
+
             file_ext = os.path.splitext(file.filename)[1] if file.filename else '.xlsx'
             temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=file_ext)
             content = await file.read()
             temp_file.write(content)
             temp_file.close()
             temp_files.append(temp_file.name)
-        
+
         processed_data = process_excel_files(temp_files, location_id, location_name)
-        
+
         imported_customers = processed_data["customers"]
-        imported_orders = processed_data["orders"] 
+        imported_orders = processed_data["orders"]
         imported_financial_data = processed_data["financial_metrics"]
-        
+
         save_data_to_disk()
-        
+
         return {
             "success": True,
             "message": f"Excel data imported successfully for {location_name}",
@@ -2863,13 +2875,13 @@ async def import_excel_data(
                 "location_name": location_name
             }
         }
-        
+
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Unexpected error processing Excel files: {e}")
         raise HTTPException(status_code=500, detail=f"Error processing Excel files: {str(e)}")
-    
+
     finally:
         for temp_file in temp_files:
             try:
@@ -2879,40 +2891,40 @@ async def import_excel_data(
 
 @app.post("/api/import/order-sheet")
 async def import_order_sheet_data(
-    files: List[UploadFile] = File(...), 
+    files: List[UploadFile] = File(...),
     location_id: str = Form("loc_3"),
     current_user: UserInDB = Depends(get_current_user)
 ):
     """Import order sheet data from Excel files"""
     global customers_db, orders_db
-    
+
     if not files:
         raise HTTPException(status_code=400, detail="No files provided")
-    
+
     temp_files = []
     try:
         for file in files:
             if not file.filename.endswith(('.xlsx', '.xls', '.xlsm')):
                 raise HTTPException(status_code=400, detail=f"Invalid file type: {file.filename}")
-            
+
             file_ext = os.path.splitext(file.filename)[1] if file.filename else '.xlsx'
             temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=file_ext)
             content = await file.read()
             temp_file.write(content)
             temp_file.close()
             temp_files.append(temp_file.name)
-        
+
         from .excel_import import process_order_sheet_files
         processed_data = process_order_sheet_files(temp_files, location_id)
-        
+
         for customer in processed_data["customers"]:
             customers_db[customer["id"]] = customer
-        
+
         for order in processed_data["orders"]:
             orders_db[order["id"]] = order
-        
+
         save_data_to_disk()
-        
+
         return {
             "success": True,
             "message": f"Order sheet imported successfully",
@@ -2922,11 +2934,11 @@ async def import_order_sheet_data(
                 "total_records": processed_data["total_records"]
             }
         }
-        
+
     except Exception as e:
         logger.error(f"Error processing order sheet: {e}")
         raise HTTPException(status_code=500, detail=f"Error processing order sheet: {str(e)}")
-    
+
     finally:
         for temp_file in temp_files:
             try:
@@ -2954,31 +2966,31 @@ async def import_google_sheets_data(
 ):
     """Import customer data from Google Sheets with location mapping"""
     global imported_customers, imported_orders, imported_financial_data
-    
+
     if not sheets_url:
         raise HTTPException(status_code=400, detail="Google Sheets URL is required")
-    
+
     valid_locations = ["loc_1", "loc_2", "loc_3", "loc_4"]
     if location_id not in valid_locations:
         raise HTTPException(status_code=400, detail=f"Invalid location_id. Must be one of: {valid_locations}")
-    
+
     location_names = {
         "loc_1": "Leesville",
-        "loc_2": "Lake Charles", 
+        "loc_2": "Lake Charles",
         "loc_3": "Lufkin",
         "loc_4": "Jasper"
     }
     location_name = location_names[location_id]
-    
+
     try:
         processed_data = process_google_sheets_data(sheets_url, location_id, location_name, worksheet_name)
-        
+
         imported_customers = processed_data["customers"]
-        imported_orders = processed_data["orders"] 
+        imported_orders = processed_data["orders"]
         imported_financial_data = processed_data["financial_metrics"]
-        
+
         save_data_to_disk()
-        
+
         return {
             "success": True,
             "message": f"Google Sheets data imported successfully for {location_name}",
@@ -2993,7 +3005,7 @@ async def import_google_sheets_data(
                 "sheets_url": sheets_url
             }
         }
-        
+
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -3002,47 +3014,47 @@ async def import_google_sheets_data(
 
 @app.post("/api/customers/bulk-import")
 async def bulk_import_customers_excel(
-    files: List[UploadFile] = File(...), 
+    files: List[UploadFile] = File(...),
     location_id: str = Form("loc_3"),
     current_user: UserInDB = Depends(get_current_user)
 ):
     """Bulk import customers from Excel files and add to customers database"""
     global customers_db
-    
+
     if not files:
         raise HTTPException(status_code=400, detail="No files provided")
-    
+
     # Validate location_id
     valid_locations = ["loc_1", "loc_2", "loc_3", "loc_4"]
     if location_id not in valid_locations:
         raise HTTPException(status_code=400, detail=f"Invalid location_id. Must be one of: {valid_locations}")
-    
+
     if current_user.role != UserRole.MANAGER and location_id != current_user.location_id:
         raise HTTPException(status_code=403, detail="Cannot import customers for different location")
-    
+
     location_names = {
         "loc_1": "Leesville",
-        "loc_2": "Lake Charles", 
+        "loc_2": "Lake Charles",
         "loc_3": "Lufkin",
         "loc_4": "Jasper"
     }
     location_name = location_names[location_id]
-    
+
     temp_files = []
     try:
         for file in files:
             if not file.filename.endswith(('.xlsx', '.xls', '.xlsm')):
                 raise HTTPException(status_code=400, detail=f"Invalid file type: {file.filename}")
-            
+
             file_ext = os.path.splitext(file.filename)[1] if file.filename else '.xlsx'
             temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=file_ext)
             content = await file.read()
             temp_file.write(content)
             temp_file.close()
             temp_files.append(temp_file.name)
-        
+
         processed_data = process_customer_excel_files(temp_files, location_id, location_name)
-        
+
         # Add customers to customers_db instead of imported_customers
         customers_imported = 0
         for customer_data in processed_data["customers"]:
@@ -3064,9 +3076,9 @@ async def bulk_import_customers_excel(
             }
             customers_db[customer_id] = customer_record
             customers_imported += 1
-        
+
         save_data_to_disk()
-        
+
         return {
             "success": True,
             "message": f"Customers imported successfully to {location_name}",
@@ -3078,13 +3090,13 @@ async def bulk_import_customers_excel(
                 "duplicates_removed": processed_data.get("duplicates_removed", 0)
             }
         }
-        
+
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Unexpected error processing Excel files: {e}")
         raise HTTPException(status_code=500, detail=f"Error processing Excel files: {str(e)}")
-    
+
     finally:
         for temp_file in temp_files:
             try:
@@ -3100,41 +3112,41 @@ async def bulk_import_routes(
 ):
     """Bulk import routes from Excel files"""
     global routes_db
-    
+
     if not files:
         raise HTTPException(status_code=400, detail="No files provided")
-    
+
     # Validate location_id
     valid_locations = ["loc_1", "loc_2", "loc_3", "loc_4"]
     if location_id not in valid_locations:
         raise HTTPException(status_code=400, detail=f"Invalid location_id. Must be one of: {valid_locations}")
-    
+
     if current_user.role != UserRole.MANAGER and location_id != current_user.location_id:
         raise HTTPException(status_code=403, detail="Cannot import routes for different location")
-    
+
     location_names = {
         "loc_1": "Leesville",
-        "loc_2": "Lake Charles", 
+        "loc_2": "Lake Charles",
         "loc_3": "Lufkin",
         "loc_4": "Jasper"
     }
     location_name = location_names[location_id]
-    
+
     try:
         result = process_route_excel_files(files, location_id)
-        
+
         for route in result["routes"]:
             routes_db[route["id"]] = route
-        
+
         save_data_to_disk()
-        
+
         logger.info(f"Successfully imported {len(result['routes'])} routes to {location_name}")
         return {
             "message": f"Successfully imported {len(result['routes'])} routes to {location_name}",
             "routes_imported": len(result['routes']),
             "total_records": result['total_records']
         }
-        
+
     except Exception as e:
         logger.error(f"Error in route bulk import: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -3148,29 +3160,29 @@ async def bulk_import_customers_sheets(
 ):
     """Bulk import customers from Google Sheets and add to customers database"""
     global customers_db
-    
+
     if not sheets_url:
         raise HTTPException(status_code=400, detail="Google Sheets URL is required")
-    
+
     # Validate location_id
     valid_locations = ["loc_1", "loc_2", "loc_3", "loc_4"]
     if location_id not in valid_locations:
         raise HTTPException(status_code=400, detail=f"Invalid location_id. Must be one of: {valid_locations}")
-    
+
     if current_user.role != UserRole.MANAGER and location_id != current_user.location_id:
         raise HTTPException(status_code=403, detail="Cannot import customers for different location")
-    
+
     location_names = {
         "loc_1": "Leesville",
-        "loc_2": "Lake Charles", 
+        "loc_2": "Lake Charles",
         "loc_3": "Lufkin",
         "loc_4": "Jasper"
     }
     location_name = location_names[location_id]
-    
+
     try:
         processed_data = process_google_sheets_data(sheets_url, location_id, location_name, worksheet_name)
-        
+
         # Add customers to customers_db instead of imported_customers
         customers_imported = 0
         for customer_data in processed_data["customers"]:
@@ -3192,9 +3204,9 @@ async def bulk_import_customers_sheets(
             }
             customers_db[customer_id] = customer_record
             customers_imported += 1
-        
+
         save_data_to_disk()
-        
+
         return {
             "success": True,
             "message": f"Customers imported successfully to {location_name}",
@@ -3207,7 +3219,7 @@ async def bulk_import_customers_sheets(
                 "duplicates_removed": processed_data.get("duplicates_removed", 0)
             }
         }
-        
+
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -3228,11 +3240,11 @@ async def get_work_orders(status: Optional[str] = None, current_user: UserInDB =
     orders = list(work_orders_db.values())
     if status:
         orders = [o for o in orders if o["status"] == status]
-    
+
     if current_user.role != UserRole.MANAGER:
         vehicle_ids = [v["id"] for v in vehicles_db.values() if v["location_id"] == current_user.location_id]
         orders = [o for o in orders if o["vehicle_id"] in vehicle_ids]
-    
+
     return orders
 
 @app.post("/api/maintenance/work-orders")
@@ -3242,7 +3254,7 @@ async def create_work_order(work_order: WorkOrderCreate, current_user: UserInDB 
         raise HTTPException(status_code=404, detail="Vehicle not found")
     if current_user.role != UserRole.MANAGER and vehicle["location_id"] != current_user.location_id:
         raise HTTPException(status_code=403, detail="Cannot create work order for vehicle in different location")
-    
+
     vehicle_name = work_order.vehicle_name or f"{vehicle['license_plate']} ({vehicle['vehicle_type']})"
     created = WorkOrder(
         id=str(uuid.uuid4()),
@@ -3265,14 +3277,14 @@ async def create_work_order(work_order: WorkOrderCreate, current_user: UserInDB 
 async def approve_work_order(work_order_id: str, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role != UserRole.MANAGER:
         raise HTTPException(status_code=403, detail="Only managers can approve work orders")
-    
+
     if work_order_id not in work_orders_db:
         raise HTTPException(status_code=404, detail="Work order not found")
-    
+
     work_orders_db[work_order_id]["status"] = "approved"
     work_orders_db[work_order_id]["approved_by"] = current_user.full_name
     work_orders_db[work_order_id]["approved_date"] = datetime.now().isoformat()
-    
+
     save_data_to_disk()
     return {"success": True, "message": "Work order approved"}
 
@@ -3280,10 +3292,10 @@ async def approve_work_order(work_order_id: str, current_user: UserInDB = Depend
 async def reject_work_order(work_order_id: str, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role != UserRole.MANAGER:
         raise HTTPException(status_code=403, detail="Only managers can reject work orders")
-    
+
     if work_order_id not in work_orders_db:
         raise HTTPException(status_code=404, detail="Work order not found")
-    
+
     work_orders_db[work_order_id]["status"] = "rejected"
     save_data_to_disk()
     return {"success": True, "message": "Work order rejected"}
@@ -3326,7 +3338,7 @@ async def forecast_inventory(
     """
     try:
         entries = [e for e in production_entries_db.values() if e.get("location_id") == location_id]
-        
+
         if len(entries) < 7:
             if entries:
                 avg_total = sum(e.get("total_pallets", 0) for e in entries) / len(entries)
@@ -3359,7 +3371,7 @@ async def forecast_inventory(
                     "reorder_point": 120,
                     "method": "default"
                 }
-        
+
         df_data = []
         for entry in entries:
             entry_date = entry.get("date")
@@ -3369,11 +3381,11 @@ async def forecast_inventory(
                 "ds": entry_date,
                 "y": entry.get("total_pallets", 0)
             })
-        
+
         df = pd.DataFrame(df_data)
         df = df.groupby("ds")["y"].sum().reset_index()  # Aggregate by date
         df["ds"] = pd.to_datetime(df["ds"])
-        
+
         model = Prophet(
             daily_seasonality=True,
             weekly_seasonality=True,
@@ -3381,19 +3393,19 @@ async def forecast_inventory(
             interval_width=0.8
         )
         model.fit(df)
-        
+
         future = model.make_future_dataframe(periods=days)
         forecast = model.predict(future)
-        
+
         future_forecast = forecast.tail(days)
-        
+
         # Calculate reorder point using safety stock formula
         historical_demand = df["y"].values.astype(float)
         avg_demand = float(np.mean(historical_demand))
         std_demand = float(np.std(historical_demand))
         safety_stock = 1.65 * std_demand  # 95% service level
         reorder_point = max(avg_demand + safety_stock, 50)  # Minimum 50 pallets
-        
+
         return {
             "location_id": location_id,
             "forecast": [
@@ -3410,7 +3422,7 @@ async def forecast_inventory(
             "historical_avg": round(avg_demand, 1),
             "safety_stock": round(safety_stock, 1)
         }
-        
+
     except Exception as e:
         logger.error(f"Forecast error for location {location_id}: {str(e)}")
         avg_pallets = 100
@@ -3452,17 +3464,17 @@ async def create_expense(expense: Expense, current_user: UserInDB = Depends(get_
 @app.get("/api/financial/profit-analysis")
 async def get_profit_analysis(current_user: UserInDB = Depends(get_current_user)):
     total_expenses = sum(e["amount"] for e in expenses_db.values())
-    
+
     total_revenue = imported_financial_data.get("total_revenue", 125000.0) if imported_financial_data else 125000.0
-    
+
     profit = total_revenue - total_expenses
     profit_margin = (profit / total_revenue * 100) if total_revenue > 0 else 0
-    
+
     expense_by_category = {}
     for expense in expenses_db.values():
         category = expense["category"]
         expense_by_category[category] = expense_by_category.get(category, 0) + expense["amount"]
-    
+
     return {
         "total_revenue": total_revenue,
         "total_expenses": total_expenses,
@@ -3494,10 +3506,10 @@ async def get_notifications(current_user: UserInDB = Depends(get_current_user)):
                 order_date = order_date.date()
             else:
                 continue
-            
+
             if order_date == today:
                 recent_orders.append(o)
-    
+
     notifications = []
     for order in recent_orders[-10:]:
         notifications.append({
@@ -3508,7 +3520,7 @@ async def get_notifications(current_user: UserInDB = Depends(get_current_user)):
             "timestamp": order.get("date", datetime.now().isoformat()),
             "read": False
         })
-    
+
     return notifications
 
 @app.get("/api/routes")
@@ -3522,11 +3534,11 @@ async def get_routes(location_id: Optional[str] = None, current_user: UserInDB =
 async def optimize_routes(location_id: str, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role not in [UserRole.MANAGER, UserRole.DISPATCHER]:
         raise HTTPException(status_code=403, detail="Only managers and dispatchers can optimize routes")
-    
+
     orders = list(orders_db.values())
     pending_orders = [o for o in orders if o["status"] == "pending"]
     print(f"DEBUG: Total orders: {len(orders)}, Pending orders: {len(pending_orders)}")
-    
+
     if imported_customers and len(imported_customers) > 0:
         customers = imported_customers
     else:
@@ -3535,36 +3547,36 @@ async def optimize_routes(location_id: str, current_user: UserInDB = Depends(get
     location_orders = [o for o in pending_orders if any(c["id"] == o["customer_id"] for c in location_customers)]
     print(f"DEBUG: Location customers: {len(location_customers)}, Location orders: {len(location_orders)}")
     print(f"DEBUG: Location orders: {[o['id'] for o in location_orders]}")
-    
+
     if not location_orders:
         return {"message": "No pending orders found for optimization", "routes": []}
-    
+
     vehicles = list(vehicles_db.values())
     available_vehicles = [v for v in vehicles if v["location_id"] == location_id and v["is_active"]]
     print(f"DEBUG: Available vehicles: {len(available_vehicles)}")
     print(f"DEBUG: Vehicle IDs: {[v['id'] for v in available_vehicles]}")
-    
+
     if not available_vehicles:
         raise HTTPException(status_code=400, detail="No available vehicles for route optimization")
-    
+
     location = locations_db.get(location_id)
     depot_address = location["address"] if location else "123 Ice Plant Rd, Leesville, LA"
-    
+
     optimized_routes = []
     remaining_orders = location_orders.copy()
-    
+
     for vehicle in available_vehicles:
         if not remaining_orders:
             break
-            
+
         print(f"DEBUG: Processing vehicle {vehicle['license_plate']} with capacity {vehicle.get('capacity_pallets', 20)}")
         print(f"DEBUG: Remaining orders: {len(remaining_orders)}")
-        
+
         try:
             customers = location_customers
             demands = [0] + [order.get('quantity', 1) for order in remaining_orders]  # Depot + order demands
             coordinates = [(31.1391, -93.2044)]  # Depot coordinates
-            
+
             # Add customer coordinates
             for customer in customers:
                 if customer.get('coordinates'):
@@ -3578,7 +3590,7 @@ async def optimize_routes(location_id: str, current_user: UserInDB = Depends(get
                         save_data_to_disk()
                     else:
                         coordinates.append((31.1391 + len(coordinates) * 0.01, -93.2044 + len(coordinates) * 0.01))
-            
+
             if len(customers) > 1:
                 optimized_order = optimize_with_ortools(customers, demands, coordinates, vehicle.get('capacity_pallets', 20))
                 if optimized_order:
@@ -3610,7 +3622,7 @@ async def optimize_routes(location_id: str, current_user: UserInDB = Depends(get
             logging.warning(f"OR-Tools optimization failed: {e}")
             route_stops = optimize_route_ai(location_customers, remaining_orders, vehicle, depot_address)
             print(f"DEBUG: Exception fallback - generated {len(route_stops)} stops for vehicle {vehicle['license_plate']}")
-        
+
         if route_stops:
             route_id = str(uuid.uuid4())
             route = {
@@ -3625,21 +3637,21 @@ async def optimize_routes(location_id: str, current_user: UserInDB = Depends(get
                 "created_at": datetime.now().isoformat(),
                 "stops": route_stops
             }
-            
+
             for stop in route_stops:
                 stop["route_id"] = route_id
-            
+
             routes_db[route_id] = route
             optimized_routes.append(route)
-            
+
             processed_order_ids = [stop["order_id"] for stop in route_stops]
             remaining_orders = [o for o in remaining_orders if o["id"] not in processed_order_ids]
-            
+
             for order_id in processed_order_ids:
                 if order_id in orders_db:
                     orders_db[order_id]["status"] = "assigned"
                     orders_db[order_id]["route_id"] = route_id
-    
+
     save_data_to_disk()
     return {"message": f"Generated {len(optimized_routes)} optimized routes", "routes": optimized_routes}
 
@@ -3647,22 +3659,22 @@ async def optimize_routes(location_id: str, current_user: UserInDB = Depends(get
 async def get_route(route_id: str, current_user: UserInDB = Depends(get_current_user)):
     if route_id not in routes_db:
         raise HTTPException(status_code=404, detail="Route not found")
-    
+
     route = routes_db[route_id]
     if current_user.role != UserRole.MANAGER and route["location_id"] != current_user.location_id:
         raise HTTPException(status_code=403, detail="Access denied to this route")
-    
+
     return route
 
 @app.put("/api/routes/{route_id}/status")
 async def update_route_status(route_id: str, status: str, current_user: UserInDB = Depends(get_current_user)):
     if route_id not in routes_db:
         raise HTTPException(status_code=404, detail="Route not found")
-    
+
     route = routes_db[route_id]
     if current_user.role != UserRole.MANAGER and route["location_id"] != current_user.location_id:
         raise HTTPException(status_code=403, detail="Access denied to this route")
-    
+
     routes_db[route_id]["status"] = status
     save_data_to_disk()
     return {"success": True, "message": f"Route status updated to {status}"}
@@ -3672,7 +3684,7 @@ async def update_route_status(route_id: str, status: str, current_user: UserInDB
 async def quickbooks_auth(auth_request: QuickBooksAuthRequest, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role not in [UserRole.MANAGER, UserRole.ACCOUNTANT]:
         raise HTTPException(status_code=403, detail="Only managers and accountants can configure QuickBooks")
-    
+
     try:
         authorization_url, state = quickbooks_client.get_authorization_url(auth_request.state or "")
         return {
@@ -3686,16 +3698,16 @@ async def quickbooks_auth(auth_request: QuickBooksAuthRequest, current_user: Use
 @app.get("/api/quickbooks/callback")
 async def quickbooks_callback(code: str, state: str, realmId: str):
     global quickbooks_connection
-    
+
     try:
         authorization_response = f"http://localhost:8000/api/quickbooks/callback?code={code}&state={state}&realmId={realmId}"
         token_data = quickbooks_client.exchange_code_for_tokens(authorization_response, state)
-        
+
         expires_at = datetime.utcnow() + timedelta(seconds=token_data.get("expires_in", 3600))
-        
+
         company_info = quickbooks_client.get_company_info(token_data["access_token"], realmId)
         company_name = company_info.get("CompanyName", "Unknown Company")
-        
+
         quickbooks_connection = {
             "access_token": token_data["access_token"],
             "refresh_token": token_data["refresh_token"],
@@ -3705,9 +3717,9 @@ async def quickbooks_callback(code: str, state: str, realmId: str):
             "company_name": company_name,
             "last_sync": None
         }
-        
+
         save_data_to_disk()
-        
+
         return {
             "message": "QuickBooks connected successfully",
             "company_name": company_name,
@@ -3720,7 +3732,7 @@ async def quickbooks_callback(code: str, state: str, realmId: str):
 @app.get("/api/quickbooks/status")
 async def quickbooks_status(current_user: UserInDB = Depends(get_current_user)):
     global quickbooks_connection
-    
+
     if not quickbooks_connection or not quickbooks_connection.get("is_active"):
         return {
             "is_connected": False,
@@ -3728,7 +3740,7 @@ async def quickbooks_status(current_user: UserInDB = Depends(get_current_user)):
             "company_name": None,
             "realm_id": None
         }
-    
+
     return {
         "is_connected": True,
         "last_sync": quickbooks_connection.get("last_sync"),
@@ -3739,24 +3751,24 @@ async def quickbooks_status(current_user: UserInDB = Depends(get_current_user)):
 @app.post("/api/quickbooks/sync")
 async def quickbooks_sync(sync_request: QuickBooksSyncRequest, current_user: UserInDB = Depends(get_current_user)):
     global quickbooks_connection
-    
+
     if current_user.role not in [UserRole.MANAGER, UserRole.ACCOUNTANT]:
         raise HTTPException(status_code=403, detail="Only managers and accountants can sync QuickBooks data")
-    
+
     if not quickbooks_connection or not quickbooks_connection.get("is_active"):
         raise HTTPException(status_code=400, detail="QuickBooks not connected")
-    
+
     try:
         access_token = quickbooks_connection["access_token"]
         realm_id = quickbooks_connection["realm_id"]
-        
+
         sync_results = {
             "customers_synced": 0,
             "invoices_synced": 0,
             "payments_synced": 0,
             "errors": []
         }
-        
+
         if sync_request.sync_customers:
             try:
                 if imported_customers and len(imported_customers) > 0:
@@ -3765,23 +3777,23 @@ async def quickbooks_sync(sync_request: QuickBooksSyncRequest, current_user: Use
                     arctic_customers = list(customers_db.values())
                 qb_customers = quickbooks_client.get_customers(access_token, realm_id)
                 qb_customer_names = {c.get("Name", "").lower() for c in qb_customers}
-                
+
                 for customer in arctic_customers:
                     customer_name = customer.get("name", "").lower()
                     if customer_name not in qb_customer_names:
                         qb_customer_data = map_arctic_customer_to_qb(customer)
                         quickbooks_client.create_customer(access_token, realm_id, qb_customer_data)
                         sync_results["customers_synced"] += 1
-                        
+
             except Exception as e:
                 sync_results["errors"].append(f"Customer sync error: {str(e)}")
-        
+
         if sync_request.sync_invoices:
             try:
                 arctic_orders = list(orders_db.values())
                 qb_customers = quickbooks_client.get_customers(access_token, realm_id)
                 customer_map = {c.get("Name", "").lower(): c.get("Id") for c in qb_customers}
-                
+
                 for order in arctic_orders[:10]:
                     customer_name = order.get("customer_name", "").lower()
                     if customer_name in customer_map:
@@ -3790,15 +3802,15 @@ async def quickbooks_sync(sync_request: QuickBooksSyncRequest, current_user: Use
                             invoice_data = map_arctic_order_to_qb_invoice(order, customer_ref)
                         quickbooks_client.create_invoice(access_token, realm_id, invoice_data)
                         sync_results["invoices_synced"] += 1
-                        
+
             except Exception as e:
                 sync_results["errors"].append(f"Invoice sync error: {str(e)}")
-        
+
         quickbooks_connection["last_sync"] = datetime.utcnow().isoformat()
         save_data_to_disk()
-        
+
         return sync_results
-        
+
     except Exception as e:
         logger.error(f"QuickBooks sync failed: {e}")
         raise HTTPException(status_code=500, detail="Failed to sync with QuickBooks")
@@ -3806,13 +3818,13 @@ async def quickbooks_sync(sync_request: QuickBooksSyncRequest, current_user: Use
 @app.delete("/api/quickbooks/disconnect")
 async def quickbooks_disconnect(current_user: UserInDB = Depends(get_current_user)):
     global quickbooks_connection
-    
+
     if current_user.role not in [UserRole.MANAGER, UserRole.ACCOUNTANT]:
         raise HTTPException(status_code=403, detail="Only managers and accountants can disconnect QuickBooks")
-    
+
     quickbooks_connection = None
     save_data_to_disk()
-    
+
     return {"message": "QuickBooks disconnected successfully"}
 
 @app.post("/api/drivers/{driver_id}/location")
@@ -3826,13 +3838,13 @@ async def update_driver_location(driver_id: str, location_data: dict, current_us
         "heading": location_data.get("heading", 0),
         "accuracy": location_data.get("accuracy", 0)
     }
-    
+
     route_id = location_data.get("route_id")
     if route_id and route_id in routes_db:
         route = routes_db[route_id]
         current_location = {"lat": location_data.get("lat"), "lng": location_data.get("lng")}
         update_route_etas(route, current_location)
-    
+
     return {"status": "success", "message": "Location updated"}
 
 @app.get("/api/drivers/{driver_id}/location")
@@ -3845,13 +3857,13 @@ async def get_driver_location(driver_id: str, current_user: UserInDB = Depends(g
 async def get_route_progress(route_id: str, current_user: UserInDB = Depends(get_current_user)):
     if route_id not in routes_db:
         raise HTTPException(status_code=404, detail="Route not found")
-    
+
     route = routes_db[route_id]
     stops = route.get("stops", [])
-    
+
     completed_stops = len([s for s in stops if s.get("status") == "completed"])
     total_stops = len(stops)
-    
+
     progress = {
         "route_id": route_id,
         "completed_stops": completed_stops,
@@ -3860,7 +3872,7 @@ async def get_route_progress(route_id: str, current_user: UserInDB = Depends(get
         "current_stop": next((s for s in stops if s.get("status") == "pending"), None),
         "estimated_completion": calculate_estimated_completion(route)
     }
-    
+
     return progress
 
 def update_route_etas(route, current_location):
@@ -3870,22 +3882,22 @@ def update_route_etas(route, current_location):
     try:
         stops = route.get("stops", [])
         pending_stops = [s for s in stops if s.get("status") == "pending"]
-        
+
         if not pending_stops:
             return
-        
+
         import googlemaps
         gmaps = googlemaps.Client(key=os.getenv('GOOGLE_MAPS_API_KEY', ''))
-        
+
         origins = [(current_location["lat"], current_location["lng"])]
         destinations = []
-        
+
         for stop in pending_stops:
             if stop.get("coordinates"):
                 destinations.append((stop["coordinates"]["lat"], stop["coordinates"]["lng"]))
             else:
                 destinations.append(stop["address"])
-        
+
         if destinations:
             result = gmaps.distance_matrix(
                 origins=origins,
@@ -3894,7 +3906,7 @@ def update_route_etas(route, current_location):
                 departure_time="now",
                 traffic_model="best_guess"
             )
-            
+
             if result['status'] == 'OK':
                 for i, stop in enumerate(pending_stops):
                     element = result['rows'][0]['elements'][i]
@@ -3903,9 +3915,9 @@ def update_route_etas(route, current_location):
                         eta = datetime.now() + timedelta(seconds=duration_seconds)
                         stop["estimated_arrival"] = eta.strftime("%H:%M")
                         stop["eta_updated"] = datetime.now().isoformat()
-        
+
         save_data_to_disk()
-        
+
     except Exception as e:
         logging.warning(f"ETA update failed: {e}")
 
@@ -3916,16 +3928,16 @@ def calculate_estimated_completion(route):
     try:
         stops = route.get("stops", [])
         pending_stops = [s for s in stops if s.get("status") == "pending"]
-        
+
         if not pending_stops:
             return datetime.now().isoformat()
-        
+
         avg_time_per_stop = 30  # minutes
         remaining_time = len(pending_stops) * avg_time_per_stop
-        
+
         completion_time = datetime.now() + timedelta(minutes=remaining_time)
         return completion_time.isoformat()
-        
+
     except Exception:
         return None
 
@@ -3943,14 +3955,14 @@ async def get_training_module(module_id: str, current_user: UserInDB = Depends(g
 
 @app.post("/api/training/modules/{module_id}/progress")
 async def update_training_progress(
-    module_id: str, 
+    module_id: str,
     progress_data: dict,
     current_user: UserInDB = Depends(get_current_user)
 ):
     """Update employee progress on a training module"""
     employee_id = current_user.id
     progress_key = f"{employee_id}_{module_id}"
-    
+
     employee_progress_db[progress_key] = {
         "employee_id": employee_id,
         "module_id": module_id,
@@ -3958,11 +3970,11 @@ async def update_training_progress(
         "completed": progress_data.get("progress", 0) >= 100,
         "last_updated": datetime.utcnow().isoformat()
     }
-    
+
     if progress_data.get("progress", 0) >= 100:
         cert_id = f"cert_{employee_id}_{module_id}_{int(datetime.utcnow().timestamp())}"
         module = training_modules_db.get(module_id, {})
-        
+
         employee_certifications_db[cert_id] = {
             "id": cert_id,
             "employee_id": employee_id,
@@ -3974,7 +3986,7 @@ async def update_training_progress(
             "nft_id": f"AIS-{module_id.upper()}-{employee_id[-3:]}",
             "blockchain_hash": f"0x{uuid.uuid4().hex[:8]}...{uuid.uuid4().hex[-4:]}"
         }
-    
+
     save_data_to_disk()
     return {"message": "Progress updated successfully"}
 
@@ -3982,7 +3994,7 @@ async def update_training_progress(
 async def get_employee_certifications(current_user: UserInDB = Depends(get_current_user)):
     """Get all certifications for current employee"""
     employee_certs = [
-        cert for cert in employee_certifications_db.values() 
+        cert for cert in employee_certifications_db.values()
         if cert["employee_id"] == current_user.id
     ]
     return employee_certs
@@ -4007,7 +4019,7 @@ async def get_employee_progress(current_user: UserInDB = Depends(get_current_use
 
 @app.get("/api/weather/current")
 async def get_current_weather(
-    lat: float, 
+    lat: float,
     lng: float,
     current_user: UserInDB = Depends(get_current_user)
 ):
@@ -4022,10 +4034,10 @@ async def get_route_weather_impact(
     """Get weather impact analysis for a route"""
     if route_id not in routes_db:
         raise HTTPException(status_code=404, detail="Route not found")
-    
+
     route = routes_db[route_id]
     stops = route.get("stops", [])
-    
+
     impact = await weather_service.get_route_weather_impact(stops)
     return impact
 
@@ -4037,17 +4049,17 @@ async def get_customer_dashboard(
     """Get customer dashboard data"""
     if current_user.role == UserRole.CUSTOMER and current_user.id != customer_id:
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     customer = next((c for c in customers_db if c["id"] == customer_id), None)
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
-    
+
     customer_orders = [o for o in orders_db if o.get("customer_id") == customer_id]
-    
+
     total_orders = len(customer_orders)
     total_spent = sum(o.get("total_amount", 0) for o in customer_orders)
     active_orders = len([o for o in customer_orders if o.get("status") in ["pending", "confirmed", "in-production", "out-for-delivery"]])
-    
+
     return {
         "customer": customer,
         "metrics": {
@@ -4070,7 +4082,7 @@ async def submit_customer_feedback(
     """Submit customer feedback"""
     if current_user.role == UserRole.CUSTOMER and current_user.id != customer_id:
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     feedback_id = f"feedback_{int(datetime.utcnow().timestamp())}"
     feedback = {
         "id": feedback_id,
@@ -4083,10 +4095,10 @@ async def submit_customer_feedback(
         "submitted_at": datetime.utcnow().isoformat(),
         "status": "new"
     }
-    
+
     customer_feedback[feedback_id] = feedback
     save_data_to_disk()
-    
+
     return {"message": "Feedback submitted successfully", "feedback_id": feedback_id}
 
 @app.get("/api/monitoring/health")
@@ -4094,7 +4106,7 @@ async def get_system_health(current_user: UserInDB = Depends(get_current_user)):
     """Get overall system health status"""
     if current_user.role not in [UserRole.MANAGER]:
         raise HTTPException(status_code=403, detail="Manager access required")
-    
+
     if monitoring_service:
         return monitoring_service.get_monitoring_summary()
     else:
@@ -4105,7 +4117,7 @@ async def get_ssl_status(current_user: UserInDB = Depends(get_current_user)):
     """Get SSL certificate status for all domains"""
     if current_user.role not in [UserRole.MANAGER]:
         raise HTTPException(status_code=403, detail="Manager access required")
-    
+
     if monitoring_service:
         ssl_results = []
         for domain in monitoring_service.domains_to_monitor:
@@ -4119,5 +4131,5 @@ async def catch_all(full_path: str):
     """Return 404 for all non-API routes"""
     if full_path.startswith("api/") or full_path.startswith("docs") or full_path.startswith("redoc") or full_path.startswith("openapi.json"):
         raise HTTPException(status_code=404, detail="API endpoint not found")
-    
+
     raise HTTPException(status_code=404, detail="Not found")

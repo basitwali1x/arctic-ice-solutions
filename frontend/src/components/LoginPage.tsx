@@ -88,17 +88,26 @@ export const LoginPage: React.FC = () => {
             </button>
           </div>
 
-          {process.env.NODE_ENV === 'development' && (
-            <div className="text-sm text-gray-600 text-center">
-              <p>Demo credentials (Development Only):</p>
-              <p>Manager: manager / dev-password-change-in-production</p>
-              <p>Dispatcher: dispatcher / dev-password-change-in-production</p>
-              <p>Accountant: accountant / dev-password-change-in-production</p>
-              <p>Driver: driver / dev-password-change-in-production</p>
-              <p>Employee: employee / dev-password-change-in-production</p>
-              <p>Customer: customer1 / dev-password-change-in-production</p>
-            </div>
-          )}
+          {(() => {
+            const isProduction = import.meta.env.VITE_API_URL?.includes('yourchoiceice.com') || 
+                               import.meta.env.VITE_API_URL?.includes('api.yourchoiceice.com');
+            
+            if (!isProduction) {
+              return (
+                <div className="text-sm text-gray-600 text-center">
+                  <p>Demo credentials:</p>
+                  <p><strong>Admin: admin / dev-password-change-in-production</strong></p>
+                  <p>Manager: manager / dev-password-change-in-production</p>
+                  <p>Dispatcher: dispatcher / dev-password-change-in-production</p>
+                  <p>Accountant: accountant / dev-password-change-in-production</p>
+                  <p>Driver: driver / dev-password-change-in-production</p>
+                  <p>Employee: employee / dev-password-change-in-production</p>
+                  <p>Customer: customer1 / dev-password-change-in-production</p>
+                </div>
+              );
+            }
+            return null;
+          })()}
         </form>
       </div>
     </div>

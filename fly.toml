@@ -1,11 +1,12 @@
 app = "arctic-ice-api"
 primary_region = "iad"
 
-[build]
-dockerfile = "Dockerfile"
-
 [env]
 PORT = "8000"
+ENVIRONMENT = "production"
+
+[build]
+dockerfile = "Dockerfile"
 
 [[services]]
 http_checks = []
@@ -33,3 +34,8 @@ grace_period = "1s"
 interval = "15s"
 restart_limit = 0
 timeout = "2s"
+
+[[vm]]
+cpu_kind = "shared"
+cpus = 1
+memory_mb = 4096

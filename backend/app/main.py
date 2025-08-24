@@ -1599,7 +1599,7 @@ def initialize_sample_data():
     for exp in sample_expenses:
         expenses_db[exp["id"]] = exp
 
-i    demo_password = os.getenv("DEMO_USER_PASSWORD", "dev-password-change-in-production")
+    demo_password = os.getenv("DEMO_USER_PASSWORD", "dev-password-change-in-production")
 
     if is_production_mode():
         admin_password = os.getenv("ADMIN_PASSWORD")

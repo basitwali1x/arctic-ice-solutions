@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './Dashboard.css';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -40,6 +41,7 @@ export function Dashboard() {
   const [optimizedRoutes, setOptimizedRoutes] = useState<Route[]>([]);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const { showError } = useErrorToast();
+  const navigate = useNavigate();
 
   const fetchDashboardData = useCallback(async () => {
     try {
@@ -233,7 +235,7 @@ export function Dashboard() {
 
       {/* Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-        <Card>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/customers')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Customers</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
@@ -249,7 +251,7 @@ export function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/fleet')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Fleet Vehicles</CardTitle>
             <Truck className="h-4 w-4 text-muted-foreground" />
@@ -262,7 +264,7 @@ export function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/customers')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Today's Orders</CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
@@ -278,7 +280,7 @@ export function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/financial')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Today's Revenue</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -294,7 +296,7 @@ export function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/financial')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Average Daily Revenue</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -310,7 +312,7 @@ export function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/financial')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Outstanding Invoices</CardTitle>
             <FileText className="h-4 w-4 text-yellow-600" />
@@ -325,7 +327,7 @@ export function Dashboard() {
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Production Chart */}
-        <Card>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/production')}>
           <CardHeader>
             <CardTitle>Daily Production</CardTitle>
             <CardDescription>Pallets produced by shift</CardDescription>

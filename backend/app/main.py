@@ -136,6 +136,11 @@ class ExpenseCategory(str, Enum):
     LABOR = "labor"
     OTHER = "other"
 
+class DocumentType(str, Enum):
+    INVOICE = "invoice"
+    RECEIPT = "receipt"
+    EXPENSE = "expense"
+
 class Location(BaseModel):
     id: str
     name: str
@@ -300,6 +305,22 @@ class Expense(BaseModel):
     location_id: str
     submitted_by: str
     submitted_at: datetime
+
+class FinancialDocument(BaseModel):
+    id: str
+    document_type: DocumentType
+    title: str
+    description: Optional[str] = None
+    file_path: str
+    file_name: str
+    file_size: int
+    mime_type: str
+    location_id: str
+    uploaded_by: str
+    uploaded_at: datetime
+    category: Optional[str] = None
+    amount: Optional[float] = None
+    date: Optional[datetime] = None
 
 class CustomerPricing(BaseModel):
     id: str
@@ -626,6 +647,7 @@ inventory_db = []
 work_orders_db = {}
 production_entries_db = {}
 expenses_db = {}
+financial_documents_db = {}
 customer_pricing_db = {}
 driver_locations = {}
 quickbooks_connection = None
@@ -643,6 +665,7 @@ quickbooks_client = QuickBooksClient()
 work_orders_db = {}
 production_entries_db = {}
 expenses_db = {}
+financial_documents_db = {}
 notifications_db = {}
 
 DATA_DIR = Path("./data")
@@ -654,6 +677,7 @@ FINANCIAL_FILE = DATA_DIR / "financial.json"
 WORK_ORDERS_FILE = DATA_DIR / "work_orders.json"
 PRODUCTION_FILE = DATA_DIR / "production.json"
 EXPENSES_FILE = DATA_DIR / "expenses.json"
+DOCUMENTS_FILE = DATA_DIR / "financial_documents.json"
 
 def save_data_to_disk():
     """Save all data to disk for persistence"""
@@ -672,6 +696,7 @@ def save_data_to_disk():
                 'work_orders': work_orders_db,
                 'production_entries': production_entries_db,
                 'expenses': expenses_db,
+                'financial_documents': financial_documents_db,
                 'customer_pricing': customer_pricing_db,
                 'imported_financial_data': imported_financial_data,
                 'imported_customers': imported_customers,
@@ -693,6 +718,8 @@ def save_data_to_disk():
             json.dump(production_entries_db, f, indent=2, default=str)
         with open(EXPENSES_FILE, 'w') as f:
             json.dump(expenses_db, f, indent=2, default=str)
+        with open(DOCUMENTS_FILE, 'w') as f:
+            json.dump(financial_documents_db, f, indent=2, default=str)
         print(f"Saved data: {len(imported_customers)} customers, {len(imported_orders)} orders")
     except Exception as e:
         print(f"Error saving data: {e}")
@@ -700,7 +727,7 @@ def save_data_to_disk():
 def load_data_from_disk():
     """Load all data from disk on startup"""
     global imported_customers, imported_orders, imported_financial_data
-    global work_orders_db, production_entries_db, expenses_db
+    global work_orders_db, production_entries_db, expenses_db, financial_documents_db
 
     try:
         if CUSTOMERS_FILE.exists():
@@ -727,6 +754,9 @@ def load_data_from_disk():
         if EXPENSES_FILE.exists():
             with open(EXPENSES_FILE, 'r') as f:
                 expenses_db = json.load(f)
+        if DOCUMENTS_FILE.exists():
+            with open(DOCUMENTS_FILE, 'r') as f:
+                financial_documents_db = json.load(f)
         print(f"Loaded data: {len(imported_customers)} customers, {len(imported_orders)} orders")
     except Exception as e:
         print(f"Error loading data: {e}")
@@ -1598,6 +1628,24 @@ def initialize_sample_data():
 
     for exp in sample_expenses:
         expenses_db[exp["id"]] = exp
+
+    placeholder_document = {
+        "id": "doc_user_attachment_001",
+        "document_type": "expense",
+        "title": "User Provided Document (Scan_2025_08_13)",
+        "description": "Document provided by user - file appears corrupted or unreadable",
+        "file_path": "",
+        "file_name": "Scan_2025_08_13_11_21_52_890.pdf",
+        "file_size": 0,
+        "mime_type": "application/pdf",
+        "location_id": "loc_1",
+        "uploaded_by": "System",
+        "uploaded_at": datetime.now().isoformat(),
+        "category": "other",
+        "amount": None,
+        "date": "2025-08-13"
+    }
+    financial_documents_db["doc_user_attachment_001"] = placeholder_document
 
     demo_password = os.getenv("DEMO_USER_PASSWORD", "dev-password-change-in-production")
 
@@ -3460,6 +3508,120 @@ async def create_expense(expense: Expense, current_user: UserInDB = Depends(get_
     expenses_db[expense.id] = expense.dict()
     save_data_to_disk()
     return expense
+
+@app.post("/api/financial-documents/upload")
+async def upload_financial_document(
+    file: UploadFile = File(...),
+    document_type: DocumentType = Form(...),
+    title: str = Form(...),
+    description: Optional[str] = Form(None),
+    location_id: str = Form(...),
+    category: Optional[str] = Form(None),
+    amount: Optional[float] = Form(None),
+    date: Optional[str] = Form(None),
+    current_user: UserInDB = Depends(get_current_user)
+):
+    if current_user.role != UserRole.MANAGER and location_id != current_user.location_id:
+        raise HTTPException(status_code=403, detail="Cannot upload document for different location")
+    
+    if file.size and file.size > 10 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="File too large")
+    
+    doc_dir = DATA_DIR / "documents" / document_type.value
+    doc_dir.mkdir(parents=True, exist_ok=True)
+    
+    file_id = str(uuid.uuid4())
+    file_extension = file.filename.split('.')[-1] if file.filename and '.' in file.filename else ''
+    file_path = doc_dir / f"{file_id}.{file_extension}"
+    
+    content = await file.read()
+    with open(file_path, "wb") as buffer:
+        buffer.write(content)
+    
+    document = FinancialDocument(
+        id=file_id,
+        document_type=document_type,
+        title=title,
+        description=description,
+        file_path=str(file_path),
+        file_name=file.filename or f"document.{file_extension}",
+        file_size=len(content),
+        mime_type=file.content_type or "application/octet-stream",
+        location_id=location_id,
+        uploaded_by=current_user.full_name,
+        uploaded_at=datetime.now(),
+        category=category,
+        amount=amount,
+        date=datetime.strptime(date, "%Y-%m-%d") if date else None
+    )
+    
+    financial_documents_db[file_id] = document.dict()
+    save_data_to_disk()
+    
+    return document
+
+@app.get("/api/financial-documents")
+async def get_financial_documents(
+    document_type: Optional[DocumentType] = None,
+    location_id: Optional[str] = None,
+    current_user: UserInDB = Depends(get_current_user)
+):
+    documents = list(financial_documents_db.values())
+    
+    if document_type:
+        documents = [d for d in documents if d["document_type"] == document_type]
+    
+    if location_id:
+        documents = [d for d in documents if d["location_id"] == location_id]
+    
+    documents = filter_by_location(documents, current_user)
+    return sorted(documents, key=lambda x: x["uploaded_at"], reverse=True)
+
+@app.get("/api/financial-documents/{document_id}/download")
+async def download_financial_document(document_id: str, current_user: UserInDB = Depends(get_current_user)):
+    if document_id not in financial_documents_db:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    document = financial_documents_db[document_id]
+    file_path = Path(document["file_path"])
+    
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    return FileResponse(
+        path=file_path,
+        filename=document["file_name"],
+        media_type=document["mime_type"]
+    )
+
+@app.post("/api/financial-documents/receipt")
+async def save_receipt_document(
+    receipt_data: dict,
+    current_user: UserInDB = Depends(get_current_user)
+):
+    file_id = str(uuid.uuid4())
+    
+    document = FinancialDocument(
+        id=file_id,
+        document_type=DocumentType.RECEIPT,
+        title=receipt_data.get("title", "Mobile Receipt"),
+        description=receipt_data.get("content", ""),
+        file_path="",
+        file_name=f"receipt_{file_id}.txt",
+        file_size=len(receipt_data.get("content", "")),
+        mime_type="text/plain",
+        location_id=receipt_data.get("location_id", current_user.location_id),
+        uploaded_by=current_user.full_name,
+        uploaded_at=datetime.now(),
+        category="receipt",
+        amount=receipt_data.get("amount"),
+        date=datetime.strptime(receipt_data.get("date"), "%Y-%m-%d") if receipt_data.get("date") and isinstance(receipt_data.get("date"), str) else None
+    )
+    
+    financial_documents_db[file_id] = document.dict()
+    save_data_to_disk()
+    
+    return document
 
 @app.get("/api/financial/profit-analysis")
 async def get_profit_analysis(current_user: UserInDB = Depends(get_current_user)):

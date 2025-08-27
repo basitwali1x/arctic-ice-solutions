@@ -17,6 +17,7 @@ import math
 from pathlib import Path
 from dotenv import load_dotenv
 from .excel_import import process_excel_files, process_customer_excel_files, process_route_excel_files
+from .pdf_import import process_pdf_files
 from .google_sheets_import import process_google_sheets_data, test_google_sheets_connection
 from .quickbooks_integration import QuickBooksClient, map_arctic_customer_to_qb, map_arctic_order_to_qb_invoice, map_arctic_payment_to_qb
 from .weather_service import weather_service
@@ -2902,23 +2903,56 @@ async def import_excel_data(
             temp_file.close()
             temp_files.append(temp_file.name)
 
-        processed_data = process_excel_files(temp_files, location_id, location_name)
+        excel_files = [f for f in temp_files if f.endswith(('.xlsx', '.xls', '.xlsm'))]
+        pdf_files = [f for f in temp_files if f.endswith('.pdf')]
+        
+        all_customers = []
+        all_orders = []
+        all_expenses = []
+        combined_metrics = {"total_revenue": 0.0, "total_expenses": 0.0}
+        
+        if excel_files:
+            excel_result = process_excel_files(excel_files, location_id, location_name)
+            all_customers.extend(excel_result["customers"])
+            all_orders.extend(excel_result["orders"])
+            if "financial_metrics" in excel_result:
+                combined_metrics["total_revenue"] += excel_result["financial_metrics"].get("total_revenue", 0.0)
+        
+        if pdf_files:
+            pdf_result = process_pdf_files(pdf_files, location_id, location_name)
+            all_customers.extend(pdf_result["customers"])
+            all_orders.extend(pdf_result["orders"])
+            all_expenses.extend(pdf_result.get("expenses", []))
+            if "financial_metrics" in pdf_result:
+                combined_metrics["total_revenue"] += pdf_result["financial_metrics"].get("total_revenue", 0.0)
+                combined_metrics["total_expenses"] += pdf_result["financial_metrics"].get("total_expenses", 0.0)
+        
+        for customer in all_customers:
+            customers_db[customer["id"]] = customer
+        
+        for order in all_orders:
+            orders_db[order["id"]] = order
+            
+        for expense in all_expenses:
+            expenses_db[expense["id"]] = expense
 
-        imported_customers = processed_data["customers"]
-        imported_orders = processed_data["orders"]
-        imported_financial_data = processed_data["financial_metrics"]
+        imported_customers = all_customers
+        imported_orders = all_orders
+        imported_financial_data = combined_metrics
 
         save_data_to_disk()
 
         return {
             "success": True,
-            "message": f"Excel data imported successfully for {location_name}",
+            "message": f"Data imported successfully for {location_name}",
             "summary": {
-                "customers_imported": len(imported_customers),
-                "orders_imported": len(imported_orders),
-                "total_records": processed_data["total_records"],
-                "date_range": processed_data["date_range"],
-                "total_revenue": imported_financial_data.get("total_revenue", 0),
+                "customers_imported": len(all_customers),
+                "orders_imported": len(all_orders),
+                "expenses_imported": len(all_expenses),
+                "excel_files_processed": len(excel_files),
+                "pdf_files_processed": len(pdf_files),
+                "total_records": len(all_customers) + len(all_orders) + len(all_expenses),
+                "total_revenue": combined_metrics.get("total_revenue", 0),
                 "location_id": location_id,
                 "location_name": location_name
             }
@@ -3538,6 +3572,31 @@ async def upload_financial_document(
     with open(file_path, "wb") as buffer:
         buffer.write(content)
     
+    extracted_amount = amount
+    extracted_date = datetime.strptime(date, "%Y-%m-%d") if date else None
+    
+    if file.content_type == "application/pdf" and (not amount or not date):
+        try:
+            from .pdf_import import extract_text_from_pdf, parse_invoice_pdf, parse_expense_pdf
+            
+            text = extract_text_from_pdf(str(file_path))
+            if text.strip():
+                if document_type == DocumentType.EXPENSE:
+                    result = parse_expense_pdf(text, location_id)
+                    if result["expenses"]:
+                        if not extracted_amount:
+                            extracted_amount = result["expenses"][0]["amount"]
+                        if not extracted_date:
+                            extracted_date = datetime.strptime(result["expenses"][0]["date"], "%Y-%m-%d")
+                else:
+                    result = parse_invoice_pdf(text, location_id)
+                    if not extracted_amount:
+                        extracted_amount = result["total_amount"]
+                    if not extracted_date and result.get("invoice_date"):
+                        extracted_date = datetime.fromisoformat(result["invoice_date"].replace('Z', '+00:00'))
+        except Exception as e:
+            logger.warning(f"Failed to extract PDF content for document {file_id}: {e}")
+    
     document = FinancialDocument(
         id=file_id,
         document_type=document_type,
@@ -3551,8 +3610,8 @@ async def upload_financial_document(
         uploaded_by=current_user.full_name,
         uploaded_at=datetime.now(),
         category=category,
-        amount=amount,
-        date=datetime.strptime(date, "%Y-%m-%d") if date else None
+        amount=extracted_amount,
+        date=extracted_date
     )
     
     financial_documents_db[file_id] = document.dict()
@@ -3575,6 +3634,14 @@ async def get_financial_documents(
         documents = [d for d in documents if d["location_id"] == location_id]
     
     documents = filter_by_location(documents, current_user)
+    
+    for doc in documents:
+        if isinstance(doc["uploaded_at"], str):
+            try:
+                doc["uploaded_at"] = datetime.fromisoformat(doc["uploaded_at"].replace('Z', '+00:00'))
+            except ValueError:
+                doc["uploaded_at"] = datetime.now()
+    
     return sorted(documents, key=lambda x: x["uploaded_at"], reverse=True)
 
 @app.get("/api/financial-documents/{document_id}/download")

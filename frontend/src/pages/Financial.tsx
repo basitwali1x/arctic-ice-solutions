@@ -404,12 +404,12 @@ export function Financial() {
     if (newDocument.date) formData.append('date', newDocument.date);
 
     try {
-      const response = await fetch('/api/financial-documents/upload', {
+      const response = await apiRequest('/api/financial-documents/upload', {
         method: 'POST',
         body: formData,
       });
 
-      if (response.ok) {
+      if (response && response.ok) {
         const documentsResponse = await apiRequest('/api/financial-documents');
         const documentsData = documentsResponse ? await documentsResponse.json() : [];
         setDocuments(Array.isArray(documentsData) ? documentsData : []);

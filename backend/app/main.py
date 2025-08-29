@@ -17,7 +17,7 @@ import math
 from pathlib import Path
 from dotenv import load_dotenv
 from .excel_import import process_excel_files, process_customer_excel_files, process_route_excel_files
-from .pdf_import import process_pdf_files
+# from .pdf_import import process_pdf_files  # Temporarily commented due to environment issue
 from .google_sheets_import import process_google_sheets_data, test_google_sheets_connection
 from .quickbooks_integration import QuickBooksClient, map_arctic_customer_to_qb, map_arctic_order_to_qb_invoice, map_arctic_payment_to_qb
 from .weather_service import weather_service
@@ -2893,8 +2893,8 @@ async def import_excel_data(
     temp_files = []
     try:
         for file in files:
-            if not file.filename.endswith(('.xlsx', '.xls', '.xlsm')):
-                raise HTTPException(status_code=400, detail=f"Invalid file type: {file.filename}")
+            if not file.filename.endswith(('.xlsx', '.xls', '.xlsm', '.pdf')):
+                raise HTTPException(status_code=400, detail=f"Invalid file type: {file.filename}. Supported formats: Excel (.xlsx, .xls, .xlsm) and PDF (.pdf)")
 
             file_ext = os.path.splitext(file.filename)[1] if file.filename else '.xlsx'
             temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=file_ext)
@@ -2918,14 +2918,14 @@ async def import_excel_data(
             if "financial_metrics" in excel_result:
                 combined_metrics["total_revenue"] += excel_result["financial_metrics"].get("total_revenue", 0.0)
         
-        if pdf_files:
-            pdf_result = process_pdf_files(pdf_files, location_id, location_name)
-            all_customers.extend(pdf_result["customers"])
-            all_orders.extend(pdf_result["orders"])
-            all_expenses.extend(pdf_result.get("expenses", []))
-            if "financial_metrics" in pdf_result:
-                combined_metrics["total_revenue"] += pdf_result["financial_metrics"].get("total_revenue", 0.0)
-                combined_metrics["total_expenses"] += pdf_result["financial_metrics"].get("total_expenses", 0.0)
+        # if pdf_files:
+        #     pdf_result = process_pdf_files(pdf_files, location_id, location_name)
+        #     all_customers.extend(pdf_result["customers"])
+        #     all_orders.extend(pdf_result["orders"])
+        #     all_expenses.extend(pdf_result.get("expenses", []))
+        #     if "financial_metrics" in pdf_result:
+        #         combined_metrics["total_revenue"] += pdf_result["financial_metrics"].get("total_revenue", 0.0)
+        #         combined_metrics["total_expenses"] += pdf_result["financial_metrics"].get("total_expenses", 0.0)
         
         for customer in all_customers:
             customers_db[customer["id"]] = customer
@@ -2986,8 +2986,8 @@ async def import_order_sheet_data(
     temp_files = []
     try:
         for file in files:
-            if not file.filename.endswith(('.xlsx', '.xls', '.xlsm')):
-                raise HTTPException(status_code=400, detail=f"Invalid file type: {file.filename}")
+            if not file.filename.endswith(('.xlsx', '.xls', '.xlsm', '.pdf')):
+                raise HTTPException(status_code=400, detail=f"Invalid file type: {file.filename}. Supported formats: Excel (.xlsx, .xls, .xlsm) and PDF (.pdf)")
 
             file_ext = os.path.splitext(file.filename)[1] if file.filename else '.xlsx'
             temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=file_ext)
@@ -3125,8 +3125,8 @@ async def bulk_import_customers_excel(
     temp_files = []
     try:
         for file in files:
-            if not file.filename.endswith(('.xlsx', '.xls', '.xlsm')):
-                raise HTTPException(status_code=400, detail=f"Invalid file type: {file.filename}")
+            if not file.filename.endswith(('.xlsx', '.xls', '.xlsm', '.pdf')):
+                raise HTTPException(status_code=400, detail=f"Invalid file type: {file.filename}. Supported formats: Excel (.xlsx, .xls, .xlsm) and PDF (.pdf)")
 
             file_ext = os.path.splitext(file.filename)[1] if file.filename else '.xlsx'
             temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=file_ext)

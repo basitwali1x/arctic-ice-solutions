@@ -255,7 +255,7 @@ def process_pdf_files(file_paths: List[str], location_id: str = "loc_1", locatio
             text = extract_text_from_pdf(file_path)
             
             if not text.strip():
-                logger.warning(f"No text extracted from {file_path}")
+                logger.warning(f"No text extracted from {file_path} - likely a scanned image-based PDF requiring OCR")
                 continue
             
             text_lower = text.lower()

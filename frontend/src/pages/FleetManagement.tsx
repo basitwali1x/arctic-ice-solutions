@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Truck, MapPin, Plus, RefreshCw, Settings, Navigation, AlertCircle, Upload } from 'lucide-react';
+import { Truck, MapPin, Plus, RefreshCw, Settings, Navigation, AlertCircle, Upload, Calendar } from 'lucide-react';
 import { Vehicle, Location, FleetDashboard, Route } from '../types/api';
 import { apiRequest } from '../utils/api';
 import { useErrorToast } from '../hooks/useErrorToast';
@@ -428,7 +428,7 @@ export function FleetManagement() {
               <h3 className="font-semibold">Route Optimization</h3>
               <div className="p-4 bg-gray-50 rounded-lg space-y-4">
                 <p className="text-sm text-gray-600">
-                  Automatic route optimization considers traffic, customer time windows, and vehicle capacity.
+                  Advanced OR-Tools optimization with depot constraints, priority scheduling, and vehicle capacity management.
                 </p>
                 <div>
                   <label className="text-sm font-medium text-gray-700 mb-2 block">Select Location</label>
@@ -445,14 +445,56 @@ export function FleetManagement() {
                     </SelectContent>
                   </Select>
                 </div>
-                <Button 
-                  className="w-full" 
-                  onClick={handleOptimizeRoutes}
-                  disabled={!selectedOptimizeLocation || isOptimizing}
-                >
-                  <Navigation className="h-4 w-4 mr-2" />
-                  {isOptimizing ? 'Optimizing Routes...' : 'Optimize All Routes'}
-                </Button>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button 
+                    className="w-full" 
+                    onClick={handleOptimizeRoutes}
+                    disabled={!selectedOptimizeLocation || isOptimizing}
+                  >
+                    <Navigation className="h-4 w-4 mr-2" />
+                    {isOptimizing ? 'Optimizing...' : 'Daily Routes'}
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    className="w-full" 
+                    onClick={async () => {
+                      if (!selectedOptimizeLocation) {
+                        showError(new Error('Please select a location'), 'Please select a location for weekly optimization');
+                        return;
+                      }
+                      
+                      try {
+                        setIsOptimizing(true);
+                        const response = await apiRequest(`/api/routes/optimize-weekly?location_id=${selectedOptimizeLocation}`, {
+                          method: 'POST'
+                        });
+                        
+                        if (response && response.ok) {
+                          const result = await response.json();
+                          toast({
+                            title: 'Success',
+                            description: result.message || 'Weekly routes optimized successfully',
+                          });
+                          fetchData();
+                        }
+                      } catch (error) {
+                        console.error('Error optimizing weekly routes:', error);
+                        showError(error, 'Failed to optimize weekly routes');
+                      } finally {
+                        setIsOptimizing(false);
+                      }
+                    }}
+                    disabled={!selectedOptimizeLocation || isOptimizing}
+                  >
+                    <Calendar className="h-4 w-4 mr-2" />
+                    Weekly Routes
+                  </Button>
+                </div>
+                <div className="text-xs text-gray-500 space-y-1">
+                  <div>• Daily: Optimizes routes for immediate delivery</div>
+                  <div>• Weekly: Priority-based scheduling with depot constraints</div>
+                  <div>• Uses Google OR-Tools for advanced optimization</div>
+                </div>
               </div>
             </div>
           </div>

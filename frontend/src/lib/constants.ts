@@ -51,5 +51,39 @@ export const RouteService = {
     }
     
     return await response.json();
+  },
+
+  async optimizeWeeklyRoutes(locationId: string): Promise<any> {
+    const response = await fetch(buildAPIUrl(`/api/routes/optimize-weekly?location_id=${locationId}`), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      credentials: 'include'
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    return await response.json();
+  },
+
+  async getDepotInfo(): Promise<any> {
+    const response = await fetch(buildAPIUrl('/api/routes/depot-info'), {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      credentials: 'include'
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    return await response.json();
   }
 };

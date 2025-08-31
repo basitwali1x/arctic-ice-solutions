@@ -366,9 +366,9 @@ export function Settings() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium">Route Optimization</p>
-                <p className="text-sm text-gray-600">Automatic route planning</p>
+                <p className="text-sm text-gray-600">Advanced OR-Tools with depot constraints</p>
               </div>
-              <Badge className="bg-green-100 text-green-800">Enabled</Badge>
+              <Badge className="bg-green-100 text-green-800">Enhanced</Badge>
             </div>
 
             <div className="flex items-center justify-between">

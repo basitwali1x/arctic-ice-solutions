@@ -823,9 +823,13 @@ class RouteOptimizer:
         return self.truck_allocations.get(depot_name, 2)
 
     async def _optimize_single_depot_routes(self, customers: List[RouteOptimizationCustomer], depot_address: str, depot_name: str, num_vehicles: int) -> List[VehicleRoute]:
-        from ortools.constraint_solver import routing_enums_pb2
-        from ortools.constraint_solver import pywrapcp
-        import math
+        try:
+            from ortools.constraint_solver import routing_enums_pb2
+            from ortools.constraint_solver import pywrapcp
+            import math
+        except ImportError as e:
+            logger.error(f"Failed to import OR-Tools: {e}")
+            return self._create_fallback_routes(customers, depot_address, depot_name, num_vehicles)
         
         all_locations = [depot_address] + [customer.address for customer in customers]
         

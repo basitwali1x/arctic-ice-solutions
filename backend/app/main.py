@@ -28,10 +28,6 @@ except ImportError:
     monitoring_service = None
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from prophet import Prophet
-from sklearn.linear_model import LinearRegression
-import numpy as np
-import pandas as pd
 
 load_dotenv()
 
@@ -3862,6 +3858,10 @@ async def forecast_inventory(
     Integrates with existing production data structures.
     """
     try:
+        from prophet import Prophet
+        from sklearn.linear_model import LinearRegression
+        import numpy as np
+        import pandas as pd
         entries = [e for e in production_entries_db.values() if e.get("location_id") == location_id]
 
         if len(entries) < 7:

@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { MapPin, Navigation, Package, DollarSign, Fuel, Clock, Bluetooth } from 'lucide-react';
+import { MapPin, Navigation, Package, DollarSign, Fuel, Clock, Bluetooth, PenTool } from 'lucide-react';
 import { getCurrentPosition, watchPosition, clearWatch } from '../../utils/capacitor';
 import GoogleMapsNavigation from '../../components/GoogleMapsNavigation';
 import { RouteService } from '../../services/RouteService';
@@ -14,6 +14,7 @@ interface RouteStop {
   id: string;
   address: string;
   customer: string;
+  customer_id?: string;
   bags: number;
   status: 'pending' | 'delivered' | 'failed';
   payment_method?: 'cash' | 'check' | 'credit';
@@ -23,6 +24,8 @@ interface RouteStop {
     lat: number;
     lng: number;
   };
+  signature_data?: string;
+  notes?: string;
 }
 
 interface DriverRoute {
@@ -47,8 +50,13 @@ export function MobileDriver() {
     bags_delivered: 0,
     payment_method: '',
     payment_amount: 0,
-    notes: ''
+    notes: '',
+    signature_data: ''
   });
+  const [isSigningMode, setIsSigningMode] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const signatureCanvasRef = useRef<HTMLCanvasElement>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
   const [fuelData, setFuelData] = useState({
     current_level: 75,
     fuel_added: 0,
@@ -105,6 +113,7 @@ export function MobileDriver() {
           id: 'stop-4',
           address: '321 Elm Dr, Lake Charles, LA',
           customer: 'Food Express',
+          customer_id: 'customer_4',
           bags: 30,
           status: 'pending'
         }
@@ -170,30 +179,73 @@ export function MobileDriver() {
     }
   };
 
-  const handleDeliveryComplete = (stop: RouteStop) => {
-    if (!currentRoute) return;
+  const handleDeliveryComplete = async (stop: RouteStop) => {
+    if (!currentRoute || isSubmitting) return;
     
-    const updatedStops = currentRoute.stops.map(s => 
-      s.id === stop.id 
-        ? { 
-            ...s, 
-            status: 'delivered' as const,
-            payment_method: deliveryForm.payment_method as 'cash' | 'check' | 'credit',
-            payment_amount: deliveryForm.payment_amount,
-            delivery_time: new Date().toLocaleTimeString()
-          }
-        : s
-    );
+    if (!deliveryForm.signature_data) {
+      alert('Please capture customer signature before completing delivery');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      const deliveryData = {
+        stop_id: stop.id,
+        route_id: currentRoute.id,
+        customer_id: stop.customer_id || stop.id,
+        bags_delivered: deliveryForm.bags_delivered,
+        payment_method: deliveryForm.payment_method,
+        payment_amount: deliveryForm.payment_amount,
+        notes: deliveryForm.notes,
+        signature_data: deliveryForm.signature_data
+      };
+      
+      const result = await RouteService.completeDelivery(deliveryData);
+      
+      if (result.success) {
+        const updatedStops = currentRoute.stops.map((s: any) => 
+          s.id === stop.id 
+            ? { 
+                ...s, 
+                status: 'delivered' as const,
+                payment_method: deliveryForm.payment_method as 'cash' | 'check' | 'credit',
+                payment_amount: deliveryForm.payment_amount,
+                delivery_time: new Date().toLocaleTimeString(),
+                signature_data: deliveryForm.signature_data,
+                notes: deliveryForm.notes
+              }
+            : s
+        );
 
-    setCurrentRoute({
-      ...currentRoute,
-      stops: updatedStops,
-      completed_stops: currentRoute.completed_stops + 1,
-      delivered_bags: currentRoute.delivered_bags + deliveryForm.bags_delivered
-    });
+        setCurrentRoute({
+          ...currentRoute,
+          stops: updatedStops,
+          completed_stops: result.route_progress.completed_stops,
+          delivered_bags: result.route_progress.delivered_bags
+        });
 
-    setSelectedStop(null);
-    setDeliveryForm({ bags_delivered: 0, payment_method: '', payment_amount: 0, notes: '' });
+        let statusMessage = 'Delivery completed successfully!';
+        if (result.invoice_result?.success) {
+          statusMessage += ' Invoice generated.';
+        }
+        if (result.email_result?.success) {
+          statusMessage += ' Invoice emailed to customer.';
+        }
+        
+        alert(statusMessage);
+      } else {
+        alert(`Failed to complete delivery: ${result.message}`);
+      }
+    } catch (error) {
+      console.error('Error completing delivery:', error);
+      alert('Failed to complete delivery. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+      setSelectedStop(null);
+      setDeliveryForm({ bags_delivered: 0, payment_method: '', payment_amount: 0, notes: '', signature_data: '' });
+      setIsSigningMode(false);
+    }
   };
 
   const printReceipt = async (stop: RouteStop) => {
@@ -205,7 +257,7 @@ export function MobileDriver() {
         
         const receiptData = `
 ARCTIC ICE SOLUTIONS
-Delivery Receipt
+Delivery Receipt & Invoice
 ------------------------
 Customer: ${stop.customer}
 Address: ${stop.address}
@@ -215,12 +267,16 @@ Payment: ${stop.payment_method?.toUpperCase()}
 Time: ${stop.delivery_time}
 Driver: ${currentRoute?.driver_name}
 Route: ${currentRoute?.route_number}
+${stop.notes ? `Notes: ${stop.notes}` : ''}
+------------------------
+Customer Signature: ${stop.signature_data ? 'Captured' : 'Not Available'}
+Invoice Status: Generated & Emailed
 ------------------------
 Thank you for your business!
         `;
         
         console.log('Printing receipt:', receiptData);
-        alert('Receipt sent to printer!');
+        alert('Enhanced receipt with invoice details sent to printer!');
       } catch (error) {
         console.error('Bluetooth printing error:', error);
         alert('Printer not available. Receipt saved locally.');
@@ -229,6 +285,94 @@ Thank you for your business!
       alert('Bluetooth not supported. Receipt saved locally.');
     }
   };
+
+  const initializeSignatureCanvas = () => {
+    const canvas = signatureCanvasRef.current;
+    if (canvas) {
+      const context = canvas.getContext('2d');
+      if (context) {
+        context.strokeStyle = '#000000';
+        context.lineWidth = 2;
+        context.lineCap = 'round';
+        context.lineJoin = 'round';
+        
+        canvas.width = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
+        
+        context.fillStyle = '#ffffff';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+      }
+    }
+  };
+
+  const startDrawing = (e: any) => {
+    setIsDrawing(true);
+    const canvas = signatureCanvasRef.current;
+    if (canvas) {
+      const context = canvas.getContext('2d');
+      if (context) {
+        const rect = canvas.getBoundingClientRect();
+        const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+        const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+        
+        context.beginPath();
+        context.moveTo(x, y);
+      }
+    }
+  };
+
+  const draw = (e: any) => {
+    if (!isDrawing) return;
+    
+    const canvas = signatureCanvasRef.current;
+    if (canvas) {
+      const context = canvas.getContext('2d');
+      if (context) {
+        const rect = canvas.getBoundingClientRect();
+        const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+        const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+        
+        context.lineTo(x, y);
+        context.stroke();
+      }
+    }
+  };
+
+  const stopDrawing = () => {
+    setIsDrawing(false);
+  };
+
+  const clearSignature = () => {
+    const canvas = signatureCanvasRef.current;
+    if (canvas) {
+      const context = canvas.getContext('2d');
+      if (context) {
+        context.fillStyle = '#ffffff';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+      }
+    }
+    setDeliveryForm({...deliveryForm, signature_data: ''});
+  };
+
+  const saveSignature = () => {
+    const canvas = signatureCanvasRef.current;
+    if (canvas) {
+      const signatureData = canvas.toDataURL('image/png');
+      setDeliveryForm({...deliveryForm, signature_data: signatureData});
+      setIsSigningMode(false);
+      alert('Signature captured successfully!');
+    }
+  };
+
+  useEffect(() => {
+    if (isSigningMode) {
+      setTimeout(initializeSignatureCanvas, 100);
+    }
+  }, [isSigningMode]);
 
   if (!currentRoute) {
     return <div className="flex items-center justify-center h-64">Loading route...</div>;
@@ -348,10 +492,23 @@ Thank you for your business!
                       </Button>
                     )}
                     {stop.status === 'delivered' && (
-                      <Button size="sm" variant="outline" onClick={() => printReceipt(stop)}>
-                        <Bluetooth className="h-3 w-3 mr-1" />
-                        Print
-                      </Button>
+                      <div className="flex flex-col space-y-1">
+                        <Button size="sm" variant="outline" onClick={() => printReceipt(stop)}>
+                          <Bluetooth className="h-3 w-3 mr-1" />
+                          Print
+                        </Button>
+                        {stop.signature_data && (
+                          <Button size="sm" variant="outline" onClick={() => {
+                            const newWindow = window.open();
+                            if (newWindow) {
+                              newWindow.document.write(`<img src="${stop.signature_data}" alt="Customer Signature" style="max-width: 100%;">`);
+                            }
+                          }}>
+                            <PenTool className="h-3 w-3 mr-1" />
+                            View Signature
+                          </Button>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -413,7 +570,7 @@ Thank you for your business!
         </CardContent>
       </Card>
 
-      {selectedStop && (
+      {selectedStop && !isSigningMode && (
         <Card>
           <CardHeader>
             <CardTitle>Complete Delivery - {selectedStop.customer}</CardTitle>
@@ -462,11 +619,100 @@ Thank you for your business!
                   placeholder="Optional notes"
                 />
               </div>
+              
+              <div className="border rounded-lg p-4 bg-gray-50">
+                <div className="flex items-center justify-between mb-2">
+                  <Label>Customer Signature</Label>
+                  <Badge variant={deliveryForm.signature_data ? "default" : "secondary"}>
+                    {deliveryForm.signature_data ? "Captured" : "Required"}
+                  </Badge>
+                </div>
+                {deliveryForm.signature_data ? (
+                  <div className="space-y-2">
+                    <img 
+                      src={deliveryForm.signature_data} 
+                      alt="Customer Signature" 
+                      className="max-w-full h-20 border border-gray-300 rounded"
+                    />
+                    <div className="flex space-x-2">
+                      <Button size="sm" variant="outline" onClick={() => setIsSigningMode(true)}>
+                        <PenTool className="h-3 w-3 mr-1" />
+                        Re-capture
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Button onClick={() => setIsSigningMode(true)} variant="outline" className="w-full">
+                    <PenTool className="h-4 w-4 mr-2" />
+                    Capture Customer Signature
+                  </Button>
+                )}
+              </div>
+              
               <div className="flex space-x-2">
-                <Button onClick={() => handleDeliveryComplete(selectedStop)} className="flex-1">
-                  Complete Delivery
+                <Button 
+                  onClick={() => handleDeliveryComplete(selectedStop)} 
+                  className="flex-1"
+                  disabled={!deliveryForm.signature_data || isSubmitting}
+                >
+                  {isSubmitting ? 'Processing...' : 'Complete Delivery'}
                 </Button>
-                <Button variant="outline" onClick={() => setSelectedStop(null)}>
+                <Button variant="outline" onClick={() => {
+                  setSelectedStop(null);
+                  setDeliveryForm({ bags_delivered: 0, payment_method: '', payment_amount: 0, notes: '', signature_data: '' });
+                }}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {isSigningMode && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Customer Signature</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <Label>Please ask the customer to sign below:</Label>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-2 bg-white">
+                  <canvas
+                    ref={signatureCanvasRef}
+                    width={300}
+                    height={150}
+                    className="w-full h-32 border border-gray-200 rounded cursor-crosshair touch-none"
+                    onMouseDown={startDrawing}
+                    onMouseMove={draw}
+                    onMouseUp={stopDrawing}
+                    onMouseLeave={stopDrawing}
+                    onTouchStart={(e) => {
+                      e.preventDefault();
+                      startDrawing(e);
+                    }}
+                    onTouchMove={(e) => {
+                      e.preventDefault();
+                      draw(e);
+                    }}
+                    onTouchEnd={(e) => {
+                      e.preventDefault();
+                      stopDrawing();
+                    }}
+                  />
+                </div>
+              </div>
+              
+              <div className="flex space-x-2">
+                <Button onClick={saveSignature} className="flex-1">
+                  <PenTool className="h-4 w-4 mr-2" />
+                  Save Signature
+                </Button>
+                <Button variant="outline" onClick={clearSignature}>
+                  Clear
+                </Button>
+                <Button variant="outline" onClick={() => setIsSigningMode(false)}>
                   Cancel
                 </Button>
               </div>

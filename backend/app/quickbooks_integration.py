@@ -219,3 +219,64 @@ def map_arctic_payment_to_qb(arctic_payment: Dict[str, Any], customer_ref_id: st
         "date": arctic_payment.get("payment_date", datetime.now().strftime("%Y-%m-%d")),
         "invoice_id": invoice_id
     }
+
+def create_invoice_with_delivery_data(
+    quickbooks_client: QuickBooksClient,
+    access_token: str,
+    realm_id: str,
+    delivery_data: Dict[str, Any],
+    customer_data: Dict[str, Any]
+) -> Dict[str, Any]:
+    """Create invoice with enhanced delivery information"""
+    try:
+        invoice_data = {
+            "customer_ref_id": customer_data.get("quickbooks_id"),
+            "date": delivery_data.get("delivery_date", datetime.now().strftime("%Y-%m-%d")),
+            "total_amount": delivery_data.get("payment_amount", 0),
+            "quantity": delivery_data.get("bags_delivered", 1),
+            "unit_price": delivery_data.get("payment_amount", 0) / max(delivery_data.get("bags_delivered", 1), 1),
+            "delivery_notes": delivery_data.get("notes", ""),
+            "route_number": delivery_data.get("route_number", ""),
+            "driver_name": delivery_data.get("driver_name", ""),
+            "payment_method": delivery_data.get("payment_method", "cash")
+        }
+        
+        qb_invoice = {
+            "CustomerRef": {
+                "value": invoice_data["customer_ref_id"]
+            },
+            "TxnDate": invoice_data["date"],
+            "Line": [
+                {
+                    "Amount": invoice_data["total_amount"],
+                    "DetailType": "SalesItemLineDetail",
+                    "SalesItemLineDetail": {
+                        "ItemRef": {
+                            "value": "1",
+                            "name": "Ice Delivery"
+                        },
+                        "Qty": invoice_data["quantity"],
+                        "UnitPrice": invoice_data["unit_price"]
+                    }
+                }
+            ],
+            "CustomerMemo": {
+                "value": f"Route: {invoice_data['route_number']} | Driver: {invoice_data['driver_name']} | Payment: {invoice_data['payment_method']} | Notes: {invoice_data['delivery_notes']}"
+            }
+        }
+        
+        response = quickbooks_client.make_api_request("invoice", access_token, realm_id, "POST", {"Invoice": qb_invoice})
+        created_invoice = response.get("Invoice", {})
+        
+        return {
+            "success": True,
+            "invoice": created_invoice,
+            "invoice_data": invoice_data
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to create invoice with delivery data: {e}")
+        return {
+            "success": False,
+            "error": str(e)
+        }

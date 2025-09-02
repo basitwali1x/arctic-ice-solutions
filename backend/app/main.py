@@ -20,7 +20,8 @@ from dotenv import load_dotenv
 from .excel_import import process_excel_files, process_customer_excel_files, process_route_excel_files
 from .pdf_import import process_pdf_files
 from .google_sheets_import import process_google_sheets_data, test_google_sheets_connection
-from .quickbooks_integration import QuickBooksClient, map_arctic_customer_to_qb, map_arctic_order_to_qb_invoice, map_arctic_payment_to_qb
+from .quickbooks_integration import QuickBooksClient, map_arctic_customer_to_qb, map_arctic_order_to_qb_invoice, map_arctic_payment_to_qb, create_invoice_with_delivery_data
+from .email_service import email_service
 from .weather_service import weather_service
 try:
     from .monitoring_service import router as monitoring_service
@@ -5034,10 +5035,186 @@ async def get_ssl_status(current_user: UserInDB = Depends(get_current_user)):
     else:
         return {"ssl_certificates": [], "status": "monitoring service unavailable"}
 
-@app.get("/{full_path:path}")
-async def catch_all(full_path: str):
-    """Return 404 for all non-API routes"""
-    if full_path.startswith("api/") or full_path.startswith("docs") or full_path.startswith("redoc") or full_path.startswith("openapi.json"):
-        raise HTTPException(status_code=404, detail="API endpoint not found")
+@app.post("/api/deliveries/complete")
+async def complete_delivery(
+    delivery_data: dict,
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """Complete delivery with invoice generation and email sending"""
+    try:
+        stop_id = delivery_data.get("stop_id")
+        route_id = delivery_data.get("route_id")
+        customer_id = delivery_data.get("customer_id")
+        signature_data = delivery_data.get("signature_data")
+        
+        if not all([stop_id, route_id, customer_id]):
+            raise HTTPException(status_code=400, detail="Missing required delivery data")
+        
+        route = routes_db.get(route_id)
+        if not route:
+            raise HTTPException(status_code=404, detail="Route not found")
+        
+        customer = customers_db.get(customer_id)
+        if not customer:
+            raise HTTPException(status_code=404, detail="Customer not found")
+        
+        updated_stops = []
+        for stop in route.get("stops", []):
+            if stop["id"] == stop_id:
+                stop.update({
+                    "status": "completed",
+                    "payment_method": delivery_data.get("payment_method"),
+                    "payment_amount": delivery_data.get("payment_amount"),
+                    "bags_delivered": delivery_data.get("bags_delivered"),
+                    "delivery_time": datetime.now().isoformat(),
+                    "notes": delivery_data.get("notes", ""),
+                    "signature_data": signature_data,
+                    "completed_by": current_user.full_name
+                })
+            updated_stops.append(stop)
+        
+        route["stops"] = updated_stops
+        route["completed_stops"] = len([s for s in updated_stops if s.get("status") == "completed"])
+        route["delivered_bags"] = sum(s.get("bags_delivered", 0) for s in updated_stops if s.get("status") == "completed")
+        
+        routes_db[route_id] = route
+        
+        invoice_result = {"success": False, "message": "Invoice generation skipped"}
+        email_result = {"success": False, "message": "Email sending skipped"}
+        
+        if quickbooks_connection and delivery_data.get("payment_amount", 0) > 0:
+            try:
+                enhanced_delivery_data = {
+                    **delivery_data,
+                    "delivery_date": datetime.now().strftime("%Y-%m-%d"),
+                    "route_number": route.get("name", route_id),
+                    "driver_name": current_user.full_name
+                }
+                
+                invoice_result = create_invoice_with_delivery_data(
+                    quickbooks_client,
+                    quickbooks_connection["access_token"],
+                    quickbooks_connection["realm_id"],
+                    enhanced_delivery_data,
+                    customer
+                )
+                
+                if invoice_result.get("success") and customer.get("email"):
+                    invoice_data = {
+                        "invoice_number": invoice_result.get("invoice", {}).get("DocNumber", "N/A"),
+                        "date": enhanced_delivery_data["delivery_date"],
+                        "delivery_date": enhanced_delivery_data["delivery_date"],
+                        "route_number": enhanced_delivery_data["route_number"],
+                        "driver_name": enhanced_delivery_data["driver_name"],
+                        "quantity": delivery_data.get("bags_delivered", 1),
+                        "unit_price": delivery_data.get("payment_amount", 0) / max(delivery_data.get("bags_delivered", 1), 1),
+                        "total_amount": delivery_data.get("payment_amount", 0),
+                        "payment_method": delivery_data.get("payment_method", "cash")
+                    }
+                    
+                    email_result = await email_service.send_invoice_email(
+                        customer["email"],
+                        customer["name"],
+                        invoice_data,
+                        signature_data
+                    )
+                    
+            except Exception as e:
+                logger.error(f"Error in invoice/email processing: {e}")
+                invoice_result = {"success": False, "error": str(e)}
+        
+        save_data_to_disk()
+        
+        return {
+            "success": True,
+            "message": "Delivery completed successfully",
+            "delivery_status": "completed",
+            "invoice_result": invoice_result,
+            "email_result": email_result,
+            "route_progress": {
+                "completed_stops": route["completed_stops"],
+                "total_stops": len(route["stops"]),
+                "delivered_bags": route["delivered_bags"]
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error completing delivery: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to complete delivery: {str(e)}")
 
-    raise HTTPException(status_code=404, detail="Not found")
+@app.post("/api/invoices/generate-and-send")
+async def generate_and_send_invoice(
+    invoice_request: dict,
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """Generate invoice and send via email"""
+    try:
+        customer_id = invoice_request.get("customer_id")
+        delivery_data = invoice_request.get("delivery_data", {})
+        signature_data = invoice_request.get("signature_data")
+        
+        if not customer_id:
+            raise HTTPException(status_code=400, detail="Customer ID required")
+        
+        customer = customers_db.get(customer_id)
+        if not customer:
+            raise HTTPException(status_code=404, detail="Customer not found")
+        
+        if not customer.get("email"):
+            raise HTTPException(status_code=400, detail="Customer email not available")
+        
+        invoice_result = {"success": False, "message": "QuickBooks not configured"}
+        
+        if quickbooks_connection:
+            invoice_result = create_invoice_with_delivery_data(
+                quickbooks_client,
+                quickbooks_connection["access_token"],
+                quickbooks_connection["realm_id"],
+                delivery_data,
+                customer
+            )
+        
+        if invoice_result.get("success"):
+            invoice_data = {
+                "invoice_number": invoice_result.get("invoice", {}).get("DocNumber", "N/A"),
+                "date": delivery_data.get("delivery_date", datetime.now().strftime("%Y-%m-%d")),
+                "delivery_date": delivery_data.get("delivery_date", datetime.now().strftime("%Y-%m-%d")),
+                "route_number": delivery_data.get("route_number", "N/A"),
+                "driver_name": delivery_data.get("driver_name", current_user.full_name),
+                "quantity": delivery_data.get("bags_delivered", 1),
+                "unit_price": delivery_data.get("payment_amount", 0) / max(delivery_data.get("bags_delivered", 1), 1),
+                "total_amount": delivery_data.get("payment_amount", 0),
+                "payment_method": delivery_data.get("payment_method", "cash")
+            }
+            
+            email_result = await email_service.send_invoice_email(
+                customer["email"],
+                customer["name"],
+                invoice_data,
+                signature_data
+            )
+            
+            return {
+                "success": True,
+                "message": "Invoice generated and sent successfully",
+                "invoice_result": invoice_result,
+                "email_result": email_result
+            }
+        else:
+            raise HTTPException(status_code=500, detail=f"Failed to generate invoice: {invoice_result.get('error', 'Unknown error')}")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating and sending invoice: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate and send invoice: {str(e)}")
+
+# @app.get("/{full_path:path}")
+# async def catch_all(full_path: str):
+#     """Return 404 for all non-API routes"""
+#     if not full_path.startswith("api/") and not full_path.startswith("docs") and not full_path.startswith("redoc") and not full_path.startswith("openapi.json"):
+#         raise HTTPException(status_code=404, detail="Not found")
+#     
+#     raise HTTPException(status_code=404, detail="API endpoint not found")

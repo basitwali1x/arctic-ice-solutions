@@ -117,4 +117,63 @@ export class RouteService {
     
     return await response.json();
   }
+
+  static async completeDelivery(deliveryData: {
+    stop_id: string;
+    route_id: string;
+    customer_id: string;
+    bags_delivered: number;
+    payment_method: string;
+    payment_amount: number;
+    notes?: string;
+    signature_data?: string;
+  }): Promise<{
+    success: boolean;
+    message: string;
+    delivery_status: string;
+    invoice_result: any;
+    email_result: any;
+    route_progress: any;
+  }> {
+    const response = await fetch(buildAPIUrl('/api/deliveries/complete'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify(deliveryData)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to complete delivery: ${response.statusText}`);
+    }
+
+    return await response.json();
+  }
+
+  static async generateAndSendInvoice(invoiceData: {
+    customer_id: string;
+    delivery_data: any;
+    signature_data?: string;
+  }): Promise<{
+    success: boolean;
+    message: string;
+    invoice_result: any;
+    email_result: any;
+  }> {
+    const response = await fetch(buildAPIUrl('/api/invoices/generate-and-send'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify(invoiceData)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to generate and send invoice: ${response.statusText}`);
+    }
+
+    return await response.json();
+  }
 }

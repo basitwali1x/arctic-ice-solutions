@@ -442,3 +442,36 @@ export interface DriverLocation {
   heading?: number;
   accuracy?: number;
 }
+
+export interface DeliveryCompletionData {
+  stop_id: string;
+  route_id: string;
+  customer_id: string;
+  bags_delivered: number;
+  payment_method: string;
+  payment_amount: number;
+  notes?: string;
+  signature_data?: string;
+}
+
+export interface DeliveryCompletionResponse {
+  success: boolean;
+  message: string;
+  delivery_status: string;
+  invoice_result: {
+    success: boolean;
+    message?: string;
+    error?: string;
+    invoice?: any;
+  };
+  email_result: {
+    success: boolean;
+    message?: string;
+    error?: string;
+  };
+  route_progress: {
+    completed_stops: number;
+    total_stops: number;
+    delivered_bags: number;
+  };
+}

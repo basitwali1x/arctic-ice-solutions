@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arctic Ice Customer - Feature Graphic</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        
+        .feature-graphic {
+            width: 1024px;
+            height: 500px;
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 50%, #60a5fa 100%);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 60px;
+            box-sizing: border-box;
+        }
+        
+        .content {
+            flex: 1;
+            color: white;
+            z-index: 2;
+        }
+        
+        .title {
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .subtitle {
+            font-size: 24px;
+            font-weight: 400;
+            margin-bottom: 24px;
+            opacity: 0.9;
+        }
+        
+        .features {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .features li {
+            font-size: 18px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .features li::before {
+            content: "✓";
+            background: #10b981;
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .visual {
+            flex: 0 0 300px;
+            height: 400px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .phone-mockup {
+            width: 200px;
+            height: 360px;
+            background: #1f2937;
+            border-radius: 24px;
+            padding: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            position: relative;
+        }
+        
+        .screen {
+            width: 100%;
+            height: 100%;
+            background: white;
+            border-radius: 16px;
+            padding: 16px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .app-header {
+            height: 60px;
+            background: #3b82f6;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .app-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .content-block {
+            height: 40px;
+            background: #f3f4f6;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            font-size: 12px;
+            color: #6b7280;
+        }
+        
+        .primary-button {
+            height: 48px;
+            background: #10b981;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            margin-top: auto;
+        }
+        
+        .ice-pattern {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 200px;
+            height: 200px;
+            opacity: 0.1;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><polygon points="50,10 90,30 90,70 50,90 10,70 10,30" fill="white" opacity="0.3"/><polygon points="50,20 80,35 80,65 50,80 20,65 20,35" fill="white" opacity="0.5"/></svg>') repeat;
+        }
+    </style>
+</head>
+<body>
+    <div class="feature-graphic">
+        <div class="ice-pattern"></div>
+        <div class="content">
+            <h1 class="title">Arctic Ice Customer</h1>
+            <p class="subtitle">Your Ice Delivery Portal</p>
+            <ul class="features">
+                <li>Place Orders Instantly</li>
+                <li>Track Deliveries Live</li>
+                <li>Manage Invoices</li>
+                <li>Account Dashboard</li>
+            </ul>
+        </div>
+        <div class="visual">
+            <div class="phone-mockup">
+                <div class="screen">
+                    <div class="app-header">Arctic Ice Customer</div>
+                    <div class="app-content">
+                        <div class="content-block">Account Balance: $2,450.00</div>
+                        <div class="content-block">2 Active Orders</div>
+                        <div class="content-block">Next Delivery: Today 2:30 PM</div>
+                        <div class="content-block">Credit Limit: $15,000</div>
+                    </div>
+                    <div class="primary-button">Place New Order</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

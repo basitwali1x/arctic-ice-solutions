@@ -259,55 +259,110 @@ export function FleetManagement() {
         </div>
       </div>
 
-      {/* Fleet Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      {/* Enhanced Fleet Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Vehicles</CardTitle>
             <Truck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{fleetData?.total_vehicles || 8}</div>
-            <p className="text-xs text-muted-foreground">Across 4 locations</p>
+            <div className="text-2xl font-bold">{fleetData?.total_vehicles || 0}</div>
+            <p className="text-xs text-muted-foreground">Active fleet size</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">In Use</CardTitle>
-            <Navigation className="h-4 w-4 text-green-600" />
+            <CardTitle className="text-sm font-medium">Fleet Utilization</CardTitle>
+            <Settings className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{fleetData?.vehicles_in_use || 6}</div>
-            <p className="text-xs text-muted-foreground">Currently on routes</p>
+            <div className="text-2xl font-bold">{fleetData?.fleet_utilization || 0}%</div>
+            <p className="text-xs text-muted-foreground">Vehicles in use</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Capacity Utilization</CardTitle>
+            <AlertCircle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{fleetData?.capacity_utilization || 0}%</div>
+            <p className="text-xs text-muted-foreground">Load capacity used</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Load Efficiency</CardTitle>
+            <Navigation className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{fleetData?.average_load_efficiency || 0}%</div>
+            <p className="text-xs text-muted-foreground">Average vehicle load</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Available</CardTitle>
-            <Truck className="h-4 w-4 text-blue-600" />
+            <RefreshCw className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{fleetData?.vehicles_available || 2}</div>
+            <div className="text-2xl font-bold">{fleetData?.vehicles_available || 0}</div>
             <p className="text-xs text-muted-foreground">Ready for dispatch</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Utilization</CardTitle>
-            <Settings className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{fleetData?.fleet_utilization || 75}%</div>
-            <p className="text-xs text-muted-foreground">Fleet efficiency</p>
           </CardContent>
         </Card>
       </div>
 
+      {/* Vehicle Utilization Details Table */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Vehicle Utilization Details</CardTitle>
+          <CardDescription>Individual vehicle capacity and efficiency metrics</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {fleetData?.vehicle_utilization_details?.map((vehicle) => (
+              <div key={vehicle.vehicle_id} className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <Truck className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">{vehicle.license_plate}</h3>
+                    <p className="text-sm text-gray-600">
+                      {vehicle.current_load}/{vehicle.capacity_pallets} pallets • {vehicle.routes_today} routes today
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-4">
+                  <div className="text-right">
+                    <div className="text-sm font-medium">{vehicle.utilization_percentage}%</div>
+                    <div className="text-xs text-gray-500">Capacity Used</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm font-medium">{vehicle.efficiency_score}</div>
+                    <div className="text-xs text-gray-500">Efficiency Score</div>
+                  </div>
+                  <Badge variant={vehicle.utilization_percentage > 80 ? "default" : vehicle.utilization_percentage > 50 ? "secondary" : "outline"}>
+                    {vehicle.utilization_percentage > 80 ? "High Load" : vehicle.utilization_percentage > 50 ? "Medium Load" : "Light Load"}
+                  </Badge>
+                </div>
+              </div>
+            )) || (
+              <div className="text-center py-8 text-gray-500">
+                No vehicle utilization data available
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Fleet Distribution Chart */}
-      <Card>
+      <Card className="mb-6">
         <CardHeader>
           <CardTitle>Fleet Distribution by Location</CardTitle>
           <CardDescription>Vehicle allocation across your locations</CardDescription>

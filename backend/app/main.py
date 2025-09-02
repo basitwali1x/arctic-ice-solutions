@@ -2486,11 +2486,24 @@ async def get_fleet_dashboard(current_user: UserInDB = Depends(get_current_user)
             vehicles_in_maintenance.add(wo.get("vehicle_id"))
     
     routes = list(routes_db.values())
+    orders = list(orders_db.values())
     today_str = str(date.today())
     vehicles_in_use = set()
+    vehicle_loads = {}
+    
     for route in routes:
         if route.get("date") == today_str and route.get("status") in ["planned", "in_progress"]:
-            vehicles_in_use.add(route.get("vehicle_id"))
+            vehicle_id = route.get("vehicle_id")
+            vehicles_in_use.add(vehicle_id)
+            
+            total_load = 0
+            for stop in route.get("stops", []):
+                order_id = stop.get("order_id")
+                if order_id in orders_db:
+                    order = orders_db[order_id]
+                    total_load += max(1, order.get("quantity", 1) // 50)
+            
+            vehicle_loads[vehicle_id] = vehicle_loads.get(vehicle_id, 0) + total_load
     
     maintenance_count = len([vid for vid in vehicles_in_maintenance if any(v["id"] == vid for v in active_vehicles)])
     in_use_count = len([vid for vid in vehicles_in_use if any(v["id"] == vid for v in active_vehicles)])
@@ -2499,18 +2512,54 @@ async def get_fleet_dashboard(current_user: UserInDB = Depends(get_current_user)
     
     fleet_utilization = (in_use_count / total_vehicles * 100) if total_vehicles > 0 else 0.0
     
+    total_capacity = sum(v.get("capacity_pallets", 20) for v in active_vehicles)
+    total_current_load = sum(vehicle_loads.values())
+    capacity_utilization = (total_current_load / total_capacity * 100) if total_capacity > 0 else 0.0
+    
+    vehicle_utilization_details = []
+    for vehicle in active_vehicles:
+        vehicle_id = vehicle["id"]
+        current_load = vehicle_loads.get(vehicle_id, 0)
+        capacity = vehicle.get("capacity_pallets", 20)
+        utilization_pct = (current_load / capacity * 100) if capacity > 0 else 0.0
+        
+        routes_today = len([r for r in routes if r.get("vehicle_id") == vehicle_id and r.get("date") == today_str])
+        
+        total_distance = 0
+        for route in routes:
+            if route.get("vehicle_id") == vehicle_id and route.get("date") == today_str:
+                total_distance += len(route.get("stops", [])) * 5
+        
+        efficiency_score = round(utilization_pct * 0.7 + routes_today * 10, 1)
+        
+        vehicle_utilization_details.append({
+            "vehicle_id": vehicle_id,
+            "license_plate": vehicle["license_plate"],
+            "capacity_pallets": capacity,
+            "current_load": current_load,
+            "utilization_percentage": round(utilization_pct, 1),
+            "routes_today": routes_today,
+            "total_distance": total_distance,
+            "efficiency_score": efficiency_score
+        })
+    
+    average_load_efficiency = sum(v["utilization_percentage"] for v in vehicle_utilization_details) / len(vehicle_utilization_details) if vehicle_utilization_details else 0.0
+    
     return {
         "total_vehicles": total_vehicles,
         "vehicles_in_use": in_use_count,
         "vehicles_available": available_count,
         "vehicles_maintenance": maintenance_count,
         "fleet_utilization": round(fleet_utilization, 1),
+        "capacity_utilization": round(capacity_utilization, 1),
+        "average_load_efficiency": round(average_load_efficiency, 1),
         "vehicles_by_location": {
             "Leesville": len([v for v in active_vehicles if v["location_id"] == "loc_1"]),
             "Lake Charles": len([v for v in active_vehicles if v["location_id"] == "loc_2"]),
             "Lufkin": len([v for v in active_vehicles if v["location_id"] == "loc_3"]),
             "Jasper": len([v for v in active_vehicles if v["location_id"] == "loc_4"])
-        }
+        },
+        "vehicle_utilization_details": vehicle_utilization_details
     }
 
 @app.get("/api/analytics/customer-heatmap")
@@ -3384,6 +3433,36 @@ async def get_routes(location_id: Optional[str] = None, current_user: UserInDB =
         routes = [r for r in routes if r["location_id"] == location_id]
     return filter_by_location(routes, current_user)
 
+def select_optimal_vehicle(available_vehicles: List[dict], orders: List[dict], location_id: str) -> List[dict]:
+    """Select vehicles optimally based on capacity, load balancing, and efficiency"""
+    
+    total_demand = sum(max(1, order.get("quantity", 1) // 50) for order in orders)
+    
+    vehicle_scores = []
+    for vehicle in available_vehicles:
+        capacity = vehicle.get("capacity_pallets", 20)
+        
+        utilization_score = min(100, (total_demand / capacity) * 100) if capacity > 0 else 0
+        
+        size_appropriateness = 100 - abs(capacity - total_demand) * 5
+        size_appropriateness = max(0, size_appropriateness)
+        
+        location_bonus = 20 if vehicle.get("location_id") == location_id else 0
+        
+        load_balance_bonus = 10
+        
+        total_score = utilization_score * 0.4 + size_appropriateness * 0.3 + location_bonus + load_balance_bonus
+        
+        vehicle_scores.append({
+            "vehicle": vehicle,
+            "score": total_score,
+            "utilization_score": utilization_score,
+            "capacity": capacity
+        })
+    
+    vehicle_scores.sort(key=lambda x: x["score"], reverse=True)
+    return [vs["vehicle"] for vs in vehicle_scores]
+
 @app.post("/api/routes/optimize")
 async def optimize_routes(location_id: str, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role not in [UserRole.MANAGER, UserRole.DISPATCHER]:
@@ -3413,13 +3492,15 @@ async def optimize_routes(location_id: str, current_user: UserInDB = Depends(get
     if not available_vehicles:
         raise HTTPException(status_code=400, detail="No available vehicles for route optimization")
     
+    optimized_vehicles = select_optimal_vehicle(available_vehicles, location_orders, location_id)
+    
     location = locations_db.get(location_id)
     depot_address = location["address"] if location else "123 Ice Plant Rd, Leesville, LA"
     
     optimized_routes = []
     remaining_orders = location_orders.copy()
     
-    for vehicle in available_vehicles:
+    for vehicle in optimized_vehicles:
         if not remaining_orders:
             break
             
@@ -3508,6 +3589,49 @@ async def optimize_routes(location_id: str, current_user: UserInDB = Depends(get
     
     save_data_to_disk()
     return {"message": f"Generated {len(optimized_routes)} optimized routes", "routes": optimized_routes}
+
+@app.get("/api/analytics/vehicle-allocation")
+async def get_vehicle_allocation_analytics(
+    period: str = "daily",
+    location_id: Optional[str] = None,
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """Get detailed vehicle allocation and utilization analytics"""
+    
+    vehicles = list(vehicles_db.values())
+    filtered_vehicles = filter_by_location(vehicles, current_user)
+    
+    if location_id:
+        filtered_vehicles = [v for v in filtered_vehicles if v["location_id"] == location_id]
+    
+    routes = list(routes_db.values())
+    
+    allocation_metrics = {
+        "total_vehicles": len(filtered_vehicles),
+        "allocation_efficiency": 0.0,
+        "underutilized_vehicles": [],
+        "overutilized_vehicles": [],
+        "optimal_fleet_size": 0,
+        "recommendations": []
+    }
+    
+    for vehicle in filtered_vehicles:
+        vehicle_routes = [r for r in routes if r.get("vehicle_id") == vehicle["id"]]
+        
+        if len(vehicle_routes) == 0:
+            allocation_metrics["underutilized_vehicles"].append({
+                "vehicle_id": vehicle["id"],
+                "license_plate": vehicle["license_plate"],
+                "reason": "No routes assigned"
+            })
+    
+    allocation_metrics["allocation_efficiency"] = max(0, 100 - len(allocation_metrics["underutilized_vehicles"]) * 10)
+    allocation_metrics["optimal_fleet_size"] = max(1, len(filtered_vehicles) - len(allocation_metrics["underutilized_vehicles"]))
+    
+    if allocation_metrics["underutilized_vehicles"]:
+        allocation_metrics["recommendations"].append("Consider redistributing underutilized vehicles to busier locations")
+    
+    return allocation_metrics
 
 @app.get("/api/routes/{route_id}")
 async def get_route(route_id: str, current_user: UserInDB = Depends(get_current_user)):

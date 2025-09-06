@@ -197,13 +197,7 @@ export function MobileDriver() {
   };
 
   const printReceipt = async (stop: RouteStop) => {
-    if ('bluetooth' in navigator) {
-      try {
-        await (navigator as Navigator & { bluetooth: { requestDevice: (options: { filters: { services: string[] }[] }) => Promise<unknown> } }).bluetooth.requestDevice({
-          filters: [{ services: ['000018f0-0000-1000-8000-00805f9b34fb'] }]
-        });
-        
-        const receiptData = `
+    const receiptData = `
 ARCTIC ICE SOLUTIONS
 Delivery Receipt
 ------------------------
@@ -217,16 +211,90 @@ Driver: ${currentRoute?.driver_name}
 Route: ${currentRoute?.route_number}
 ------------------------
 Thank you for your business!
-        `;
+    `;
+
+    if ('bluetooth' in navigator) {
+      try {
+        await (navigator as Navigator & { bluetooth: { requestDevice: (options: { filters: { services: string[] }[] }) => Promise<unknown> } }).bluetooth.requestDevice({
+          filters: [{ services: ['000018f0-0000-1000-8000-00805f9b34fb'] }]
+        });
         
         console.log('Printing receipt:', receiptData);
-        alert('Receipt sent to printer!');
+        
+        try {
+          const receiptDoc = {
+            document_type: 'receipt',
+            title: `Delivery Receipt - ${stop.customer}`,
+            content: receiptData,
+            location_id: 'loc_1',
+            amount: stop.payment_amount,
+            date: new Date().toISOString().split('T')[0]
+          };
+          
+          await fetch('/api/financial-documents/receipt', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(receiptDoc)
+          });
+          
+          alert('Receipt sent to printer and saved!');
+        } catch (error) {
+          console.error('Error saving receipt:', error);
+          alert('Receipt sent to printer!');
+        }
       } catch (error) {
         console.error('Bluetooth printing error:', error);
-        alert('Printer not available. Receipt saved locally.');
+        
+        try {
+          const receiptDoc = {
+            document_type: 'receipt',
+            title: `Delivery Receipt - ${stop.customer}`,
+            content: receiptData,
+            location_id: 'loc_1',
+            amount: stop.payment_amount,
+            date: new Date().toISOString().split('T')[0]
+          };
+          
+          await fetch('/api/financial-documents/receipt', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(receiptDoc)
+          });
+          
+          alert('Printer not available. Receipt saved locally.');
+        } catch (saveError) {
+          console.error('Error saving receipt:', saveError);
+          alert('Printer not available. Receipt saved locally.');
+        }
       }
     } else {
-      alert('Bluetooth not supported. Receipt saved locally.');
+      try {
+        const receiptDoc = {
+          document_type: 'receipt',
+          title: `Delivery Receipt - ${stop.customer}`,
+          content: receiptData,
+          location_id: 'loc_1',
+          amount: stop.payment_amount,
+          date: new Date().toISOString().split('T')[0]
+        };
+        
+        await fetch('/api/financial-documents/receipt', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(receiptDoc)
+        });
+        
+        alert('Bluetooth not supported. Receipt saved locally.');
+      } catch (saveError) {
+        console.error('Error saving receipt:', saveError);
+        alert('Bluetooth not supported. Receipt saved locally.');
+      }
     }
   };
 

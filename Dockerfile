@@ -15,6 +15,9 @@ RUN poetry config virtualenvs.create false \
 # Copy application code
 COPY backend/app ./app
 
+# Copy route JSON files needed for customer data import
+COPY lake_charles_routes.json smitty_routes.json ./
+
 # Expose port
 EXPOSE 8000
 

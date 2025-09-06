@@ -8,7 +8,7 @@ import sys
 
 def make_cloudflare_request(endpoint, method="GET", data=None):
     """Make authenticated request to Cloudflare API"""
-    api_token = os.environ.get('clouddep')
+    api_token = os.environ.get('cl')
     if not api_token:
         print("ERROR: No Cloudflare API token found in environment")
         return None

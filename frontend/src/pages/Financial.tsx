@@ -45,6 +45,8 @@ export function Financial() {
   });
   const [quickbooksConnecting, setQuickbooksConnecting] = useState(false);
   const [quickbooksSyncing, setQuickbooksSyncing] = useState(false);
+  const [showDocumentForm, setShowDocumentForm] = useState(false);
+  const [documents, setDocuments] = useState<any[]>([]);
 
   const [newExpense, setNewExpense] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -52,6 +54,15 @@ export function Financial() {
     description: '',
     amount: '',
     location_id: 'loc_1'
+  });
+  const [newDocument, setNewDocument] = useState({
+    type: 'expense' as 'invoice' | 'receipt' | 'expense',
+    title: '',
+    description: '',
+    file: null as File | null,
+    category: '',
+    amount: '',
+    date: new Date().toISOString().split('T')[0]
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { showError } = useErrorToast();
@@ -61,13 +72,14 @@ export function Financial() {
       setLoading(true);
       setError(null);
 
-      const [financialResponse, statusResponse, expensesResponse, profitResponse, locationsResponse, quickbooksResponse] = await Promise.all([
+      const [financialResponse, statusResponse, expensesResponse, profitResponse, locationsResponse, quickbooksResponse, documentsResponse] = await Promise.all([
         apiRequest('/api/dashboard/financial'),
         apiRequest('/api/import/status'),
         apiRequest('/api/expenses'),
         apiRequest('/api/financial/profit-analysis'),
         apiRequest('/api/locations'),
-        apiRequest('/api/quickbooks/status')
+        apiRequest('/api/quickbooks/status'),
+        apiRequest('/api/financial-documents')
       ]);
 
       const financialData = financialResponse ? await financialResponse.json() : null;
@@ -76,6 +88,7 @@ export function Financial() {
       const profitAnalysis = profitResponse ? await profitResponse.json() : null;
       const locationsData = locationsResponse ? await locationsResponse.json() : [];
       const quickbooksData = quickbooksResponse ? await quickbooksResponse.json() : { is_connected: false, last_sync: null };
+      const documentsData = documentsResponse ? await documentsResponse.json() : [];
 
       setFinancialData(financialData || null);
       setImportStatus(statusData || null);
@@ -83,6 +96,7 @@ export function Financial() {
       setProfitData(profitAnalysis || null);
       setLocations(Array.isArray(locationsData) ? locationsData : []);
       setQuickbooksStatus(quickbooksData || { is_connected: false, last_sync: null });
+      setDocuments(Array.isArray(documentsData) ? documentsData : []);
     } catch (error) {
       console.error('Failed to fetch financial data:', error);
       setError('Failed to load financial data');
@@ -369,6 +383,75 @@ export function Financial() {
     } catch (error) {
       console.error('Failed to create expense:', error);
       showError(error, 'Failed to submit expense');
+    }
+  };
+
+  const handleDocumentUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newDocument.file || !newDocument.title.trim()) {
+      alert('Please provide a title and select a file');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', newDocument.file);
+    formData.append('document_type', newDocument.type);
+    formData.append('title', newDocument.title);
+    formData.append('description', newDocument.description);
+    formData.append('location_id', selectedLocation);
+    if (newDocument.category) formData.append('category', newDocument.category);
+    if (newDocument.amount) formData.append('amount', newDocument.amount);
+    if (newDocument.date) formData.append('date', newDocument.date);
+
+    try {
+      const response = await apiRequest('/api/financial-documents/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (response && response.ok) {
+        const documentsResponse = await apiRequest('/api/financial-documents');
+        const documentsData = documentsResponse ? await documentsResponse.json() : [];
+        setDocuments(Array.isArray(documentsData) ? documentsData : []);
+        setNewDocument({
+          type: 'expense',
+          title: '',
+          description: '',
+          file: null,
+          category: '',
+          amount: '',
+          date: new Date().toISOString().split('T')[0]
+        });
+        setShowDocumentForm(false);
+        alert('Document uploaded successfully!');
+      } else {
+        alert('Failed to upload document');
+      }
+    } catch (error) {
+      console.error('Document upload error:', error);
+      alert('Error uploading document');
+    }
+  };
+
+  const downloadDocument = async (documentId: string) => {
+    try {
+      const response = await fetch(`/api/financial-documents/${documentId}/download`);
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `document_${documentId}`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        alert('Failed to download document');
+      }
+    } catch (error) {
+      console.error('Document download error:', error);
+      alert('Error downloading document');
     }
   };
 
@@ -896,6 +979,125 @@ export function Financial() {
                   {googleSheetsConnecting ? 'Connecting...' : 'Connect Google Sheets'}
                 </Button>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Document Management */}
+      <div className="grid grid-cols-1 gap-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Financial Documents</CardTitle>
+              <CardDescription>Upload and manage invoices, receipts, and expense documents</CardDescription>
+            </div>
+            <Button onClick={() => setShowDocumentForm(true)} size="sm">
+              <Upload className="h-4 w-4 mr-2" />
+              Upload Document
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {showDocumentForm && (
+              <form onSubmit={handleDocumentUpload} className="space-y-4 mb-6 p-4 border rounded-lg bg-gray-50">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="document-type">Document Type</Label>
+                    <Select value={newDocument.type} onValueChange={(value: 'invoice' | 'receipt' | 'expense') => setNewDocument({...newDocument, type: value})}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="invoice">Invoice</SelectItem>
+                        <SelectItem value="receipt">Receipt</SelectItem>
+                        <SelectItem value="expense">Expense</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="document-title">Title</Label>
+                    <Input
+                      id="document-title"
+                      value={newDocument.title}
+                      onChange={(e) => setNewDocument({...newDocument, title: e.target.value})}
+                      placeholder="Document title"
+                      required
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="document-description">Description</Label>
+                  <Input
+                    id="document-description"
+                    value={newDocument.description}
+                    onChange={(e) => setNewDocument({...newDocument, description: e.target.value})}
+                    placeholder="Optional description"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="document-amount">Amount ($)</Label>
+                    <Input
+                      id="document-amount"
+                      type="number"
+                      step="0.01"
+                      value={newDocument.amount}
+                      onChange={(e) => setNewDocument({...newDocument, amount: e.target.value})}
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="document-date">Date</Label>
+                    <Input
+                      id="document-date"
+                      type="date"
+                      value={newDocument.date}
+                      onChange={(e) => setNewDocument({...newDocument, date: e.target.value})}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="document-file">File</Label>
+                  <Input
+                    id="document-file"
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={(e) => setNewDocument({...newDocument, file: e.target.files?.[0] || null})}
+                    required
+                  />
+                </div>
+                <div className="flex space-x-2">
+                  <Button type="submit">Upload Document</Button>
+                  <Button type="button" variant="outline" onClick={() => setShowDocumentForm(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            )}
+            
+            <div className="space-y-3">
+              {documents.length === 0 ? (
+                <p className="text-gray-500 text-center py-4">No documents uploaded yet</p>
+              ) : (
+                documents.map((doc: any) => (
+                  <div key={doc.id} className="flex justify-between items-center p-3 bg-gray-50 rounded">
+                    <div>
+                      <div className="font-medium">{doc.title}</div>
+                      <div className="text-sm text-gray-500">
+                        {doc.document_type} • {doc.file_name} • {new Date(doc.uploaded_at).toLocaleDateString()}
+                        {doc.amount && ` • $${doc.amount}`}
+                      </div>
+                      {doc.description && (
+                        <div className="text-sm text-gray-600 mt-1">{doc.description}</div>
+                      )}
+                    </div>
+                    <Button size="sm" variant="outline" onClick={() => downloadDocument(doc.id)}>
+                      <Download className="h-3 w-3 mr-1" />
+                      Download
+                    </Button>
+                  </div>
+                ))
+              )}
             </div>
           </CardContent>
         </Card>

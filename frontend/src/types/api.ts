@@ -85,7 +85,21 @@ export interface FleetDashboard {
   vehicles_available: number;
   vehicles_maintenance: number;
   fleet_utilization: number;
+  capacity_utilization: number;
+  average_load_efficiency: number;
   vehicles_by_location: Record<string, number>;
+  vehicle_utilization_details: VehicleUtilization[];
+}
+
+export interface VehicleUtilization {
+  vehicle_id: string;
+  license_plate: string;
+  capacity_pallets: number;
+  current_load: number;
+  utilization_percentage: number;
+  routes_today: number;
+  total_distance: number;
+  efficiency_score: number;
 }
 
 export interface WorkOrder {

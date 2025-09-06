@@ -606,25 +606,25 @@ def optimize_with_ortools(locations, demands, coordinates, vehicle_capacity):
     try:
         from ortools.constraint_solver import routing_enums_pb2
         from ortools.constraint_solver import pywrapcp
-        
+
         distance_matrix = create_distance_matrix(coordinates)
-        
+
         manager = pywrapcp.RoutingIndexManager(len(locations), 1, 0)
-        
+
         routing = pywrapcp.RoutingModel(manager)
-        
+
         def distance_callback(from_index, to_index):
             from_node = manager.IndexToNode(from_index)
             to_node = manager.IndexToNode(to_index)
             return distance_matrix[from_node][to_node]
-        
+
         transit_callback_index = routing.RegisterTransitCallback(distance_callback)
         routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index)
-        
+
         def demand_callback(from_index):
             from_node = manager.IndexToNode(from_index)
             return demands[from_node]
-        
+
         demand_callback_index = routing.RegisterUnaryTransitCallback(demand_callback)
         routing.AddDimensionWithVehicleCapacity(
             demand_callback_index,
@@ -633,7 +633,7 @@ def optimize_with_ortools(locations, demands, coordinates, vehicle_capacity):
             True,
             'Capacity'
         )
-        
+
         search_parameters = pywrapcp.DefaultRoutingSearchParameters()
         search_parameters.first_solution_strategy = (
             routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
@@ -642,9 +642,9 @@ def optimize_with_ortools(locations, demands, coordinates, vehicle_capacity):
             routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH
         )
         search_parameters.time_limit.seconds = 10
-        
+
         solution = routing.SolveWithParameters(search_parameters)
-        
+
         if solution:
             route = []
             index = routing.Start(0)
@@ -652,11 +652,11 @@ def optimize_with_ortools(locations, demands, coordinates, vehicle_capacity):
                 node_index = manager.IndexToNode(index)
                 route.append(node_index)
                 index = solution.Value(routing.NextVar(index))
-            
+
             return route[1:]
-        
+
         return None
-        
+
     except Exception as e:
         logging.error(f"OR-Tools optimization error: {e}")
         return None
@@ -709,21 +709,21 @@ class RouteOptimizer:
         self.depot_radius = depot_radius
         self.max_stops = max_stops
         self.truck_allocations = truck_allocations or {"Leesville": 3, "Lake Charles": 2, "Lufkin": 2, "Jasper": 1}
-    
+
     def assign_priority(self, customer: RouteOptimizationCustomer) -> str:
         """Assign priority level based on last visit date"""
         if not customer.last_visit_date:
             return "HIGH"
-        
+
         days_overdue = (datetime.now() - customer.last_visit_date).days
         customer.days_since_last_visit = days_overdue
-        
+
         if days_overdue > 7:
             return "URGENT"
         elif days_overdue > 5:
             return "HIGH"
         return "STANDARD"
-    
+
     def assign_depot_with_capacity(self, customer: RouteOptimizationCustomer, current_assignments: Dict[str, int]) -> str:
         """Assign customer to depot considering weekly capacity limits"""
         depot_locations = {
@@ -732,10 +732,10 @@ class RouteOptimizer:
             "Lufkin": {"lat": 31.3382, "lng": -94.7291},
             "Jasper": {"lat": 30.9204, "lng": -94.0154}
         }
-        
+
         if not customer.latitude or not customer.longitude:
             return customer.depot or "Leesville"
-        
+
         distances = {}
         for depot_name, coords in depot_locations.items():
             distance = self._calculate_distance(
@@ -743,78 +743,78 @@ class RouteOptimizer:
                 coords['lat'], coords['lng']
             )
             distances[depot_name] = distance
-        
+
         sorted_depots = sorted(distances.items(), key=lambda x: x[1])
-        
+
         for depot_name, distance in sorted_depots:
             constraints = DEPOT_CONSTRAINTS[depot_name]
             max_capacity = constraints["weekly_capacity"]
             current_count = current_assignments.get(depot_name, 0)
-            
-            if (distance <= constraints["max_distance"] and 
+
+            if (distance <= constraints["max_distance"] and
                 current_count < max_capacity):
                 return depot_name
-        
+
         remaining_capacity = {
             depot: DEPOT_CONSTRAINTS[depot]["weekly_capacity"] - current_assignments.get(depot, 0)
             for depot in DEPOT_CONSTRAINTS.keys()
         }
         return max(remaining_capacity.keys(), key=lambda depot: remaining_capacity[depot])
-    
+
     def filter_unvisited_customers(self, customers: List[RouteOptimizationCustomer]) -> List[RouteOptimizationCustomer]:
         """Filter customers who haven't been visited this week"""
         unvisited = [c for c in customers if not c.visited_this_week and c.weekly_visit_required]
-        
+
         for customer in unvisited:
             customer.priority_level = self.assign_priority(customer)
-        
+
         priority_order = {"URGENT": 0, "HIGH": 1, "STANDARD": 2}
         unvisited.sort(key=lambda c: priority_order.get(c.priority_level, 2))
-        
+
         return unvisited
-    
+
     async def optimize_routes(self, customers: List[RouteOptimizationCustomer], depot_addresses: List[str], num_vehicles: int = 8, vehicle_distribution: Optional[Dict[str, int]] = None) -> List[VehicleRoute]:
         """Optimize routes using OR-Tools with Google Maps distance data"""
-        
+
         depot_mapping = {
             "Leesville": "1707 Smart Street, Leesville, LA 71446",
-            "Lake Charles": "220 Bunker Road, Lake Charles, LA 70615", 
+            "Lake Charles": "220 Bunker Road, Lake Charles, LA 70615",
             "Lufkin": "1107 Weiner St, Lufkin, TX 75904",
             "Jasper": "123 Main St, Jasper, TX 75951"
         }
-        
+
         customers_by_depot = {}
         for customer in customers:
             depot_name = customer.depot
             if depot_name not in customers_by_depot:
                 customers_by_depot[depot_name] = []
             customers_by_depot[depot_name].append(customer)
-        
+
         all_routes = []
-        
+
         for depot_name, depot_customers in customers_by_depot.items():
             if not depot_customers:
                 continue
-                
+
             depot_address = depot_mapping.get(depot_name, depot_mapping["Leesville"])
             vehicles_for_depot = self._calculate_vehicles_per_depot(depot_name, num_vehicles, vehicle_distribution)
-            
+
             depot_routes = await self._optimize_single_depot_routes(
                 depot_customers, depot_address, depot_name, vehicles_for_depot
             )
-            
+
             all_routes.extend(depot_routes)
-        
+
         return all_routes
 
     def _calculate_distance(self, lat1: float, lng1: float, lat2: float, lng2: float) -> float:
         """Calculate distance between two coordinates in miles"""
         import math
-        
+
         dlat = math.radians(lat2 - lat1)
         dlng = math.radians(lng2 - lng1)
-        a = (math.sin(dlat/2) * math.sin(dlat/2) + 
-             math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * 
+        a = (math.sin(dlat/2) * math.sin(dlat/2) +
+             math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) *
              math.sin(dlng/2) * math.sin(dlng/2))
         c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
         return 3959 * c
@@ -823,42 +823,42 @@ class RouteOptimizer:
         """Calculate number of vehicles for a specific depot"""
         if vehicle_distribution and depot_name in vehicle_distribution:
             return vehicle_distribution[depot_name]
-        
+
         return self.truck_allocations.get(depot_name, 2)
 
     async def _optimize_single_depot_routes(self, customers: List[RouteOptimizationCustomer], depot_address: str, depot_name: str, num_vehicles: int) -> List[VehicleRoute]:
         from ortools.constraint_solver import routing_enums_pb2
         from ortools.constraint_solver import pywrapcp
         import math
-        
+
         all_locations = [depot_address] + [customer.address for customer in customers]
-        
+
         print(f"Ensuring consistent coordinates for {len(all_locations)} locations in {depot_name} depot")
         geocoded_locations = []
         for location in all_locations:
             lat, lng = self.google_maps._generate_realistic_coordinates(location)
             geocoded_locations.append((lat, lng))
-        
+
         distance_matrix = await self.google_maps.calculate_distance_matrix(all_locations)
-        
+
         int_distance_matrix = [[int(dist * 100) for dist in row] for row in distance_matrix]
-        
+
         manager = pywrapcp.RoutingIndexManager(
             len(all_locations),
             num_vehicles,
             0
         )
-        
+
         routing = pywrapcp.RoutingModel(manager)
-        
+
         def distance_callback(from_index, to_index):
             from_node = manager.IndexToNode(from_index)
             to_node = manager.IndexToNode(to_index)
             return int_distance_matrix[from_node][to_node]
-        
+
         transit_callback_index = routing.RegisterTransitCallback(distance_callback)
         routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index)
-        
+
         dimension_name = 'Distance'
         routing.AddDimension(
             transit_callback_index,
@@ -869,7 +869,7 @@ class RouteOptimizer:
         )
         distance_dimension = routing.GetDimensionOrDie(dimension_name)
         distance_dimension.SetGlobalSpanCostCoefficient(100)
-        
+
         def time_callback(from_index, to_index):
             from_node = manager.IndexToNode(from_index)
             to_node = manager.IndexToNode(to_index)
@@ -886,19 +886,19 @@ class RouteOptimizer:
             'Time'
         )
         time_dimension = routing.GetDimensionOrDie('Time')
-        
+
         for i in range(len(all_locations)):
             index = manager.NodeToIndex(i)
             time_dimension.CumulVar(index).SetRange(
                 6 * 3600,
                 20 * 3600
             )
-        
+
         penalty = 1000000
         for i, customer in enumerate(customers):
             customer_idx = i + 1
             routing.AddDisjunction([manager.NodeToIndex(customer_idx)], penalty)
-        
+
         search_parameters = pywrapcp.DefaultRoutingSearchParameters()
         search_parameters.first_solution_strategy = (
             routing_enums_pb2.FirstSolutionStrategy.PARALLEL_CHEAPEST_INSERTION
@@ -908,9 +908,9 @@ class RouteOptimizer:
         )
         timeout_seconds = min(600, max(120, len(customers) * 0.5))
         search_parameters.time_limit.FromSeconds(timeout_seconds)
-        
+
         solution = routing.SolveWithParameters(search_parameters)
-        
+
         if solution:
             print(f"✅ OR-Tools optimization successful for {depot_name} with {len(customers)} customers")
             return await self._extract_routes(
@@ -919,26 +919,26 @@ class RouteOptimizer:
         else:
             print(f"⚠️ OR-Tools optimization failed for {depot_name} with {len(customers)} customers - using fallback")
             return self._create_fallback_routes(customers, geocoded_locations, num_vehicles, depot_name)
-    
+
     async def _extract_routes(self, manager, routing, solution, customers, geocoded_locations, distance_matrix, depot_name):
         """Extract optimized routes from OR-Tools solution"""
         routes = []
-        
+
         for vehicle_id in range(routing.vehicles()):
             route_points = []
             route_distance = 0
             route_time = 0
-            
+
             index = routing.Start(vehicle_id)
             order = 0
-            
+
             while not routing.IsEnd(index):
                 node_index = manager.IndexToNode(index)
-                
+
                 if node_index > 0:
                     customer = customers[node_index - 1]
                     lat, lng = geocoded_locations[node_index]
-                    
+
                     route_point = RoutePoint(
                         customer_id=customer.id,
                         customer_name=customer.name,
@@ -949,20 +949,20 @@ class RouteOptimizer:
                     )
                     route_points.append(route_point)
                     order += 1
-                
+
                 previous_index = index
                 index = solution.Value(routing.NextVar(index))
                 if not routing.IsEnd(index):
                     from_node = manager.IndexToNode(previous_index)
                     to_node = manager.IndexToNode(index)
                     route_distance += distance_matrix[from_node][to_node]
-            
+
             if route_points:
                 last_node = manager.IndexToNode(previous_index)
                 route_distance += distance_matrix[last_node][0]
-            
+
             route_time = route_distance * 2
-            
+
             if route_points:
                 vehicle_route = VehicleRoute(
                     vehicle_id=vehicle_id + 1,
@@ -972,40 +972,40 @@ class RouteOptimizer:
                     total_time_minutes=round(route_time, 2)
                 )
                 routes.append(vehicle_route)
-        
+
         return routes
-    
+
     def _create_fallback_routes(self, customers, geocoded_locations, num_vehicles, depot_name):
         """Create fallback routes using simple round-robin assignment with stop limits"""
         routes = []
         MAX_STOPS_PER_VEHICLE = 25
-        
+
         vehicle_routes = [[] for _ in range(num_vehicles)]
-        
+
         for customer in customers:
             best_vehicle = None
             min_customers = float('inf')
-            
+
             for i, route in enumerate(vehicle_routes):
                 if len(route) < MAX_STOPS_PER_VEHICLE and len(route) < min_customers:
                     best_vehicle = i
                     min_customers = len(route)
-            
+
             if best_vehicle is not None:
                 vehicle_routes[best_vehicle].append(customer)
             else:
                 print(f"⚠️ WARNING: Customer {customer.name} skipped - all vehicles at {MAX_STOPS_PER_VEHICLE} stop limit")
-        
+
         for vehicle_id, vehicle_customer_list in enumerate(vehicle_routes):
             if not vehicle_customer_list:
                 continue
-                
+
             route_points = []
             total_distance = 0
-            
+
             for order, customer in enumerate(vehicle_customer_list):
                 lat, lng = geocoded_locations[customers.index(customer) + 1]
-                
+
                 route_point = RoutePoint(
                     customer_id=customer.id,
                     customer_name=customer.name,
@@ -1015,9 +1015,9 @@ class RouteOptimizer:
                     order=order
                 )
                 route_points.append(route_point)
-                
+
                 total_distance += 5.0
-            
+
             vehicle_route = VehicleRoute(
                 vehicle_id=vehicle_id + 1,
                 depot_name=depot_name,
@@ -1026,7 +1026,7 @@ class RouteOptimizer:
                 total_time_minutes=total_distance * 2
             )
             routes.append(vehicle_route)
-        
+
         return routes
 
 def create_distance_matrix(coordinates):
@@ -3048,12 +3048,25 @@ async def get_fleet_dashboard(current_user: UserInDB = Depends(get_current_user)
             vehicles_in_maintenance.add(wo.get("vehicle_id"))
 
     routes = list(routes_db.values())
+    orders = list(orders_db.values())
     today_str = str(date.today())
     vehicles_in_use = set()
+    vehicle_loads = {}
+
     for route in routes:
         if route.get("date") == today_str and route.get("status") in ["planned", "in_progress"]:
-            vehicles_in_use.add(route.get("vehicle_id"))
 
+            vehicle_id = route.get("vehicle_id")
+            vehicles_in_use.add(vehicle_id)
+
+            total_load = 0
+            for stop in route.get("stops", []):
+                order_id = stop.get("order_id")
+                if order_id in orders_db:
+                    order = orders_db[order_id]
+                    total_load += max(1, order.get("quantity", 1) // 50)
+
+            vehicle_loads[vehicle_id] = vehicle_loads.get(vehicle_id, 0) + total_load
     maintenance_count = len([vid for vid in vehicles_in_maintenance if any(v["id"] == vid for v in active_vehicles)])
     in_use_count = len([vid for vid in vehicles_in_use if any(v["id"] == vid for v in active_vehicles)])
 
@@ -3061,18 +3074,65 @@ async def get_fleet_dashboard(current_user: UserInDB = Depends(get_current_user)
 
     fleet_utilization = (in_use_count / total_vehicles * 100) if total_vehicles > 0 else 0.0
 
+    total_capacity = sum(v.get("capacity_pallets", 20) for v in active_vehicles)
+    total_current_load = sum(vehicle_loads.values())
+    capacity_utilization = (total_current_load / total_capacity * 100) if total_capacity > 0 else 0.0
+
+    vehicle_utilization_details = []
+    for vehicle in active_vehicles:
+        vehicle_id = vehicle["id"]
+        current_load = vehicle_loads.get(vehicle_id, 0)
+        capacity = vehicle.get("capacity_pallets", 20)
+        utilization_pct = (current_load / capacity * 100) if capacity > 0 else 0.0
+
+        routes_today = len([r for r in routes if r.get("vehicle_id") == vehicle_id and r.get("date") == today_str])
+
+        total_distance = 0
+        for route in routes:
+            if route.get("vehicle_id") == vehicle_id and route.get("date") == today_str:
+                total_distance += len(route.get("stops", [])) * 5
+
+        efficiency_score = round(utilization_pct * 0.7 + routes_today * 10, 1)
+
+        vehicle_utilization_details.append({
+            "vehicle_id": vehicle_id,
+            "license_plate": vehicle["license_plate"],
+            "capacity_pallets": capacity,
+            "current_load": current_load,
+            "utilization_percentage": round(utilization_pct, 1),
+            "routes_today": routes_today,
+            "total_distance": total_distance,
+            "efficiency_score": efficiency_score
+        })
+
+    average_load_efficiency = sum(v["utilization_percentage"] for v in vehicle_utilization_details) / len(vehicle_utilization_details) if vehicle_utilization_details else 0.0
     return {
         "total_vehicles": total_vehicles,
         "vehicles_in_use": in_use_count,
         "vehicles_available": available_count,
         "vehicles_maintenance": maintenance_count,
         "fleet_utilization": round(fleet_utilization, 1),
+        "capacity_utilization": round(capacity_utilization, 1),
+        "average_load_efficiency": round(average_load_efficiency, 1),
         "vehicles_by_location": {
             "Leesville": len([v for v in active_vehicles if v["location_id"] == "loc_1"]),
             "Lake Charles": len([v for v in active_vehicles if v["location_id"] == "loc_2"]),
             "Lufkin": len([v for v in active_vehicles if v["location_id"] == "loc_3"]),
             "Jasper": len([v for v in active_vehicles if v["location_id"] == "loc_4"])
-        }
+        },
+        "vehicle_utilization_details": vehicle_utilization_details
+    }
+
+@app.get("/api/analytics/customer-heatmap")
+async def get_customer_heatmap(
+    period: str = "weekly",
+    location_ids: str = "",
+    current_user: UserInDB = Depends(get_current_user)
+):
+    return {
+        "heatmap_data": [],
+        "period": period,
+        "location_ids": location_ids.split(",") if location_ids else []
     }
 
 @app.get("/api/analytics/customer-heatmap")
@@ -3082,15 +3142,15 @@ async def get_customer_heatmap(
     current_user: UserInDB = Depends(get_current_user)
 ):
     location_list = location_ids.split(",") if location_ids else []
-    
+
     all_customers = list(customers_db.values())
     if location_list:
         all_customers = [c for c in all_customers if c["location_id"] in location_list]
-    
+
     heatmap_data = []
     for customer in all_customers:
         customer_orders = [o for o in orders_db.values() if o.get("customer_id") == customer["id"]]
-        
+
         heatmap_data.append({
             "customer_name": customer["name"],
             "address": customer["address"],
@@ -3100,7 +3160,7 @@ async def get_customer_heatmap(
             "total_revenue": sum(o.get("total_amount", 0) for o in customer_orders),
             "location_id": customer["location_id"]
         })
-    
+
     return {
         "heatmap_data": heatmap_data,
         "period": period,
@@ -3348,19 +3408,19 @@ async def import_excel_data(
 
         excel_files = [f for f in temp_files if f.endswith(('.xlsx', '.xls', '.xlsm'))]
         pdf_files = [f for f in temp_files if f.endswith('.pdf')]
-        
+
         all_customers = []
         all_orders = []
         all_expenses = []
         combined_metrics = {"total_revenue": 0.0, "total_expenses": 0.0}
-        
+
         if excel_files:
             excel_result = process_excel_files(excel_files, location_id, location_name)
             all_customers.extend(excel_result["customers"])
             all_orders.extend(excel_result["orders"])
             if "financial_metrics" in excel_result:
                 combined_metrics["total_revenue"] += excel_result["financial_metrics"].get("total_revenue", 0.0)
-        
+
         if pdf_files:
             pdf_result = process_pdf_files(pdf_files, location_id, location_name)
             all_customers.extend(pdf_result["customers"])
@@ -3369,13 +3429,13 @@ async def import_excel_data(
             if "financial_metrics" in pdf_result:
                 combined_metrics["total_revenue"] += pdf_result["financial_metrics"].get("total_revenue", 0.0)
                 combined_metrics["total_expenses"] += pdf_result["financial_metrics"].get("total_expenses", 0.0)
-        
+
         for customer in all_customers:
             customers_db[customer["id"]] = customer
-        
+
         for order in all_orders:
             orders_db[order["id"]] = order
-            
+
         for expense in all_expenses:
             expenses_db[expense["id"]] = expense
 
@@ -4000,28 +4060,28 @@ async def upload_financial_document(
 ):
     if current_user.role != UserRole.MANAGER and location_id != current_user.location_id:
         raise HTTPException(status_code=403, detail="Cannot upload document for different location")
-    
+
     if file.size and file.size > 10 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="File too large")
-    
+
     doc_dir = DATA_DIR / "documents" / document_type.value
     doc_dir.mkdir(parents=True, exist_ok=True)
-    
+
     file_id = str(uuid.uuid4())
     file_extension = file.filename.split('.')[-1] if file.filename and '.' in file.filename else ''
     file_path = doc_dir / f"{file_id}.{file_extension}"
-    
+
     content = await file.read()
     with open(file_path, "wb") as buffer:
         buffer.write(content)
-    
+
     extracted_amount = amount
     extracted_date = datetime.strptime(date, "%Y-%m-%d") if date else None
-    
+
     if file.content_type == "application/pdf" and (not amount or not date):
         try:
             from .pdf_import import extract_text_from_pdf, parse_invoice_pdf, parse_expense_pdf
-            
+
             text = extract_text_from_pdf(str(file_path))
             if text.strip():
                 if document_type == DocumentType.EXPENSE:
@@ -4039,7 +4099,7 @@ async def upload_financial_document(
                         extracted_date = datetime.fromisoformat(result["invoice_date"].replace('Z', '+00:00'))
         except Exception as e:
             logger.warning(f"Failed to extract PDF content for document {file_id}: {e}")
-    
+
     document = FinancialDocument(
         id=file_id,
         document_type=document_type,
@@ -4056,10 +4116,10 @@ async def upload_financial_document(
         amount=extracted_amount,
         date=extracted_date
     )
-    
+
     financial_documents_db[file_id] = document.dict()
     save_data_to_disk()
-    
+
     return document
 
 @app.get("/api/financial-documents")
@@ -4069,35 +4129,35 @@ async def get_financial_documents(
     current_user: UserInDB = Depends(get_current_user)
 ):
     documents = list(financial_documents_db.values())
-    
+
     if document_type:
         documents = [d for d in documents if d["document_type"] == document_type]
-    
+
     if location_id:
         documents = [d for d in documents if d["location_id"] == location_id]
-    
+
     documents = filter_by_location(documents, current_user)
-    
+
     for doc in documents:
         if isinstance(doc["uploaded_at"], str):
             try:
                 doc["uploaded_at"] = datetime.fromisoformat(doc["uploaded_at"].replace('Z', '+00:00'))
             except ValueError:
                 doc["uploaded_at"] = datetime.now()
-    
+
     return sorted(documents, key=lambda x: x["uploaded_at"], reverse=True)
 
 @app.get("/api/financial-documents/{document_id}/download")
 async def download_financial_document(document_id: str, current_user: UserInDB = Depends(get_current_user)):
     if document_id not in financial_documents_db:
         raise HTTPException(status_code=404, detail="Document not found")
-    
+
     document = financial_documents_db[document_id]
     file_path = Path(document["file_path"])
-    
+
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
-    
+
     return FileResponse(
         path=file_path,
         filename=document["file_name"],
@@ -4110,7 +4170,7 @@ async def save_receipt_document(
     current_user: UserInDB = Depends(get_current_user)
 ):
     file_id = str(uuid.uuid4())
-    
+
     document = FinancialDocument(
         id=file_id,
         document_type=DocumentType.RECEIPT,
@@ -4127,10 +4187,10 @@ async def save_receipt_document(
         amount=receipt_data.get("amount"),
         date=datetime.strptime(receipt_data.get("date"), "%Y-%m-%d") if receipt_data.get("date") and isinstance(receipt_data.get("date"), str) else None
     )
-    
+
     financial_documents_db[file_id] = document.dict()
     save_data_to_disk()
-    
+
     return document
 
 @app.get("/api/financial/profit-analysis")
@@ -4202,6 +4262,36 @@ async def get_routes(location_id: Optional[str] = None, current_user: UserInDB =
         routes = [r for r in routes if r["location_id"] == location_id]
     return filter_by_location(routes, current_user)
 
+def select_optimal_vehicle(available_vehicles: List[dict], orders: List[dict], location_id: str) -> List[dict]:
+    """Select vehicles optimally based on capacity, load balancing, and efficiency"""
+
+    total_demand = sum(max(1, order.get("quantity", 1) // 50) for order in orders)
+
+    vehicle_scores = []
+    for vehicle in available_vehicles:
+        capacity = vehicle.get("capacity_pallets", 20)
+
+        utilization_score = min(100, (total_demand / capacity) * 100) if capacity > 0 else 0
+
+        size_appropriateness = 100 - abs(capacity - total_demand) * 5
+        size_appropriateness = max(0, size_appropriateness)
+
+        location_bonus = 20 if vehicle.get("location_id") == location_id else 0
+
+        load_balance_bonus = 10
+
+        total_score = utilization_score * 0.4 + size_appropriateness * 0.3 + location_bonus + load_balance_bonus
+
+        vehicle_scores.append({
+            "vehicle": vehicle,
+            "score": total_score,
+            "utilization_score": utilization_score,
+            "capacity": capacity
+        })
+
+    vehicle_scores.sort(key=lambda x: x["score"], reverse=True)
+    return [vs["vehicle"] for vs in vehicle_scores]
+
 @app.post("/api/routes/optimize")
 async def optimize_routes(location_id: str, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role not in [UserRole.MANAGER, UserRole.DISPATCHER]:
@@ -4229,15 +4319,19 @@ async def optimize_routes(location_id: str, current_user: UserInDB = Depends(get
     if not available_vehicles:
         raise HTTPException(status_code=400, detail="No available vehicles for route optimization")
 
+    optimized_vehicles = select_optimal_vehicle(available_vehicles, location_orders, location_id)
+
     location = locations_db.get(location_id)
     location_name = location.get('name', 'Unknown') if location else 'Unknown'
-    
+
     depot_mapping = {
         "Leesville HQ": "1707 Smart Street, Leesville, LA 71446",
-        "Lake Charles": "220 Bunker Road, Lake Charles, LA 70615", 
+        "Lake Charles": "220 Bunker Road, Lake Charles, LA 70615",
         "Lufkin": "1107 Weiner St, Lufkin, TX 75904",
         "Jasper": "123 Main St, Jasper, TX 75951"
     }
+
+    remaining_orders = location_orders.copy()
     
     depot_address = depot_mapping.get(location_name, location["address"] if location else "123 Ice Plant Rd, Leesville, LA")
 
@@ -4247,7 +4341,7 @@ async def optimize_routes(location_id: str, current_user: UserInDB = Depends(get
             max_stops=25,
             truck_allocations={"Leesville": 3, "Lake Charles": 2, "Lufkin": 2, "Jasper": 1}
         )
-        
+
         optimization_customers = []
         for i, customer in enumerate(location_customers):
             opt_customer = RouteOptimizationCustomer(
@@ -4263,30 +4357,30 @@ async def optimize_routes(location_id: str, current_user: UserInDB = Depends(get
                 weekly_visit_required=True
             )
             optimization_customers.append(opt_customer)
-        
+
         depot_addresses = [depot_address]
         num_vehicles = len(available_vehicles)
-        
+
         optimized_routes_data = await optimizer.optimize_routes(
-            optimization_customers, 
-            depot_addresses, 
+            optimization_customers,
+            depot_addresses,
             num_vehicles
         )
-        
+
         optimized_routes = []
         remaining_orders = location_orders.copy()
-        
+
         for i, route_data in enumerate(optimized_routes_data):
             if i < len(available_vehicles):
                 vehicle = available_vehicles[i]
-                
+
                 route_stops = []
                 for point in route_data.route_points:
-                    matching_orders = [o for o in remaining_orders 
-                                     if any(c.get("id") == o.get("customer_id") and 
-                                           c.get("name") == point.customer_name 
+                    matching_orders = [o for o in remaining_orders
+                                     if any(c.get("id") == o.get("customer_id") and
+                                           c.get("name") == point.customer_name
                                            for c in location_customers)]
-                    
+
                     if matching_orders:
                         order = matching_orders[0]
                         route_stops.append({
@@ -4301,7 +4395,7 @@ async def optimize_routes(location_id: str, current_user: UserInDB = Depends(get
                             "coordinates": {"lat": point.latitude, "lng": point.longitude},
                             "optimization_method": "Advanced OR-Tools"
                         })
-                
+
                 if route_stops:
                     route_id = str(uuid.uuid4())
                     route = {
@@ -4332,16 +4426,16 @@ async def optimize_routes(location_id: str, current_user: UserInDB = Depends(get
                         if order_id in orders_db:
                             orders_db[order_id]["status"] = "assigned"
                             orders_db[order_id]["route_id"] = route_id
-        
+
         if optimized_routes:
             save_data_to_disk()
             return {"message": f"Generated {len(optimized_routes)} optimized routes using Advanced OR-Tools", "routes": optimized_routes}
         else:
             raise Exception("Advanced OR-Tools optimization produced no valid routes")
-            
+
     except Exception as e:
         logging.warning(f"Advanced OR-Tools optimization failed: {e}, falling back to original algorithm")
-        
+
         optimized_routes = []
         remaining_orders = location_orders.copy()
 
@@ -4440,38 +4534,38 @@ async def optimize_weekly_routes(location_id: str, current_user: UserInDB = Depe
     """
     if current_user.role not in [UserRole.MANAGER, UserRole.DISPATCHER]:
         raise HTTPException(status_code=403, detail="Only managers and dispatchers can optimize weekly routes")
-    
+
     try:
         if imported_customers and len(imported_customers) > 0:
             customers = imported_customers
         else:
             customers = list(customers_db.values())
         location_customers = [c for c in customers if c["location_id"] == location_id]
-        
+
         vehicles = list(vehicles_db.values())
         available_vehicles = [v for v in vehicles if v["location_id"] == location_id and v["is_active"]]
-        
+
         if not location_customers or not available_vehicles:
             raise HTTPException(status_code=404, detail="No customers or vehicles found for this location")
-        
+
         location = locations_db.get(location_id)
         location_name = location.get('name', 'Unknown') if location else 'Unknown'
-        
+
         depot_mapping = {
             "Leesville HQ": "1707 Smart Street, Leesville, LA 71446",
-            "Lake Charles": "220 Bunker Road, Lake Charles, LA 70615", 
+            "Lake Charles": "220 Bunker Road, Lake Charles, LA 70615",
             "Lufkin": "1107 Weiner St, Lufkin, TX 75904",
             "Jasper": "123 Main St, Jasper, TX 75951"
         }
-        
+
         depot_address = depot_mapping.get(location_name, location["address"] if location else "123 Ice Plant Rd, Leesville, LA")
-        
+
         optimizer = RouteOptimizer(
             depot_radius=75,
             max_stops=25,
             truck_allocations={"Leesville": 3, "Lake Charles": 2, "Lufkin": 2, "Jasper": 1}
         )
-        
+
         optimization_customers = []
         for i, customer in enumerate(location_customers):
             opt_customer = RouteOptimizationCustomer(
@@ -4488,18 +4582,18 @@ async def optimize_weekly_routes(location_id: str, current_user: UserInDB = Depe
                 last_visit_date=None
             )
             optimization_customers.append(opt_customer)
-        
+
         unvisited_customers = optimizer.filter_unvisited_customers(optimization_customers)
-        
+
         depot_addresses = [depot_address]
         num_vehicles = len(available_vehicles)
-        
+
         weekly_routes = await optimizer.optimize_routes(
-            unvisited_customers, 
-            depot_addresses, 
+            unvisited_customers,
+            depot_addresses,
             num_vehicles
         )
-        
+
         return {
             "message": f"Successfully optimized weekly routes for {len(weekly_routes)} vehicles",
             "routes": [
@@ -4523,7 +4617,7 @@ async def optimize_weekly_routes(location_id: str, current_user: UserInDB = Depe
             "customers_scheduled": len(unvisited_customers),
             "optimization_method": "Weekly OR-Tools with priority scheduling"
         }
-        
+
     except Exception as e:
         logging.error(f"Weekly route optimization error: {e}")
         raise HTTPException(status_code=500, detail=f"Weekly route optimization failed: {str(e)}")
@@ -4534,17 +4628,17 @@ async def get_depot_info(current_user: UserInDB = Depends(get_current_user)):
     Get information about all depot locations and their constraints.
     """
     depot_info = []
-    
+
     depot_mapping = {
         "Leesville": {"address": "1707 Smart Street, Leesville, LA 71446", "lat": 31.1435, "lng": -93.2607},
         "Lake Charles": {"address": "220 Bunker Road, Lake Charles, LA 70615", "lat": 30.2266, "lng": -93.2174},
         "Lufkin": {"address": "1107 Weiner St, Lufkin, TX 75904", "lat": 31.3382, "lng": -94.7291},
         "Jasper": {"address": "123 Main St, Jasper, TX 75951", "lat": 30.9204, "lng": -94.0154}
     }
-    
+
     for depot_name, depot_data in depot_mapping.items():
         constraints = DEPOT_CONSTRAINTS.get(depot_name, {})
-        
+
         depot_info.append({
             "name": depot_name,
             "address": depot_data["address"],
@@ -4557,11 +4651,54 @@ async def get_depot_info(current_user: UserInDB = Depends(get_current_user)):
                 "weekly_capacity": constraints.get("weekly_capacity", 150)
             }
         })
-    
+
     return {
         "depots": depot_info,
         "total_depots": len(depot_info)
     }
+
+@app.get("/api/analytics/vehicle-allocation")
+async def get_vehicle_allocation_analytics(
+    period: str = "daily",
+    location_id: Optional[str] = None,
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """Get detailed vehicle allocation and utilization analytics"""
+
+    vehicles = list(vehicles_db.values())
+    filtered_vehicles = filter_by_location(vehicles, current_user)
+
+    if location_id:
+        filtered_vehicles = [v for v in filtered_vehicles if v["location_id"] == location_id]
+
+    routes = list(routes_db.values())
+
+    allocation_metrics = {
+        "total_vehicles": len(filtered_vehicles),
+        "allocation_efficiency": 0.0,
+        "underutilized_vehicles": [],
+        "overutilized_vehicles": [],
+        "optimal_fleet_size": 0,
+        "recommendations": []
+    }
+
+    for vehicle in filtered_vehicles:
+        vehicle_routes = [r for r in routes if r.get("vehicle_id") == vehicle["id"]]
+
+        if len(vehicle_routes) == 0:
+            allocation_metrics["underutilized_vehicles"].append({
+                "vehicle_id": vehicle["id"],
+                "license_plate": vehicle["license_plate"],
+                "reason": "No routes assigned"
+            })
+
+    allocation_metrics["allocation_efficiency"] = max(0, 100 - len(allocation_metrics["underutilized_vehicles"]) * 10)
+    allocation_metrics["optimal_fleet_size"] = max(1, len(filtered_vehicles) - len(allocation_metrics["underutilized_vehicles"]))
+
+    if allocation_metrics["underutilized_vehicles"]:
+        allocation_metrics["recommendations"].append("Consider redistributing underutilized vehicles to busier locations")
+
+    return allocation_metrics
 
 @app.get("/api/routes/{route_id}")
 async def get_route(route_id: str, current_user: UserInDB = Depends(get_current_user)):

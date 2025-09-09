@@ -25,11 +25,10 @@ jobs:
         env:
           VITE_API_URL: https://api.yourchoiceice.com
           VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY || '' }}
-          NODE_ENV: production
         run: |
           cd frontend
-          pnpm install
-          pnpm build
+          pnpm install --frozen-lockfile --prod=false
+          NODE_ENV=production pnpm build
           
       - name: Fix API URL configuration in build
         env:

@@ -89,56 +89,68 @@ def extract_customers_from_excel(df: pd.DataFrame, location_id: str = "loc_3", l
             "area_code": "337",
             "state": "Louisiana",
             "zip_base": 71446,
-            "city": "Leesville"
+            "city": "Leesville",
+            "keywords": ["leesville"]
         },
         "loc_2": {  # Lake Charles Distribution
             "area_code": "337",
             "state": "Louisiana",
             "zip_base": 70601,
-            "city": "Lake Charles"
+            "city": "Lake Charles",
+            "keywords": ["lake charles", "lakecharles"]
         },
         "loc_3": {  # Lufkin Distribution
             "area_code": "936",
             "state": "Texas",
             "zip_base": 75901,
-            "city": "Lufkin"
+            "city": "Lufkin",
+            "keywords": ["lufkin"]
         },
         "loc_4": {  # Jasper Warehouse
             "area_code": "903",
             "state": "Texas",
             "zip_base": 75951,
-            "city": "Jasper"
+            "city": "Jasper",
+            "keywords": ["jasper"]
         }
     }
 
-    config = location_config.get(location_id, location_config["loc_3"])
-    area_code = config["area_code"]
-    state = config["state"]
-    zip_base = config["zip_base"]
-    city = config["city"]
+    def detect_location_from_name(customer_name: str) -> str:
+        """Detect location based on customer name keywords"""
+        name_lower = customer_name.lower()
+        for loc_id, config in location_config.items():
+            for keyword in config["keywords"]:
+                if keyword in name_lower:
+                    return loc_id
+        return location_id
 
     for i, customer_name in enumerate(unique_customers):
         if pd.isna(customer_name) or customer_name == 'nan':
             continue
 
+        detected_location_id = detect_location_from_name(customer_name)
+        config = location_config.get(detected_location_id, location_config["loc_3"])
+        
         customer_data = df[df['Name'] == customer_name]
         total_orders = len(customer_data)
         total_spent = customer_data['Amount'].sum()
         last_order = customer_data['Date'].max()
 
         customers.append({
-            "id": f"{city.lower()}_customer_{i+1}",
+            "id": f"{config['city'].lower()}_customer_{i+1}",
             "name": customer_name,
+            "contact_person": "",
+            "phone": f"({config['area_code']}) 555-{1000 + i:04d}",
             "email": f"{customer_name.lower().replace(' ', '').replace('#', '').replace('-', '').replace('.', '').replace(',', '')}@email.com",
-            "phone": f"({area_code}) 555-{1000 + i:04d}",
-            "address": f"{100 + i} Customer St, {city}, {state} {zip_base + (i % 100)}",
-            "location_id": location_id,
+            "address": f"{100 + i} Customer St",
+            "city": config['city'],
+            "state": config['state'],
+            "zip_code": str(config['zip_base'] + (i % 100)),
+            "location_id": detected_location_id,
             "credit_limit": 5000.0,
-            "current_balance": 0.0,
-            "total_orders": int(total_orders),
-            "total_spent": float(total_spent),
-            "last_order_date": last_order.isoformat() if pd.notna(last_order) else None,
-            "status": "active"
+            "payment_terms": 30,
+            "is_active": True,
+            "coordinates": None
         })
 
     return customers
@@ -147,9 +159,28 @@ def extract_orders_from_excel(df: pd.DataFrame, location_id: str = "loc_3", loca
     """Extract orders from Excel data"""
     orders = []
 
+    location_config = {
+        "loc_1": {"keywords": ["leesville"], "city": "leesville"},
+        "loc_2": {"keywords": ["lake charles", "lakecharles"], "city": "lakecharles"},
+        "loc_3": {"keywords": ["lufkin"], "city": "lufkin"},
+        "loc_4": {"keywords": ["jasper"], "city": "jasper"}
+    }
+
+    def detect_location_from_name(customer_name: str) -> str:
+        """Detect location based on customer name keywords"""
+        name_lower = customer_name.lower()
+        for loc_id, config in location_config.items():
+            for keyword in config["keywords"]:
+                if keyword in name_lower:
+                    return loc_id
+        return location_id
+
     for i, row in df.iterrows():
         if pd.isna(row['Name']) or pd.isna(row['Date']) or row['Amount'] <= 0:
             continue
+
+        detected_location_id = detect_location_from_name(row['Name'])
+        city_name = location_config.get(detected_location_id, {"city": "lufkin"})["city"]
 
         item_desc = str(row['Item']).lower()
         qty = row['Qty']
@@ -161,14 +192,6 @@ def extract_orders_from_excel(df: pd.DataFrame, location_id: str = "loc_3", loca
             product_type = "20lb_bag"
         else:  # Default to 8lb bags
             product_type = "8lb_bag"
-
-        location_cities = {
-            "loc_1": "leesville",
-            "loc_2": "lakecharles",
-            "loc_3": "lufkin",
-            "loc_4": "jasper"
-        }
-        city_name = location_cities.get(location_id, "lufkin")
 
         orders.append({
             "id": f"{city_name}_order_{i+1}",
@@ -182,7 +205,7 @@ def extract_orders_from_excel(df: pd.DataFrame, location_id: str = "loc_3", loca
             "total_amount": float(row['Amount']),
             "status": "completed",
             "payment_method": "cash",
-            "location_id": location_id
+            "location_id": detected_location_id
         })
 
     return orders
@@ -393,6 +416,141 @@ def process_customer_excel_files(file_paths: List[str], location_id: str = "loc_
         "customers": deduplicated_customers,
         "total_records": len(deduplicated_customers),
         "duplicates_removed": len(all_customers) - len(deduplicated_customers)
+    }
+
+def extract_customers_from_order_sheet(df: pd.DataFrame, location_id: str, location_name: str) -> List[Dict[str, Any]]:
+    """Extract customers from order sheet format"""
+    customers = []
+    unique_customers = {}
+    
+    location_config = {
+        "loc_1": {"area_code": "337", "state": "Louisiana", "zip_code": "71446", "city": "Leesville"},
+        "loc_2": {"area_code": "337", "state": "Louisiana", "zip_code": "70601", "city": "Lake Charles"},
+        "loc_3": {"area_code": "936", "state": "Texas", "zip_code": "75901", "city": "Lufkin"},
+        "loc_4": {"area_code": "903", "state": "Texas", "zip_code": "75951", "city": "Jasper"}
+    }
+    
+    config = location_config.get(location_id, location_config["loc_3"])
+    
+    for i, row in df.iterrows():
+        if pd.isna(row.get('Customer Name')):
+            continue
+            
+        customer_name = str(row['Customer Name']).strip()
+        if customer_name.lower() in unique_customers:
+            continue
+            
+        phone = str(row.get('Phone', '')).strip() if pd.notna(row.get('Phone')) else f"({config['area_code']}) 555-{1000 + i:04d}"
+        address = str(row.get('Address', '')).strip() if pd.notna(row.get('Address')) else f"{100 + i} Customer St"
+        city = str(row.get('City', config['city'])).strip() if pd.notna(row.get('City')) else config['city']
+        
+        customer = {
+            "id": f"imported_customer_{len(customers) + 1}",
+            "name": customer_name,
+            "contact_person": "",
+            "phone": phone,
+            "email": f"{re.sub(r'[^a-zA-Z0-9]', '', customer_name.lower())}@email.com",
+            "address": address,
+            "city": city,
+            "state": config['state'],
+            "zip_code": config['zip_code'],
+            "location_id": location_id,
+            "credit_limit": 5000.0,
+            "current_balance": 0.0,
+            "payment_terms": "Net 30",
+            "status": "active"
+        }
+        customers.append(customer)
+        unique_customers[customer_name.lower()] = True
+        
+    return customers
+
+def extract_orders_from_order_sheet(df: pd.DataFrame, location_id: str, location_name: str) -> List[Dict[str, Any]]:
+    """Extract orders from order sheet format"""
+    orders = []
+    
+    for i, row in df.iterrows():
+        if pd.isna(row.get('Customer Name')) or pd.isna(row.get('Order #')):
+            continue
+            
+        quantity = int(row.get('Quantity', 1)) if pd.notna(row.get('Quantity')) else 1
+        unit_price = float(row.get('Unit Price', 1.25)) if pd.notna(row.get('Unit Price')) else 1.25
+        total_price = float(row.get('Total Price', unit_price * quantity)) if pd.notna(row.get('Total Price')) else unit_price * quantity
+        
+        order = {
+            "id": f"imported_order_{row.get('Order #', i)}",
+            "customer_id": f"imported_customer_{i + 1}",
+            "customer_name": str(row['Customer Name']).strip(),
+            "location_id": location_id,
+            "date": datetime.now().strftime('%Y-%m-%d'),
+            "status": "pending",
+            "items": [{
+                "product_id": "ice_8lb",
+                "product_name": str(row.get('Item', '8lb Ice Bag')),
+                "quantity": quantity,
+                "unit_price": unit_price,
+                "total_price": total_price
+            }],
+            "total_amount": total_price,
+            "notes": str(row.get('Order Notes', '')).strip() if pd.notna(row.get('Order Notes')) else ""
+        }
+        orders.append(order)
+        
+    return orders
+
+def process_order_sheet_files(file_paths: List[str], location_id: str = "loc_3", location_name: str = "Lufkin") -> Dict[str, Any]:
+    """Process order sheet Excel files and return customer and order data"""
+    all_customers = []
+    all_orders = []
+    
+    for file_path in file_paths:
+        try:
+            logger.info(f"Processing order sheet file: {file_path}")
+            xl_file = pd.ExcelFile(file_path)
+            logger.info(f"Available sheets: {xl_file.sheet_names}")
+            
+            for sheet_name in xl_file.sheet_names:
+                try:
+                    df = pd.read_excel(file_path, sheet_name=sheet_name)
+                    
+                    if df.empty:
+                        continue
+                    
+                    if 'Customer Name' in df.columns and 'Address' in df.columns:
+                        customers = extract_customers_from_order_sheet(df, location_id, location_name)
+                        orders = extract_orders_from_order_sheet(df, location_id, location_name)
+                        all_customers.extend(customers)
+                        all_orders.extend(orders)
+                        logger.info(f"Processed {len(customers)} customers and {len(orders)} orders from {sheet_name}")
+                        break
+                        
+                except Exception as e:
+                    logger.warning(f"Failed to process sheet {sheet_name}: {e}")
+                    continue
+                    
+        except Exception as e:
+            logger.error(f"Error processing {file_path}: {e}")
+            continue
+    
+    if not all_customers and not all_orders:
+        raise ValueError("No valid order sheet data found in any Excel files. Please ensure files contain:\n1. 'Customer Name' column with customer names\n2. 'Address' column with customer addresses\n3. Optional columns: 'Order #', 'Item', 'Quantity', 'Unit Price', 'Total Price', 'Phone', 'City', 'Order Notes'\n4. Check that your Excel files are not corrupted")
+    
+    unique_customers = {}
+    for customer in all_customers:
+        key = customer["name"].lower().strip()
+        if key not in unique_customers:
+            unique_customers[key] = customer
+        else:
+            logger.info(f"Skipping duplicate customer: {customer['name']}")
+    
+    deduplicated_customers = list(unique_customers.values())
+    
+    return {
+        "customers": deduplicated_customers,
+        "orders": all_orders,
+        "total_records": len(deduplicated_customers) + len(all_orders),
+        "customers_imported": len(deduplicated_customers),
+        "orders_imported": len(all_orders)
     }
 
 def process_route_excel_files(files: List[UploadFile], location_id: str) -> dict:

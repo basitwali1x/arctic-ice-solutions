@@ -31,9 +31,9 @@ Both Arctic Ice Solutions iOS apps are **technically complete** and ready for Ap
 
 ## Next Steps: macOS with Xcode Required
 
-### Prerequisites ✅
+### Prerequisites
 1. **Apple Developer Account**: Active membership ($99/year)
-2. **macOS Environment**: MacInCloud server LA684.macincloud.com (user283770)
+2. **macOS Environment**: Mac computer with Xcode installed
 3. **App Store Connect Access**: Login credentials for app submission
 
 ### Deployment Process (macOS Only)

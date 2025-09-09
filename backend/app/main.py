@@ -3129,18 +3129,6 @@ async def get_customer_heatmap(
     location_ids: str = "",
     current_user: UserInDB = Depends(get_current_user)
 ):
-    return {
-        "heatmap_data": [],
-        "period": period,
-        "location_ids": location_ids.split(",") if location_ids else []
-    }
-
-@app.get("/api/analytics/customer-heatmap")
-async def get_customer_heatmap(
-    period: str = "weekly",
-    location_ids: str = "",
-    current_user: UserInDB = Depends(get_current_user)
-):
     location_list = location_ids.split(",") if location_ids else []
 
     all_customers = list(customers_db.values())

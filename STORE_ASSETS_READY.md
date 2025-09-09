@@ -85,6 +85,11 @@ All screenshots saved to `/home/ubuntu/screenshots/` and ready for upload:
 - **Staff App**: `store-assets/staff/feature-graphics/staff-feature-graphic.html`
 - **Status**: Ready for PNG conversion on macOS during App Store submission
 
+### Files Created ✅
+- **Customer App**: `store-assets/customer/feature-graphics/customer-feature-graphic.html`
+- **Staff App**: `store-assets/staff/feature-graphics/staff-feature-graphic.html`
+- **Status**: Ready for PNG conversion on macOS during App Store submission
+
 ## Privacy Policy ✅
 - **URL**: https://arcticicesolutions.com/privacy-policy
 - **Status**: Accessible and compliant

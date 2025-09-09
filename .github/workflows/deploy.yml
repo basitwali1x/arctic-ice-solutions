@@ -47,3 +47,4 @@ jobs:
           echo "Note: Actual deployment to Devin Apps Platform requires manual deploy_frontend command"
           echo "GitHub Actions cannot directly deploy to Devin Apps Platform"
           echo "Build artifacts are ready for deployment"
+# Force PR checks refresh

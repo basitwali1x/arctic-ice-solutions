@@ -1,8 +1,8 @@
-from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form, status, Query
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form, status, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 from datetime import datetime, date, timedelta
@@ -15,6 +15,11 @@ import logging
 import json
 import math
 from pathlib import Path
+from time import time
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 from .google_maps_service import GoogleMapsService
 from dotenv import load_dotenv
 from .excel_import import process_excel_files, process_customer_excel_files, process_route_excel_files
@@ -39,6 +44,22 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Arctic Ice Solutions API", version="1.0.0")
 
+limiter = Limiter(key_func=get_remote_address, default_limits=["60/second", "1000/minute"])
+app.state.limiter = limiter
+app.add_middleware(SlowAPIMiddleware)
+
+DASHBOARD_CACHE_TTL = int(os.getenv("DASHBOARD_CACHE_TTL", "30"))
+_dashboard_cache: Dict[str, Dict[str, Any]] = {}
+
+def _get_cached(key: str):
+    entry = _dashboard_cache.get(key)
+    if entry and (time() - entry["ts"] < DASHBOARD_CACHE_TTL):
+        return entry["data"]
+    return None
+
+def _set_cached(key: str, data: Any):
+    _dashboard_cache[key] = {"ts": time(), "data": data}
+
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-for-local-development-only")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 1440
@@ -49,10 +70,17 @@ security = HTTPBearer()
 try:
     from .weather_service import router as weather_router
     from .monitoring_service import router as monitoring_router
-    app.include_router(weather_router, prefix="/weather", tags=["weather"])
-    app.include_router(monitoring_router, prefix="/monitoring", tags=["monitoring"])
+    app.include_router(weather_router, prefix="/api/v1/weather", tags=["weather"])
+    app.include_router(monitoring_router, prefix="/api/v1/monitoring", tags=["monitoring"])
 except ImportError as e:
     print(f"Weather and monitoring services not available: {e}")
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request, exc: RateLimitExceeded):
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "Rate limit exceeded. Please try again shortly."},
+    )
 
 # Disable CORS. Do not remove this for full-stack development.
 app.add_middleware(
@@ -2360,7 +2388,7 @@ training_modules_db = {
     }
 }
 
-@app.post("/api/auth/login", response_model=Token)
+@app.post("/api/v1/auth/login", response_model=Token)
 async def login(login_request: LoginRequest):
     print(f"DEBUG: Login attempt for username: {login_request.username}")
 
@@ -2389,11 +2417,11 @@ async def login(login_request: LoginRequest):
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
-@app.post("/api/auth/logout")
+@app.post("/api/v1/auth/logout")
 async def logout(current_user: UserInDB = Depends(get_current_user)):
     return {"message": "Successfully logged out"}
 
-@app.get("/api/auth/me", response_model=User)
+@app.get("/api/v1/auth/me", response_model=User)
 async def get_current_user_info(current_user: UserInDB = Depends(get_current_user)):
     return User(**current_user.dict())
 
@@ -2401,7 +2429,11 @@ async def get_current_user_info(current_user: UserInDB = Depends(get_current_use
 async def healthz():
     return {"status": "ok"}
 
-@app.get("/api/users")
+@app.get("/api/v1/healthz")
+async def healthz_v1():
+    return {"status": "ok"}
+
+@app.get("/api/v1/users")
 async def get_users(role: Optional[str] = None, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role != UserRole.MANAGER:
         raise HTTPException(status_code=403, detail="Only managers can access user management")
@@ -2412,7 +2444,7 @@ async def get_users(role: Optional[str] = None, current_user: UserInDB = Depends
 
     return [User(**{k: v for k, v in user.items() if k != "hashed_password"}) for user in users]
 
-@app.post("/api/users", response_model=User)
+@app.post("/api/v1/users", response_model=User)
 async def create_user(user_data: dict, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role != UserRole.MANAGER:
         raise HTTPException(status_code=403, detail="Only managers can create users")
@@ -2435,7 +2467,7 @@ async def create_user(user_data: dict, current_user: UserInDB = Depends(get_curr
     users_db[user_id] = new_user
     return User(**{k: v for k, v in new_user.items() if k != "hashed_password"})
 
-@app.put("/api/users/{user_id}", response_model=User)
+@app.put("/api/v1/users/{user_id}", response_model=User)
 async def update_user(user_id: str, user_data: dict, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role != UserRole.MANAGER:
         raise HTTPException(status_code=403, detail="Only managers can update users")
@@ -2458,7 +2490,7 @@ async def update_user(user_id: str, user_data: dict, current_user: UserInDB = De
     users_db[user_id] = user
     return User(**{k: v for k, v in user.items() if k != "hashed_password"})
 
-@app.delete("/api/users/{user_id}")
+@app.delete("/api/v1/users/{user_id}")
 async def delete_user(user_id: str, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role != UserRole.MANAGER:
         raise HTTPException(status_code=403, detail="Only managers can delete users")
@@ -2472,14 +2504,14 @@ async def delete_user(user_id: str, current_user: UserInDB = Depends(get_current
     del users_db[user_id]
     return {"message": "User deleted successfully"}
 
-@app.get("/api/locations", response_model=List[Location])
+@app.get("/api/v1/locations", response_model=List[Location])
 async def get_locations(current_user: UserInDB = Depends(get_current_user)):
     locations = list(locations_db.values())
     if current_user.role == UserRole.MANAGER:
         return locations
     return [loc for loc in locations if loc["id"] == current_user.location_id]
 
-@app.get("/api/locations/{location_id}", response_model=Location)
+@app.get("/api/v1/locations/{location_id}", response_model=Location)
 async def get_location(location_id: str, current_user: UserInDB = Depends(get_current_user)):
     if location_id not in locations_db:
         raise HTTPException(status_code=404, detail="Location not found")
@@ -2487,7 +2519,7 @@ async def get_location(location_id: str, current_user: UserInDB = Depends(get_cu
         raise HTTPException(status_code=403, detail="Access denied to this location")
     return locations_db[location_id]
 
-@app.put("/api/locations/{location_id}", response_model=Location)
+@app.put("/api/v1/locations/{location_id}", response_model=Location)
 async def update_location(location_id: str, location_data: dict, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role != UserRole.MANAGER:
         raise HTTPException(status_code=403, detail="Only managers can update locations")
@@ -2505,24 +2537,34 @@ async def update_location(location_id: str, location_data: dict, current_user: U
     save_data_to_disk()
     return Location(**location)
 
-@app.get("/api/products", response_model=List[Product])
+@app.get("/api/v1/products", response_model=List[Product])
 async def get_products(current_user: UserInDB = Depends(get_current_user)):
     return list(products_db.values())
 
-@app.get("/api/products/{product_id}", response_model=Product)
+@app.get("/api/v1/products/{product_id}", response_model=Product)
 async def get_product(product_id: str, current_user: UserInDB = Depends(get_current_user)):
     if product_id not in products_db:
         raise HTTPException(status_code=404, detail="Product not found")
     return products_db[product_id]
 
-@app.get("/api/vehicles", response_model=List[Vehicle])
-async def get_vehicles(location_id: Optional[str] = None, current_user: UserInDB = Depends(get_current_user)):
+@app.get("/api/v1/vehicles", response_model=List[Vehicle])
+async def get_vehicles(
+    location_id: Optional[str] = None,
+    limit: int = Query(50, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
+    response: Response = None,
+    current_user: UserInDB = Depends(get_current_user)
+):
     vehicles = list(vehicles_db.values())
     if location_id:
         vehicles = [v for v in vehicles if v["location_id"] == location_id]
-    return filter_by_location(vehicles, current_user)
+    vehicles = filter_by_location(vehicles, current_user)
+    total = len(vehicles)
+    if response is not None:
+        response.headers["X-Total-Count"] = str(total)
+    return vehicles[offset: offset + limit]
 
-@app.get("/api/vehicles/{vehicle_id}", response_model=Vehicle)
+@app.get("/api/v1/vehicles/{vehicle_id}", response_model=Vehicle)
 async def get_vehicle(vehicle_id: str, current_user: UserInDB = Depends(get_current_user)):
     if vehicle_id not in vehicles_db:
         raise HTTPException(status_code=404, detail="Vehicle not found")
@@ -2531,7 +2573,7 @@ async def get_vehicle(vehicle_id: str, current_user: UserInDB = Depends(get_curr
         raise HTTPException(status_code=403, detail="Access denied to this vehicle")
     return vehicle
 
-@app.post("/api/vehicles", response_model=Vehicle)
+@app.post("/api/v1/vehicles", response_model=Vehicle)
 async def create_vehicle(vehicle_data: VehicleCreate, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role != UserRole.MANAGER and vehicle_data.location_id != current_user.location_id:
         raise HTTPException(status_code=403, detail="Cannot create vehicle for different location")
@@ -2545,8 +2587,14 @@ async def create_vehicle(vehicle_data: VehicleCreate, current_user: UserInDB = D
     save_data_to_disk()
     return vehicle
 
-@app.get("/api/customers")
-async def get_customers(location_id: Optional[str] = None, current_user: UserInDB = Depends(get_current_user)):
+@app.get("/api/v1/customers")
+async def get_customers(
+    location_id: Optional[str] = None,
+    limit: int = Query(50, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
+    response: Response = None,
+    current_user: UserInDB = Depends(get_current_user)
+):
     if imported_customers and len(imported_customers) > 0:
         customers = imported_customers
     else:
@@ -2555,9 +2603,13 @@ async def get_customers(location_id: Optional[str] = None, current_user: UserInD
     if location_id:
         customers = [c for c in customers if c.get("location_id") == location_id]
 
-    return filter_by_location(customers, current_user)
+    customers = filter_by_location(customers, current_user)
+    total = len(customers)
+    if response is not None:
+        response.headers["X-Total-Count"] = str(total)
+    return customers[offset: offset + limit]
 
-@app.get("/api/customers/by-location")
+@app.get("/api/v1/customers/by-location")
 async def get_customers_by_location(current_user: UserInDB = Depends(get_current_user)):
     """Get customer counts by location for the location distribution chart"""
     if imported_customers and len(imported_customers) > 0:
@@ -2580,7 +2632,7 @@ async def get_customers_by_location(current_user: UserInDB = Depends(get_current
 
     return location_counts
 
-@app.post("/api/customers", response_model=Customer)
+@app.post("/api/v1/customers", response_model=Customer)
 async def create_customer(customer: Customer, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role != UserRole.MANAGER and customer.location_id != current_user.location_id:
         raise HTTPException(status_code=403, detail="Cannot create customer for different location")
@@ -2588,7 +2640,7 @@ async def create_customer(customer: Customer, current_user: UserInDB = Depends(g
     customers_db[customer.id] = customer.dict()
     return customer
 
-@app.get("/api/customers/{customer_id}/orders")
+@app.get("/api/v1/customers/{customer_id}/orders")
 async def get_customer_orders(customer_id: str, current_user: UserInDB = Depends(get_current_user)):
     sample_orders = [
         {
@@ -2662,7 +2714,7 @@ async def get_customer_orders(customer_id: str, current_user: UserInDB = Depends
     ]
     return sample_orders
 
-@app.post("/api/customers/{customer_id}/orders")
+@app.post("/api/v1/customers/{customer_id}/orders")
 async def create_customer_order(customer_id: str, order_data: dict, current_user: UserInDB = Depends(get_current_user)):
     import time
     new_order = {
@@ -2674,7 +2726,7 @@ async def create_customer_order(customer_id: str, order_data: dict, current_user
     }
     return new_order
 
-@app.get("/api/customers/{customer_id}/pricing")
+@app.get("/api/v1/customers/{customer_id}/pricing")
 async def get_customer_pricing(customer_id: str, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role != UserRole.MANAGER:
         raise HTTPException(status_code=403, detail="Only managers can access customer pricing")
@@ -2699,7 +2751,7 @@ async def get_customer_pricing(customer_id: str, current_user: UserInDB = Depend
 
     return result
 
-@app.post("/api/customers/{customer_id}/pricing")
+@app.post("/api/v1/customers/{customer_id}/pricing")
 async def set_customer_pricing(customer_id: str, pricing_data: dict, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role != UserRole.MANAGER:
         raise HTTPException(status_code=403, detail="Only managers can set customer pricing")
@@ -2744,7 +2796,7 @@ async def set_customer_pricing(customer_id: str, pricing_data: dict, current_use
     save_data_to_disk()
     return pricing_record
 
-@app.delete("/api/customers/{customer_id}")
+@app.delete("/api/v1/customers/{customer_id}")
 async def delete_customer(customer_id: str, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role != UserRole.MANAGER:
         raise HTTPException(status_code=403, detail="Only managers can delete customers")
@@ -2756,7 +2808,7 @@ async def delete_customer(customer_id: str, current_user: UserInDB = Depends(get
     save_data_to_disk()
     return {"message": "Customer deleted successfully"}
 
-@app.delete("/api/customers/{customer_id}/pricing/{product_id}")
+@app.delete("/api/v1/customers/{customer_id}/pricing/{product_id}")
 async def delete_customer_pricing(customer_id: str, product_id: str, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role != UserRole.MANAGER:
         raise HTTPException(status_code=403, detail="Only managers can delete customer pricing")
@@ -2774,7 +2826,7 @@ async def delete_customer_pricing(customer_id: str, product_id: str, current_use
     save_data_to_disk()
     return {"message": "Custom pricing deleted successfully"}
 
-@app.get("/api/customers/{customer_id}/feedback")
+@app.get("/api/v1/customers/{customer_id}/feedback")
 async def get_customer_feedback(customer_id: str, current_user: UserInDB = Depends(get_current_user)):
     sample_feedback = [
         {
@@ -2790,7 +2842,7 @@ async def get_customer_feedback(customer_id: str, current_user: UserInDB = Depen
     ]
     return sample_feedback
 
-@app.post("/api/customers/{customer_id}/feedback")
+@app.post("/api/v1/customers/{customer_id}/feedback")
 async def create_customer_feedback(customer_id: str, feedback_data: dict, current_user: UserInDB = Depends(get_current_user)):
     import time
     new_feedback = {
@@ -2802,7 +2854,7 @@ async def create_customer_feedback(customer_id: str, feedback_data: dict, curren
     }
     return new_feedback
 
-@app.get("/api/invoices")
+@app.get("/api/v1/invoices")
 async def get_invoices(customer_id: Optional[str] = None, current_user: UserInDB = Depends(get_current_user)):
     sample_invoices = [
         {
@@ -2825,7 +2877,7 @@ async def get_invoices(customer_id: Optional[str] = None, current_user: UserInDB
         return [inv for inv in sample_invoices if inv["customerId"] == customer_id]
     return sample_invoices
 
-@app.get("/api/invoices/{invoice_id}/download")
+@app.get("/api/v1/invoices/{invoice_id}/download")
 async def download_invoice_pdf(invoice_id: str, current_user: UserInDB = Depends(get_current_user)):
     from reportlab.lib.pagesizes import letter
     from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
@@ -2942,7 +2994,7 @@ async def download_invoice_pdf(invoice_id: str, current_user: UserInDB = Depends
         headers={"Content-Disposition": f"attachment; filename=invoice_{invoice_data['invoiceNumber']}.pdf"}
     )
 
-@app.post("/api/payments")
+@app.post("/api/v1/payments")
 async def process_payment(payment_data: dict, current_user: UserInDB = Depends(get_current_user)):
     import time
     new_payment = {
@@ -2953,15 +3005,22 @@ async def process_payment(payment_data: dict, current_user: UserInDB = Depends(g
     }
     return new_payment
 
-@app.get("/api/orders")
-async def get_orders(location_id: Optional[str] = None, status: Optional[str] = None, current_user: UserInDB = Depends(get_current_user)):
+@app.get("/api/v1/orders")
+async def get_orders(
+    location_id: Optional[str] = None,
+    status: Optional[str] = None,
+    limit: int = Query(50, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
+    response: Response = None,
+    current_user: UserInDB = Depends(get_current_user)
+):
     if imported_orders is not None and len(imported_orders) > 0:
         orders = imported_orders
         if location_id:
             orders = [o for o in orders if o.get("location_id") == location_id]
         if status:
             orders = [o for o in orders if o.get("status") == status]
-        return filter_by_location(orders, current_user)
+        orders = filter_by_location(orders, current_user)
     else:
         orders = list(orders_db.values())
         if location_id:
@@ -2971,9 +3030,13 @@ async def get_orders(location_id: Optional[str] = None, status: Optional[str] = 
 
         if current_user.role != UserRole.MANAGER:
             orders = [o for o in orders if customers_db.get(o["customer_id"], {}).get("location_id") == current_user.location_id]
-        return orders
+    
+    total = len(orders)
+    if response is not None:
+        response.headers["X-Total-Count"] = str(total)
+    return orders[offset: offset + limit]
 
-@app.post("/api/orders", response_model=Order)
+@app.post("/api/v1/orders", response_model=Order)
 async def create_order(order: Order, current_user: UserInDB = Depends(get_current_user)):
     customer = customers_db.get(order.customer_id)
     if not customer:
@@ -2985,8 +3048,14 @@ async def create_order(order: Order, current_user: UserInDB = Depends(get_curren
     orders_db[order.id] = order.dict()
     return order
 
-@app.get("/api/dashboard/overview")
-async def get_dashboard_overview(current_user: UserInDB = Depends(get_current_user)):
+@app.get("/api/v1/dashboard/overview")
+async def get_dashboard_overview(response: Response, current_user: UserInDB = Depends(get_current_user)):
+    cache_key = f"overview:{current_user.role}:{current_user.location_id or 'all'}"
+    cached = _get_cached(cache_key)
+    if cached is not None:
+        response.headers["Cache-Control"] = f"public, max-age={DASHBOARD_CACHE_TTL}"
+        return cached
+
     if imported_customers and len(imported_customers) > 0:
         customers = imported_customers
     else:
@@ -3007,7 +3076,7 @@ async def get_dashboard_overview(current_user: UserInDB = Depends(get_current_us
     filtered_vehicles = filter_by_location(list(vehicles_db.values()), current_user)
     filtered_routes = filter_by_location(list(routes_db.values()), current_user)
 
-    return {
+    result = {
         "total_customers": total_customers,
         "total_vehicles": len(filtered_vehicles),
         "total_orders_today": total_orders_today,
@@ -3015,12 +3084,22 @@ async def get_dashboard_overview(current_user: UserInDB = Depends(get_current_us
         "locations": len(locations_db) if current_user.role == UserRole.MANAGER else 1,
         "active_routes": len([r for r in filtered_routes if r["status"] == "active"])
     }
+    
+    _set_cached(cache_key, result)
+    response.headers["Cache-Control"] = f"public, max-age={DASHBOARD_CACHE_TTL}"
+    return result
 
-@app.get("/api/dashboard/production")
-async def get_production_dashboard(current_user: UserInDB = Depends(get_current_user)):
+@app.get("/api/v1/dashboard/production")
+async def get_production_dashboard(response: Response, current_user: UserInDB = Depends(get_current_user)):
+    cache_key = f"production:{current_user.role}:{current_user.location_id or 'all'}"
+    cached = _get_cached(cache_key)
+    if cached is not None:
+        response.headers["Cache-Control"] = f"public, max-age={DASHBOARD_CACHE_TTL}"
+        return cached
+
     filtered_production = filter_by_location(list(production_entries_db.values()), current_user)
 
-    return {
+    result = {
         "daily_production_pallets": len([p for p in filtered_production if p.get("date") == str(date.today())]) * 10,
         "target_production_pallets": 160,
         "production_efficiency": 85.5,
@@ -3032,9 +3111,13 @@ async def get_production_dashboard(current_user: UserInDB = Depends(get_current_
             "block_ice": 150
         }
     }
+    
+    _set_cached(cache_key, result)
+    response.headers["Cache-Control"] = f"public, max-age={DASHBOARD_CACHE_TTL}"
+    return result
 
-@app.get("/api/dashboard/fleet")
-async def get_fleet_dashboard(current_user: UserInDB = Depends(get_current_user)):
+@app.get("/api/v1/dashboard/fleet")
+async def get_fleet_dashboard(response: Response, current_user: UserInDB = Depends(get_current_user)):
     vehicles = list(vehicles_db.values())
     filtered_vehicles = filter_by_location(vehicles, current_user)
 
@@ -3123,10 +3206,11 @@ async def get_fleet_dashboard(current_user: UserInDB = Depends(get_current_user)
         "vehicle_utilization_details": vehicle_utilization_details
     }
 
-@app.get("/api/analytics/customer-heatmap")
+@app.get("/api/v1/analytics/customer-heatmap")
 async def get_customer_heatmap(
     period: str = "weekly",
     location_ids: str = "",
+    response: Response = None,
     current_user: UserInDB = Depends(get_current_user)
 ):
     location_list = location_ids.split(",") if location_ids else []
@@ -3154,8 +3238,8 @@ async def get_customer_heatmap(
         "period": period,
         "location_ids": location_list
     }
-@app.get("/api/dashboard/financial")
-async def get_financial_dashboard(current_user: UserInDB = Depends(get_current_user)):
+@app.get("/api/v1/dashboard/financial")
+async def get_financial_dashboard(response: Response, current_user: UserInDB = Depends(get_current_user)):
     total_expenses = sum(e["amount"] for e in expenses_db.values())
 
     if imported_financial_data:
@@ -3205,7 +3289,7 @@ async def get_financial_dashboard(current_user: UserInDB = Depends(get_current_u
             "tax_liability_ytd": 45000.00
         }
 
-@app.get("/api/financial/data")
+@app.get("/api/v1/financial/data")
 async def get_financial_data(current_user: UserInDB = Depends(get_current_user)):
     if not imported_financial_data:
         return {
@@ -3269,7 +3353,7 @@ def calculate_customer_sales_by_period(customer, daily_revenue, period):
     else:  # monthly
         return customer_share * (total_revenue / max(len(daily_revenue) / 30, 1))
 
-@app.get("/api/sales/geo-temporal")
+@app.get("/api/v1/sales/geo-temporal")
 async def get_geo_temporal_sales(
     period: str = Query(..., regex="^(daily|weekly|monthly)$"),
     location_ids: str = Query(None),
@@ -3320,7 +3404,7 @@ async def get_geo_temporal_sales(
 
     return {"sales": sales_data, "period": period}
 
-@app.get("/api/performance/locations/{location_id}")
+@app.get("/api/v1/performance/locations/{location_id}")
 async def get_location_performance(
     location_id: str,
     period: str = Query("weekly", regex="^(daily|weekly|monthly|quarterly)$"),
@@ -3356,7 +3440,7 @@ async def get_location_performance(
         "period": period
     }
 
-@app.post("/api/import/excel")
+@app.post("/api/v1/import/excel")
 async def import_excel_data(
     files: List[UploadFile] = File(...),
     location_id: str = Form("loc_3"),
@@ -3462,7 +3546,7 @@ async def import_excel_data(
             except:
                 pass
 
-@app.post("/api/import/order-sheet")
+@app.post("/api/v1/import/order-sheet")
 async def import_order_sheet_data(
     files: List[UploadFile] = File(...),
     location_id: str = Form("loc_3"),
@@ -3519,7 +3603,7 @@ async def import_order_sheet_data(
             except:
                 pass
 
-@app.get("/api/import/status")
+@app.get("/api/v1/import/status")
 async def get_import_status(current_user: UserInDB = Depends(get_current_user)):
     """Get current data import status"""
     return {
@@ -3585,7 +3669,7 @@ async def import_google_sheets_data(
         logger.error(f"Unexpected error processing Google Sheets data: {e}")
         raise HTTPException(status_code=500, detail=f"Error processing Google Sheets data: {str(e)}")
 
-@app.post("/api/customers/bulk-import")
+@app.post("/api/v1/customers/bulk-import")
 async def bulk_import_customers_excel(
     files: List[UploadFile] = File(...),
     location_id: str = Form("loc_3"),
@@ -3677,7 +3761,7 @@ async def bulk_import_customers_excel(
             except:
                 pass
 
-@app.post("/api/routes/bulk-import")
+@app.post("/api/v1/routes/bulk-import")
 async def bulk_import_routes(
     files: List[UploadFile] = File(...),
     location_id: str = Form(...),
@@ -3799,7 +3883,7 @@ async def bulk_import_customers_sheets(
         logger.error(f"Unexpected error processing Google Sheets: {e}")
         raise HTTPException(status_code=500, detail=f"Error processing Google Sheets: {str(e)}")
 
-@app.get("/api/google-sheets/test-connection")
+@app.get("/api/v1/google-sheets/test-connection")
 async def test_google_sheets_connection_endpoint(current_user: UserInDB = Depends(get_current_user)):
     """Test Google Sheets API connection"""
     try:
@@ -3808,8 +3892,14 @@ async def test_google_sheets_connection_endpoint(current_user: UserInDB = Depend
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Connection test failed: {str(e)}")
 
-@app.get("/api/maintenance/work-orders")
-async def get_work_orders(status: Optional[str] = None, current_user: UserInDB = Depends(get_current_user)):
+@app.get("/api/v1/maintenance/work-orders")
+async def get_work_orders(
+    status: Optional[str] = None,
+    limit: int = Query(50, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
+    response: Response = None,
+    current_user: UserInDB = Depends(get_current_user)
+):
     orders = list(work_orders_db.values())
     if status:
         orders = [o for o in orders if o["status"] == status]
@@ -3820,7 +3910,7 @@ async def get_work_orders(status: Optional[str] = None, current_user: UserInDB =
 
     return orders
 
-@app.post("/api/maintenance/work-orders")
+@app.post("/api/v1/maintenance/work-orders")
 async def create_work_order(work_order: WorkOrderCreate, current_user: UserInDB = Depends(get_current_user)):
     vehicle = vehicles_db.get(work_order.vehicle_id)
     if not vehicle:

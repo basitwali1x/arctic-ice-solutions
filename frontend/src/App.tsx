@@ -8,6 +8,8 @@ import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Toaster } from './components/ui/toaster';
+import { ReactQueryProvider } from './lib/react-query';
+import { QueryErrorResetBoundary } from '@tanstack/react-query';
 import { Dashboard } from './pages/Dashboard';
 import { ProductionInventory } from './pages/ProductionInventory';
 import { FleetManagement } from './pages/FleetManagement';
@@ -57,11 +59,14 @@ const RoleBasedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 function App() {
 
   return (
-    <ErrorBoundary>
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-        <AuthProvider>
-          <Router>
-            <PRProvider>
+    <ReactQueryProvider>
+      <QueryErrorResetBoundary>
+        {({ reset }) => (
+          <ErrorBoundary onRetry={reset}>
+            <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+              <AuthProvider>
+                <Router>
+                  <PRProvider>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               
@@ -167,11 +172,14 @@ function App() {
               />
             </Routes>
             <Toaster />
-          </PRProvider>
-        </Router>
-      </AuthProvider>
-      </ThemeProvider>
-    </ErrorBoundary>
+                  </PRProvider>
+                </Router>
+              </AuthProvider>
+            </ThemeProvider>
+          </ErrorBoundary>
+        )}
+      </QueryErrorResetBoundary>
+    </ReactQueryProvider>
   );
 }
 

@@ -1,4 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -6,74 +10,151 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { Users, MapPin, Truck, Package, Save, LogOut, Plus, Edit, Trash2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { apiRequest } from '../utils/api';
-import { User, CreateUserRequest, UpdateUserRequest, Location, LocationType } from '../types/api';
+import { apiRequest, apiJson } from '../utils/api';
+import { User, Location } from '../types/api';
+
+const userSchema = z.object({
+  username: z.string().min(1, 'Username is required'),
+  email: z.string().email('Invalid email').optional().or(z.literal('')),
+  full_name: z.string().min(1, 'Full name is required'),
+  role: z.enum(['manager', 'dispatcher', 'accountant', 'driver', 'customer']),
+  location_id: z.string().min(1, 'Location is required'),
+  password: z.string().optional(),
+  is_active: z.boolean(),
+});
+
+const locationSchema = z.object({
+  name: z.string().min(1, 'Name is required'),
+  address: z.string().min(1, 'Address is required'),
+  city: z.string().min(1, 'City is required'),
+  state: z.string().min(2, 'State is required'),
+  zip_code: z.string().min(3, 'ZIP code is required'),
+  location_type: z.enum(['distribution', 'production', 'warehouse']),
+  is_active: z.boolean(),
+});
+
+type UserForm = z.infer<typeof userSchema>;
+type LocationForm = z.infer<typeof locationSchema>;
 
 export function Settings() {
   const { logout } = useAuth();
-  const [users, setUsers] = useState<User[]>([]);
-  const [locations, setLocations] = useState<Location[]>([]);
   const [showUserModal, setShowUserModal] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [selectedRole, setSelectedRole] = useState<string>('');
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editingLocation, setEditingLocation] = useState<Location | null>(null);
-  const [formData, setFormData] = useState<CreateUserRequest>({
-    username: '',
-    email: '',
-    full_name: '',
-    role: 'manager',
-    location_id: '',
-    password: '',
-    is_active: true
+  const queryClient = useQueryClient();
+
+  const usersQuery = useQuery({
+    queryKey: ['users'],
+    queryFn: () => apiJson<User[]>('/api/users')
   });
-  const [locationFormData, setLocationFormData] = useState({
-    name: '',
-    address: '',
-    city: '',
-    state: '',
-    zip_code: '',
-    location_type: 'distribution' as LocationType,
-    is_active: true
+
+  const locationsQuery = useQuery({
+    queryKey: ['locations'],
+    queryFn: () => apiJson<Location[]>('/api/locations')
   });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string>('');
 
-  useEffect(() => {
-    fetchUsers();
-    fetchLocations();
-  }, []);
+  const userForm = useForm<UserForm>({
+    resolver: zodResolver(userSchema),
+    defaultValues: {
+      username: '',
+      email: '',
+      full_name: '',
+      role: 'manager',
+      location_id: '',
+      password: '',
+      is_active: true,
+    },
+  });
 
-  const fetchUsers = async () => {
-    try {
-      const response = await apiRequest('/api/users');
-      if (response) {
-        const userData = await response.json();
-        setUsers(userData);
-      }
-    } catch (error) {
-      console.error('Failed to fetch users:', error);
-    }
-  };
+  const locationForm = useForm<LocationForm>({
+    resolver: zodResolver(locationSchema),
+    defaultValues: {
+      name: '',
+      address: '',
+      city: '',
+      state: '',
+      zip_code: '',
+      location_type: 'distribution',
+      is_active: true,
+    },
+  });
 
-  const fetchLocations = async () => {
-    try {
-      const response = await apiRequest('/api/locations');
-      if (response) {
-        const locationData = await response.json();
-        setLocations(locationData);
-      }
-    } catch (error) {
-      console.error('Failed to fetch locations:', error);
-    }
-  };
+  const createUserMutation = useMutation({
+    mutationFn: (data: UserForm) =>
+      apiJson('/api/users', { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data) 
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      setShowUserModal(false);
+      userForm.reset();
+    },
+  });
+
+  const updateUserMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<UserForm> }) =>
+      apiJson(`/api/users/${id}`, { 
+        method: 'PUT', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data) 
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      setShowUserModal(false);
+      setEditingUser(null);
+      userForm.reset();
+    },
+  });
+
+  const deleteUserMutation = useMutation({
+    mutationFn: (id: string) =>
+      apiRequest(`/api/users/${id}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+    },
+  });
+
+  const createLocationMutation = useMutation({
+    mutationFn: (data: LocationForm) =>
+      apiJson('/api/locations', { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data) 
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['locations'] });
+      setShowLocationModal(false);
+      locationForm.reset();
+    },
+  });
+
+  const updateLocationMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<LocationForm> }) =>
+      apiJson(`/api/locations/${id}`, { 
+        method: 'PUT', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data) 
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['locations'] });
+      setShowLocationModal(false);
+      setEditingLocation(null);
+      locationForm.reset();
+    },
+  });
+
 
   const handleManageUsers = (role: string) => {
     setSelectedRole(role);
     setEditingUser(null);
-    setFormData({
+    userForm.reset({
       username: '',
       email: '',
       full_name: '',
@@ -85,65 +166,11 @@ export function Settings() {
     setShowUserModal(true);
   };
 
-  const handleCreateUser = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      await apiRequest('/api/users', {
-        method: 'POST',
-        body: JSON.stringify(formData)
-      });
-      await fetchUsers();
-      setShowUserModal(false);
-      resetForm();
-    } catch (error: unknown) {
-      const apiError = error as { apiError?: { message: string } };
-      setError(apiError.apiError?.message || 'Failed to create user');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleUpdateUser = async () => {
-    if (!editingUser) return;
-    setLoading(true);
-    setError('');
-    try {
-      const updateData: UpdateUserRequest = { ...formData };
-      if (!updateData.password) {
-        delete updateData.password;
-      }
-      await apiRequest(`/api/users/${editingUser.id}`, {
-        method: 'PUT',
-        body: JSON.stringify(updateData)
-      });
-      await fetchUsers();
-      setShowUserModal(false);
-      resetForm();
-    } catch (error: unknown) {
-      const apiError = error as { apiError?: { message: string } };
-      setError(apiError.apiError?.message || 'Failed to update user');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDeleteUser = async (userId: string) => {
-    if (!confirm('Are you sure you want to delete this user?')) return;
-    try {
-      await apiRequest(`/api/users/${userId}`, { method: 'DELETE' });
-      await fetchUsers();
-    } catch (error: unknown) {
-      const apiError = error as { apiError?: { message: string } };
-      setError(apiError.apiError?.message || 'Failed to delete user');
-    }
-  };
-
   const handleEditUser = (user: User) => {
     setEditingUser(user);
-    setFormData({
+    userForm.reset({
       username: user.username,
-      email: user.email,
+      email: user.email || '',
       full_name: user.full_name,
       role: user.role,
       location_id: user.location_id,
@@ -154,70 +181,51 @@ export function Settings() {
     setShowUserModal(true);
   };
 
-  const resetForm = () => {
-    setFormData({
-      username: '',
-      email: '',
-      full_name: '',
-      role: 'manager',
-      location_id: '',
-      password: '',
-      is_active: true
-    });
-    setEditingUser(null);
-    setError('');
-  };
-
   const handleEditLocation = (location: Location) => {
     setEditingLocation(location);
-    setLocationFormData({
+    locationForm.reset({
       name: location.name,
       address: location.address,
       city: location.city,
       state: location.state,
       zip_code: location.zip_code,
-      location_type: location.location_type,
+      location_type: location.location_type as 'distribution' | 'production' | 'warehouse',
       is_active: location.is_active
     });
     setShowLocationModal(true);
   };
 
-  const handleUpdateLocation = async () => {
-    if (!editingLocation) return;
-    setLoading(true);
-    setError('');
-    try {
-      await apiRequest(`/api/locations/${editingLocation.id}`, {
-        method: 'PUT',
-        body: JSON.stringify(locationFormData)
-      });
-      await fetchLocations();
-      setShowLocationModal(false);
-      resetLocationForm();
-    } catch (error: unknown) {
-      const apiError = error as { apiError?: { message: string } };
-      setError(apiError.apiError?.message || 'Failed to update location');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const resetLocationForm = () => {
-    setLocationFormData({
-      name: '',
-      address: '',
-      city: '',
-      state: '',
-      zip_code: '',
-      location_type: 'distribution',
-      is_active: true
-    });
-    setEditingLocation(null);
-    setError('');
-  };
-
+  const users = usersQuery.data || [];
+  const locations = locationsQuery.data || [];
   const filteredUsers = users.filter(user => user.role === selectedRole);
   const getUserCountByRole = (role: string) => users.filter(user => user.role === role).length;
+
+  if (usersQuery.isLoading || locationsQuery.isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p>Loading settings...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (usersQuery.error || locationsQuery.error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">Failed to load settings data</p>
+          <Button onClick={() => {
+            usersQuery.refetch();
+            locationsQuery.refetch();
+          }}>
+            Retry
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -431,11 +439,6 @@ export function Settings() {
           </DialogHeader>
           
           <div className="space-y-6">
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-                {error}
-              </div>
-            )}
             
             {/* User List */}
             <div className="space-y-4">
@@ -443,8 +446,15 @@ export function Settings() {
                 <h3 className="text-lg font-semibold">Current Users</h3>
                 <Button onClick={() => {
                   setEditingUser(null);
-                  resetForm();
-                  setFormData(prev => ({ ...prev, role: selectedRole as 'manager' | 'dispatcher' | 'accountant' | 'driver' | 'customer' }));
+                  userForm.reset({
+                    username: '',
+                    email: '',
+                    full_name: '',
+                    role: selectedRole as 'manager' | 'dispatcher' | 'accountant' | 'driver' | 'customer',
+                    location_id: '',
+                    password: '',
+                    is_active: true
+                  });
                 }}>
                   <Plus className="h-4 w-4 mr-2" />
                   Add New User
@@ -468,7 +478,7 @@ export function Settings() {
                       <Button variant="outline" size="sm" onClick={() => handleEditUser(user)}>
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button variant="outline" size="sm" onClick={() => handleDeleteUser(user.id)}>
+                      <Button variant="outline" size="sm" onClick={() => deleteUserMutation.mutate(user.id)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -478,97 +488,136 @@ export function Settings() {
             </div>
             
             {/* User Form */}
-            {(editingUser || !editingUser) && (
-              <div className="border-t pt-6">
-                <h3 className="text-lg font-semibold mb-4">
-                  {editingUser ? 'Edit User' : 'Add New User'}
-                </h3>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="username">Username</Label>
-                    <Input
-                      id="username"
-                      value={formData.username}
-                      onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value }))}
-                      placeholder="Enter username"
+            <div className="border-t pt-6">
+              <h3 className="text-lg font-semibold mb-4">
+                {editingUser ? 'Edit User' : 'Add New User'}
+              </h3>
+              
+              <Form {...userForm}>
+                <form id="user-form" onSubmit={userForm.handleSubmit((values) => {
+                  if (editingUser) {
+                    updateUserMutation.mutate({ id: editingUser.id, data: values });
+                  } else {
+                    createUserMutation.mutate(values);
+                  }
+                })} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={userForm.control}
+                      name="username"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Username *</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter username" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={userForm.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email</FormLabel>
+                          <FormControl>
+                            <Input type="email" placeholder="Enter email" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={userForm.control}
+                      name="full_name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Full Name *</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter full name" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={userForm.control}
+                      name="location_id"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Location *</FormLabel>
+                          <FormControl>
+                            <Select value={field.value} onValueChange={field.onChange}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select location" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {locations.map(location => (
+                                  <SelectItem key={location.id} value={location.id}>
+                                    {location.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    {!editingUser && (
+                      <FormField
+                        control={userForm.control}
+                        name="password"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Password *</FormLabel>
+                            <FormControl>
+                              <Input type="password" placeholder="Enter password" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                    
+                    <FormField
+                      control={userForm.control}
+                      name="is_active"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center space-x-2">
+                          <FormControl>
+                            <input
+                              type="checkbox"
+                              checked={field.value}
+                              onChange={field.onChange}
+                            />
+                          </FormControl>
+                          <FormLabel>Active User</FormLabel>
+                        </FormItem>
+                      )}
                     />
                   </div>
-                  
-                  <div>
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                      placeholder="Enter email"
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="full_name">Full Name</Label>
-                    <Input
-                      id="full_name"
-                      value={formData.full_name}
-                      onChange={(e) => setFormData(prev => ({ ...prev, full_name: e.target.value }))}
-                      placeholder="Enter full name"
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="location">Location</Label>
-                    <Select value={formData.location_id} onValueChange={(value) => setFormData(prev => ({ ...prev, location_id: value }))}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select location" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {locations.map(location => (
-                          <SelectItem key={location.id} value={location.id}>
-                            {location.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="password">Password {editingUser && '(leave blank to keep current)'}</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      value={formData.password}
-                      onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                      placeholder={editingUser ? "Leave blank to keep current" : "Enter password"}
-                    />
-                  </div>
-                  
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="is_active"
-                      checked={formData.is_active}
-                      onChange={(e) => setFormData(prev => ({ ...prev, is_active: e.target.checked }))}
-                    />
-                    <Label htmlFor="is_active">Active User</Label>
-                  </div>
-                </div>
-              </div>
-            )}
+                </form>
+              </Form>
+            </div>
           </div>
           
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowUserModal(false)}>
               Cancel
             </Button>
-            {(editingUser || !editingUser) && (
-              <Button 
-                onClick={editingUser ? handleUpdateUser : handleCreateUser}
-                disabled={loading}
-              >
-                {loading ? 'Saving...' : (editingUser ? 'Update User' : 'Create User')}
-              </Button>
-            )}
+            <Button 
+              type="submit"
+              form="user-form"
+              disabled={createUserMutation.isPending || updateUserMutation.isPending}
+            >
+              {createUserMutation.isPending || updateUserMutation.isPending ? 'Saving...' : (editingUser ? 'Update User' : 'Create User')}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -580,87 +629,138 @@ export function Settings() {
             <DialogTitle>Edit Location</DialogTitle>
           </DialogHeader>
           
-          <div className="space-y-4">
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-                {error}
-              </div>
-            )}
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="location-name">Location Name</Label>
-                <Input
-                  id="location-name"
-                  value={locationFormData.name}
-                  onChange={(e) => setLocationFormData(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Enter location name"
+          <Form {...locationForm}>
+            <form id="location-form" onSubmit={locationForm.handleSubmit((values) => {
+              if (editingLocation) {
+                updateLocationMutation.mutate({ id: editingLocation.id, data: values });
+              } else {
+                createLocationMutation.mutate(values);
+              }
+            })} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={locationForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Location Name *</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter location name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={locationForm.control}
+                  name="location_type"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Location Type *</FormLabel>
+                      <FormControl>
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select location type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="distribution">Distribution</SelectItem>
+                            <SelectItem value="production">Production</SelectItem>
+                            <SelectItem value="warehouse">Warehouse</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={locationForm.control}
+                  name="address"
+                  render={({ field }) => (
+                    <FormItem className="col-span-2">
+                      <FormLabel>Address *</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter street address" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={locationForm.control}
+                  name="city"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>City *</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter city" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={locationForm.control}
+                  name="state"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>State *</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter state" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={locationForm.control}
+                  name="zip_code"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>ZIP Code *</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter ZIP code" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={locationForm.control}
+                  name="is_active"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center space-x-2">
+                      <FormControl>
+                        <input
+                          type="checkbox"
+                          checked={field.value}
+                          onChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormLabel>Active Location</FormLabel>
+                    </FormItem>
+                  )}
                 />
               </div>
-              
-              <div>
-                <Label htmlFor="location-type">Location Type</Label>
-                <Select value={locationFormData.location_type} onValueChange={(value) => setLocationFormData(prev => ({ ...prev, location_type: value as LocationType }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select location type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="headquarters">Headquarters</SelectItem>
-                    <SelectItem value="production">Production</SelectItem>
-                    <SelectItem value="distribution">Distribution</SelectItem>
-                    <SelectItem value="warehouse">Warehouse</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="col-span-2">
-                <Label htmlFor="location-address">Address</Label>
-                <Input
-                  id="location-address"
-                  value={locationFormData.address}
-                  onChange={(e) => setLocationFormData(prev => ({ ...prev, address: e.target.value }))}
-                  placeholder="Enter street address"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="location-city">City</Label>
-                <Input
-                  id="location-city"
-                  value={locationFormData.city}
-                  onChange={(e) => setLocationFormData(prev => ({ ...prev, city: e.target.value }))}
-                  placeholder="Enter city"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="location-state">State</Label>
-                <Input
-                  id="location-state"
-                  value={locationFormData.state}
-                  onChange={(e) => setLocationFormData(prev => ({ ...prev, state: e.target.value }))}
-                  placeholder="Enter state"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="location-zip">ZIP Code</Label>
-                <Input
-                  id="location-zip"
-                  value={locationFormData.zip_code}
-                  onChange={(e) => setLocationFormData(prev => ({ ...prev, zip_code: e.target.value }))}
-                  placeholder="Enter ZIP code"
-                />
-              </div>
-            </div>
-          </div>
+            </form>
+          </Form>
           
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowLocationModal(false)}>
               Cancel
             </Button>
-            <Button onClick={handleUpdateLocation} disabled={loading}>
-              {loading ? 'Updating...' : 'Update Location'}
+            <Button 
+              type="submit"
+              form="location-form"
+              disabled={createLocationMutation.isPending || updateLocationMutation.isPending}
+            >
+              {createLocationMutation.isPending || updateLocationMutation.isPending ? 'Saving...' : (editingLocation ? 'Update Location' : 'Create Location')}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -95,3 +95,11 @@ export const apiRequest = async (endpoint: string, options: RequestInit = {}) =>
     });
   }
 };
+
+export async function apiJson<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const response = await apiRequest(endpoint, options);
+  if (!response) {
+    throw new ApiException({ status: 0, message: 'No response', detail: 'No response' });
+  }
+  return response.json() as Promise<T>;
+}

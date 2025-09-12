@@ -125,6 +125,15 @@ importers:
       '@react-google-maps/api':
         specifier: ^2.20.7
         version: 2.20.7(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@tanstack/react-query':
+        specifier: ^5.87.4
+        version: 5.87.4(react@18.3.1)
+      '@tanstack/react-query-devtools':
+        specifier: ^5.87.4
+        version: 5.87.4(@tanstack/react-query@5.87.4(react@18.3.1))(react@18.3.1)
+      '@tanstack/react-virtual':
+        specifier: ^3.13.12
+        version: 3.13.12(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@types/google.maps':
         specifier: ^3.58.1
         version: 3.58.1
@@ -1931,6 +1940,32 @@ packages:
 
   '@surma/rollup-plugin-off-main-thread@2.2.3':
     resolution: {integrity: sha512-lR8q/9W7hZpMWweNiAKU7NQerBnzQQLvi8qnTDU/fxItPhtZVMbPV3lbCwjhIlNBe9Bbr5V+KHshvWmVSG9cxQ==}
+
+  '@tanstack/query-core@5.87.4':
+    resolution: {integrity: sha512-uNsg6zMxraEPDVO2Bn+F3/ctHi+Zsk+MMpcN8h6P7ozqD088F6mFY5TfGM7zuyIrL7HKpDyu6QHfLWiDxh3cuw==}
+
+  '@tanstack/query-devtools@5.87.3':
+    resolution: {integrity: sha512-LkzxzSr2HS1ALHTgDmJH5eGAVsSQiuwz//VhFW5OqNk0OQ+Fsqba0Tsf+NzWRtXYvpgUqwQr4b2zdFZwxHcGvg==}
+
+  '@tanstack/react-query-devtools@5.87.4':
+    resolution: {integrity: sha512-JYcnVJBBW1DCPyNGM0S2CyrLpe6KFiL2gpYd/k9tAp62Du7+Y27zkzd+dKFyxpFadYaTxsx4kUA7YvnkMLVUoQ==}
+    peerDependencies:
+      '@tanstack/react-query': ^5.87.4
+      react: ^18 || ^19
+
+  '@tanstack/react-query@5.87.4':
+    resolution: {integrity: sha512-T5GT/1ZaNsUXf5I3RhcYuT17I4CPlbZgyLxc/ZGv7ciS6esytlbjb3DgUFO6c8JWYMDpdjSWInyGZUErgzqhcA==}
+    peerDependencies:
+      react: ^18 || ^19
+
+  '@tanstack/react-virtual@3.13.12':
+    resolution: {integrity: sha512-Gd13QdxPSukP8ZrkbgS2RwoZseTTbQPLnQEn7HY/rqtM+8Zt95f7xKC7N0EsKs7aoz0WzZ+fditZux+F8EzYxA==}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+      react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+
+  '@tanstack/virtual-core@3.13.12':
+    resolution: {integrity: sha512-1YBOJfRHV4sXUmWsFSf5rQor4Ss82G8dQWLRbnk3GA4jeP8hQt1hxXh0tmflpC0dz3VgEv/1+qwPyLeWkQuPFA==}
 
   '@types/babel__core@7.20.5':
     resolution: {integrity: sha512-qoQprZvz5wQFJwMDqeseRXWv3rqMvhgpbXFfVyWhbx9X47POIA6i/+dXefEmZKoAgOaTdaIgNSMqMIU61yRyzA==}
@@ -5899,6 +5934,29 @@ snapshots:
       json5: 2.2.3
       magic-string: 0.25.9
       string.prototype.matchall: 4.0.12
+
+  '@tanstack/query-core@5.87.4': {}
+
+  '@tanstack/query-devtools@5.87.3': {}
+
+  '@tanstack/react-query-devtools@5.87.4(@tanstack/react-query@5.87.4(react@18.3.1))(react@18.3.1)':
+    dependencies:
+      '@tanstack/query-devtools': 5.87.3
+      '@tanstack/react-query': 5.87.4(react@18.3.1)
+      react: 18.3.1
+
+  '@tanstack/react-query@5.87.4(react@18.3.1)':
+    dependencies:
+      '@tanstack/query-core': 5.87.4
+      react: 18.3.1
+
+  '@tanstack/react-virtual@3.13.12(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+    dependencies:
+      '@tanstack/virtual-core': 3.13.12
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+
+  '@tanstack/virtual-core@3.13.12': {}
 
   '@types/babel__core@7.20.5':
     dependencies:

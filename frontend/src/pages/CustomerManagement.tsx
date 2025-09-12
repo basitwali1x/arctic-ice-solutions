@@ -1,4 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useRef } from 'react';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { useVirtualizer } from '@tanstack/react-virtual';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -6,19 +11,29 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { Users, Search, Plus, RefreshCw, MapPin, Phone, Mail, AlertCircle, Star, MessageSquare, DollarSign, FileText, Edit, Save, X, Upload } from 'lucide-react';
 import { Customer, Location, CustomerPricingDisplay } from '../types/api';
-import { apiRequest } from '../utils/api';
+import { apiRequest, apiJson } from '../utils/api';
 import { useErrorToast } from '../hooks/useErrorToast';
 import { useAuth } from '../contexts/AuthContext';
 
 
+const customerSchema = z.object({
+  name: z.string().min(1, 'Company Name is required'),
+  contact_person: z.string().min(1, 'Contact Person is required'),
+  phone: z.string().min(7, 'Phone is required'),
+  email: z.string().email('Invalid email').optional().or(z.literal('')),
+  address: z.string().min(1, 'Address is required'),
+  city: z.string().min(1, 'City is required'),
+  state: z.string().min(2, 'State is required'),
+  zip_code: z.string().min(3, 'ZIP is required'),
+  location_id: z.string().min(1, 'Service Location required'),
+});
+
+type CustomerForm = z.infer<typeof customerSchema>;
+
 export function CustomerManagement() {
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [locations, setLocations] = useState<Location[]>([]);
-  const [customersByLocationData, setCustomersByLocationData] = useState<Array<{location_id: string, location_name: string, customer_count: number}>>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [showCustomerDetails, setShowCustomerDetails] = useState(false);
@@ -30,129 +45,82 @@ export function CustomerManagement() {
   const [selectedLocationId, setSelectedLocationId] = useState('');
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<{message: string; customers_imported?: number; total_records?: number} | null>(null);
-  const [newCustomer, setNewCustomer] = useState({
-    name: '',
-    contact_person: '',
-    phone: '',
-    email: '',
-    address: '',
-    city: '',
-    state: '',
-    zip_code: '',
-    location_id: ''
-  });
-  const [submitting, setSubmitting] = useState(false);
   const [customerPricing, setCustomerPricing] = useState<CustomerPricingDisplay[]>([]);
   const [editingPricing, setEditingPricing] = useState(false);
   const [pricingChanges, setPricingChanges] = useState<Record<string, number>>({});
   const [savingPricing, setSavingPricing] = useState(false);
   const { showError } = useErrorToast();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const parentRef = useRef<HTMLDivElement | null>(null);
 
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const [customersRes, locationsRes, customersByLocationRes] = await Promise.all([
-        apiRequest('/api/customers'),
-        apiRequest('/api/locations'),
-        apiRequest('/api/customers/by-location')
-      ]);
+  const customersQuery = useQuery({
+    queryKey: ['customers', { q: searchTerm }],
+    queryFn: () => apiJson<Customer[]>('/api/customers')
+  });
 
-      const customersData = await customersRes?.json();
-      const locationsData = await locationsRes?.json();
-      const customersByLocationData = await customersByLocationRes?.json();
+  const locationsQuery = useQuery({
+    queryKey: ['locations'],
+    queryFn: () => apiJson<Location[]>('/api/locations')
+  });
 
-      setCustomers(Array.isArray(customersData) ? customersData : []);
-      setLocations(Array.isArray(locationsData) ? locationsData : []);
-      setCustomersByLocationData(Array.isArray(customersByLocationData) ? customersByLocationData : []);
-    } catch (error) {
-      console.error('Failed to fetch data:', error);
-      setError('Failed to load customer data');
-      setCustomers([]);
-      setLocations([]);
-      setCustomersByLocationData([]);
-      showError(error, 'Failed to load customer data');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const customersByLocationQuery = useQuery({
+    queryKey: ['customers', 'byLocation'],
+    queryFn: () => apiJson<Array<{location_id: string, location_name: string, customer_count: number}>>('/api/customers/by-location')
+  });
 
-  const handleAddCustomer = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!newCustomer.name || !newCustomer.contact_person || !newCustomer.phone || 
-        !newCustomer.address || !newCustomer.city || !newCustomer.state || 
-        !newCustomer.zip_code || !newCustomer.location_id) {
-      showError(new Error('Please fill in all required fields'), 'Missing required fields');
-      return;
-    }
+  const form = useForm<CustomerForm>({
+    resolver: zodResolver(customerSchema),
+    defaultValues: {
+      name: '',
+      contact_person: '',
+      phone: '',
+      email: '',
+      address: '',
+      city: '',
+      state: '',
+      zip_code: '',
+      location_id: '',
+    },
+  });
 
-    try {
-      setSubmitting(true);
-      
-      const customerData = {
-        id: crypto.randomUUID(),
-        ...newCustomer,
-        credit_limit: 5000,
-        payment_terms: 30,
-        is_active: true
-      };
+  const createCustomerMutation = useMutation({
+    mutationFn: (data: CustomerForm) =>
+      apiJson('/api/customers', { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data) 
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      setShowAddCustomerModal(false);
+      form.reset();
+    },
+  });
 
-      const response = await apiRequest('/api/customers', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(customerData),
-      });
-
-      if (response?.ok) {
-        await fetchData();
-        setShowAddCustomerModal(false);
-        setNewCustomer({
-          name: '',
-          contact_person: '',
-          phone: '',
-          email: '',
-          address: '',
-          city: '',
-          state: '',
-          zip_code: '',
-          location_id: ''
-        });
-      } else {
-        throw new Error('Failed to create customer');
-      }
-    } catch (error) {
-      console.error('Failed to create customer:', error);
-      showError(error, 'Failed to create customer');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
 
   const getLocationName = (locationId: string) => {
-    if (!Array.isArray(locations)) return 'Unknown Location';
-    const location = locations.find(l => l.id === locationId);
+    const location = locationsQuery.data?.find(loc => loc.id === locationId);
     return location ? location.name : 'Unknown Location';
   };
 
-  const filteredCustomers = Array.isArray(customers) ? customers.filter(customer =>
-    customer.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  const filteredCustomers = (customersQuery.data || []).filter(customer =>
+    customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (customer.contact_person && customer.contact_person.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    customer.phone?.includes(searchTerm)
-  ) : [];
+    customer.phone.includes(searchTerm)
+  );
 
-  const customersByLocation = Array.isArray(customersByLocationData) ? customersByLocationData.map(item => ({
+  const customersByLocation = (customersByLocationQuery.data || []).map(item => ({
     location: item.location_name,
     count: item.customer_count
-  })) : [];
+  }));
+
+  const rowVirtualizer = useVirtualizer({
+    count: filteredCustomers.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 96,
+    overscan: 12,
+  });
 
   const fetchCustomerPricing = async (customerId: string) => {
     try {
@@ -286,7 +254,7 @@ export function CustomerManagement() {
       if (response?.ok) {
         const result = await response.json();
         setImportResult(result);
-        await fetchData();
+        queryClient.invalidateQueries({ queryKey: ['customers'] });
         
         const summary = result.summary || {};
         let message = `Import successful!\n• ${summary.customers_imported || 0} customers imported\n• Location: ${summary.location_name || 'Unknown'}`;
@@ -321,8 +289,10 @@ export function CustomerManagement() {
   };
 
   const isManager = user?.role === 'manager';
+  const isLoading = customersQuery.isLoading || locationsQuery.isLoading || customersByLocationQuery.isLoading;
+  const error = customersQuery.error || locationsQuery.error || customersByLocationQuery.error;
 
-  if (loading) {
+  if (isLoading) {
     return <div className="flex items-center justify-center h-64">Loading...</div>;
   }
 
@@ -336,8 +306,8 @@ export function CustomerManagement() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-red-700 mb-4">{error}</p>
-          <Button onClick={fetchData} variant="outline">
+          <p className="text-red-700 mb-4">Failed to load customer data</p>
+          <Button onClick={() => queryClient.invalidateQueries({ queryKey: ['customers'] })} variant="outline">
             <RefreshCw className="h-4 w-4 mr-2" />
             Try Again
           </Button>
@@ -351,7 +321,14 @@ export function CustomerManagement() {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900">Customer Management</h1>
         <div className="flex space-x-2">
-          <Button variant="outline" size="sm">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => {
+              queryClient.invalidateQueries({ queryKey: ['customers'] });
+              queryClient.invalidateQueries({ queryKey: ['locations'] });
+            }}
+          >
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
@@ -374,7 +351,7 @@ export function CustomerManagement() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{customers.length}</div>
+            <div className="text-2xl font-bold">{customersQuery.data?.length || 0}</div>
             <p className="text-xs text-muted-foreground">Active accounts</p>
           </CardContent>
         </Card>
@@ -457,66 +434,82 @@ export function CustomerManagement() {
             <Button variant="outline">Filter</Button>
           </div>
 
-          <div className="space-y-4">
-            {filteredCustomers.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                {searchTerm ? 'No customers found matching your search.' : 'No customers found.'}
-              </div>
-            ) : (
-              filteredCustomers.map((customer) => (
-                <div key={customer.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <Users className="h-6 w-6 text-blue-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold">{customer.name}</h3>
-                      <p className="text-sm text-gray-600">{customer.contact_person || 'No contact person'}</p>
-                      <div className="flex items-center space-x-4 mt-1">
-                        <div className="flex items-center">
-                          <Phone className="h-3 w-3 text-gray-400 mr-1" />
-                          <span className="text-xs text-gray-500">{customer.phone}</span>
+          {filteredCustomers.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              {searchTerm ? 'No customers found matching your search.' : 'No customers found.'}
+            </div>
+          ) : (
+            <div ref={parentRef} style={{ height: 600, overflow: 'auto' }}>
+              <div style={{ height: rowVirtualizer.getTotalSize(), position: 'relative' }}>
+                {rowVirtualizer.getVirtualItems().map(virtualItem => {
+                  const customer = filteredCustomers[virtualItem.index];
+                  return (
+                    <div
+                      key={customer.id}
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        transform: `translateY(${virtualItem.start}px)`,
+                      }}
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
+                    >
+                      <div className="flex items-center space-x-4">
+                        <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                          <Users className="h-6 w-6 text-blue-600" />
                         </div>
-                        {customer.email && (
-                          <div className="flex items-center">
-                            <Mail className="h-3 w-3 text-gray-400 mr-1" />
-                            <span className="text-xs text-gray-500">{customer.email}</span>
+                        <div>
+                          <h3 className="font-semibold">{customer.name}</h3>
+                          <p className="text-sm text-gray-600">{customer.contact_person || 'No contact person'}</p>
+                          <div className="flex items-center space-x-4 mt-1">
+                            <div className="flex items-center">
+                              <Phone className="h-3 w-3 text-gray-400 mr-1" />
+                              <span className="text-xs text-gray-500">{customer.phone}</span>
+                            </div>
+                            {customer.email && (
+                              <div className="flex items-center">
+                                <Mail className="h-3 w-3 text-gray-400 mr-1" />
+                                <span className="text-xs text-gray-500">{customer.email}</span>
+                              </div>
+                            )}
+                            <div className="flex items-center">
+                              <MapPin className="h-3 w-3 text-gray-400 mr-1" />
+                              <span className="text-xs text-gray-500">{customer.address || getLocationName(customer.location_id)}</span>
+                            </div>
                           </div>
-                        )}
-                        <div className="flex items-center">
-                          <MapPin className="h-3 w-3 text-gray-400 mr-1" />
-                          <span className="text-xs text-gray-500">{customer.address || getLocationName(customer.location_id)}</span>
                         </div>
                       </div>
+                      <div className="flex items-center space-x-2">
+                        <div className="text-right mr-4">
+                          <p className="text-sm font-medium">${(customer.credit_limit || 5000).toLocaleString()}</p>
+                          <p className="text-xs text-gray-500">{customer.payment_terms || 30} day terms</p>
+                          <p className="text-xs text-gray-400">Total: ${(customer.total_spent || 0).toLocaleString()}</p>
+                        </div>
+                        <Badge variant={(customer.status === 'active' || customer.is_active) ? "default" : "secondary"}>
+                          {(customer.status === 'active' || customer.is_active) ? "Active" : "Inactive"}
+                        </Badge>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={async () => {
+                            setSelectedCustomer(customer);
+                            setShowCustomerDetails(true);
+                            const isManager = user?.role === 'manager';
+                            if (isManager) {
+                              await fetchCustomerPricing(customer.id);
+                            }
+                          }}
+                        >
+                          View Details
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <div className="text-right mr-4">
-                      <p className="text-sm font-medium">${(customer.credit_limit || 5000).toLocaleString()}</p>
-                      <p className="text-xs text-gray-500">{customer.payment_terms || 30} day terms</p>
-                      <p className="text-xs text-gray-400">Total: ${(customer.total_spent || 0).toLocaleString()}</p>
-                    </div>
-                    <Badge variant={(customer.status === 'active' || customer.is_active) ? "default" : "secondary"}>
-                      {(customer.status === 'active' || customer.is_active) ? "Active" : "Inactive"}
-                    </Badge>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={async () => {
-                        setSelectedCustomer(customer);
-                        setShowCustomerDetails(true);
-                        if (isManager) {
-                          await fetchCustomerPricing(customer.id);
-                        }
-                      }}
-                    >
-                      View Details
-                    </Button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -528,127 +521,162 @@ export function CustomerManagement() {
               <DialogTitle>Add New Customer</DialogTitle>
             </DialogHeader>
             
-            <form onSubmit={handleAddCustomer} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="name">Company Name *</Label>
-                  <Input
-                    id="name"
-                    value={newCustomer.name}
-                    onChange={(e) => setNewCustomer({...newCustomer, name: e.target.value})}
-                    placeholder="Enter company name"
-                    required
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit((values) => createCustomerMutation.mutate(values))} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Company Name *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter company name" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="contact_person"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Contact Person *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter contact person name" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
                 </div>
-                <div>
-                  <Label htmlFor="contact_person">Contact Person *</Label>
-                  <Input
-                    id="contact_person"
-                    value={newCustomer.contact_person}
-                    onChange={(e) => setNewCustomer({...newCustomer, contact_person: e.target.value})}
-                    placeholder="Enter contact person name"
-                    required
-                  />
-                </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="phone">Phone *</Label>
-                  <Input
-                    id="phone"
-                    value={newCustomer.phone}
-                    onChange={(e) => setNewCustomer({...newCustomer, phone: e.target.value})}
-                    placeholder="Enter phone number"
-                    required
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="phone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Phone *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter phone number" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input type="email" placeholder="Enter email address" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
                 </div>
-                <div>
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={newCustomer.email}
-                    onChange={(e) => setNewCustomer({...newCustomer, email: e.target.value})}
-                    placeholder="Enter email address"
-                  />
-                </div>
-              </div>
 
-              <div>
-                <Label htmlFor="address">Address *</Label>
-                <Input
-                  id="address"
-                  value={newCustomer.address}
-                  onChange={(e) => setNewCustomer({...newCustomer, address: e.target.value})}
-                  placeholder="Enter street address"
-                  required
+                <FormField
+                  control={form.control}
+                  name="address"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Address *</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter street address" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
 
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <Label htmlFor="city">City *</Label>
-                  <Input
-                    id="city"
-                    value={newCustomer.city}
-                    onChange={(e) => setNewCustomer({...newCustomer, city: e.target.value})}
-                    placeholder="Enter city"
-                    required
+                <div className="grid grid-cols-3 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="city"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>City *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter city" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="state"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>State *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter state" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="zip_code"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>ZIP Code *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter ZIP code" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
                 </div>
-                <div>
-                  <Label htmlFor="state">State *</Label>
-                  <Input
-                    id="state"
-                    value={newCustomer.state}
-                    onChange={(e) => setNewCustomer({...newCustomer, state: e.target.value})}
-                    placeholder="Enter state"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="zip_code">ZIP Code *</Label>
-                  <Input
-                    id="zip_code"
-                    value={newCustomer.zip_code}
-                    onChange={(e) => setNewCustomer({...newCustomer, zip_code: e.target.value})}
-                    placeholder="Enter ZIP code"
-                    required
-                  />
-                </div>
-              </div>
 
-              <div>
-                <Label htmlFor="location_id">Service Location *</Label>
-                <Select value={newCustomer.location_id} onValueChange={(value) => setNewCustomer({...newCustomer, location_id: value})}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a service location" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {locations.map((location) => (
-                      <SelectItem key={location.id} value={location.id}>
-                        {location.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                <FormField
+                  control={form.control}
+                  name="location_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Service Location *</FormLabel>
+                      <FormControl>
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a service location" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {locationsQuery.data?.map((location) => (
+                              <SelectItem key={location.id} value={location.id}>
+                                {location.name}
+                              </SelectItem>
+                            )) || []}
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              <DialogFooter>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => setShowAddCustomerModal(false)}
-                  disabled={submitting}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={submitting}>
-                  {submitting ? 'Creating...' : 'Create Customer'}
-                </Button>
-              </DialogFooter>
-            </form>
+                <DialogFooter>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => setShowAddCustomerModal(false)}
+                    disabled={createCustomerMutation.isPending}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={createCustomerMutation.isPending}>
+                    {createCustomerMutation.isPending ? 'Creating...' : 'Create Customer'}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
           </DialogContent>
         </Dialog>
       )}
@@ -672,11 +700,11 @@ export function CustomerManagement() {
                     <SelectValue placeholder="Select location for imported customers" />
                   </SelectTrigger>
                   <SelectContent>
-                    {locations.map((location) => (
+                    {locationsQuery.data?.map((location) => (
                       <SelectItem key={location.id} value={location.id}>
                         {location.name}
                       </SelectItem>
-                    ))}
+                    )) || []}
                   </SelectContent>
                 </Select>
               </div>

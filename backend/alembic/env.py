@@ -14,6 +14,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from app.db import Base, DATABASE_URL
 from app import models  # Import models so Alembic can autogenerate
+from app import auth_models  # Import auth models for Phase 2
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

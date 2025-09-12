@@ -21,8 +21,24 @@ try:
     from .monitoring_service import router as monitoring_service
 except ImportError:
     monitoring_service = None
+from .auth_endpoints import router as auth_router
+from .role_decorators import require_auth, manager_only, dispatcher_or_manager, accountant_or_manager
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from sqlalchemy.orm import Session
+from .db import get_db
+from .repositories.customers import CustomerRepo
+from .repositories.products import ProductRepo
+from .repositories.orders import OrderRepo
+from .repositories.vehicles import VehicleRepo
+from .repositories.routes import RouteRepo
+from .repositories.work_orders import WorkOrderRepo
+from .repositories.production_entries import ProductionEntryRepo
+from .repositories.expenses import ExpenseRepo
+from .repositories.financial_documents import FinancialDocumentRepo
+from .repositories.locations import LocationRepo
+from .repositories.customer_pricing import CustomerPricingRepo
+from .repositories.users import UserRepo
 if os.getenv("ENVIRONMENT", "development") == "development":
     from prophet import Prophet
     from sklearn.linear_model import LinearRegression
@@ -39,6 +55,8 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Arctic Ice Solutions API", version="1.0.0")
+
+app.include_router(auth_router)
 
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-for-local-development-only")
 ALGORITHM = "HS256"
@@ -1083,7 +1101,7 @@ def create_distance_matrix(coordinates):
 
 driver_locations = {}
 quickbooks_connection = None
-<
+
 notifications_db = {}
 
 DATA_DIR = Path("./data")
@@ -1179,25 +1197,23 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
+    """Get current user using new JWT authentication system"""
+    from .auth_service import get_current_user_from_token
+    
+    user_data = get_current_user_from_token(credentials, db)
+    user = user_data["user"]
+    
+    return UserInDB(
+        id=user.id,
+        username=user.username,
+        email=user.email,
+        full_name=user.full_name,
+        role=user.role,
+        location_id=user.location_id or "default",
+        is_active=user.is_active,
+        hashed_password=user.hashed_password
     )
-    try:
-        token = credentials.credentials
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str | None = payload.get("sub")
-        if username is None:
-            raise credentials_exception
-        token_data = TokenData(username=username)
-    except JWTError:
-        raise credentials_exception
-    user = get_user(username=username)
-    if user is None:
-        raise credentials_exception
-    return user
 
 def filter_by_location(data: List[dict], user: UserInDB, location_key: str = "location_id") -> List[dict]:
     if user.role == UserRole.MANAGER:

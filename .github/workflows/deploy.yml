@@ -25,11 +25,10 @@ jobs:
         env:
           VITE_API_URL: https://api.yourchoiceice.com
           VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY || '' }}
-          NODE_ENV: production
         run: |
           cd frontend
-          pnpm install
-          pnpm build
+          pnpm install --prod=false
+          NODE_ENV=production pnpm build
           
       - name: Fix API URL configuration in build
         env:
@@ -48,3 +47,4 @@ jobs:
           echo "Note: Actual deployment to Devin Apps Platform requires manual deploy_frontend command"
           echo "GitHub Actions cannot directly deploy to Devin Apps Platform"
           echo "Build artifacts are ready for deployment"
+# Force PR checks refresh

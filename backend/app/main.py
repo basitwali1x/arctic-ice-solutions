@@ -68,6 +68,19 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 1440
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
 
+from .auth_endpoints import router as auth_router, initialize_roles
+from .auth_service import AuthService
+from .role_decorators import (
+    require_permissions, require_roles, manager_only, 
+    dispatcher_or_manager, accountant_or_manager,
+    can_read_orders, can_modify_orders, can_read_routes,
+    can_modify_routes, can_read_financial, can_modify_financial,
+    can_read_work_orders, can_modify_work_orders,
+    audit_create, audit_update, audit_delete
+)
+
+app.include_router(auth_router)
+
 try:
     from .weather_service import router as weather_router
     from .monitoring_service import router as monitoring_router

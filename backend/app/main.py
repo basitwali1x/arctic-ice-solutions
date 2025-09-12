@@ -39,6 +39,13 @@ from .repositories.financial_documents import FinancialDocumentRepo
 from .repositories.locations import LocationRepo
 from .repositories.customer_pricing import CustomerPricingRepo
 from .repositories.users import UserRepo
+from .excel_import import process_excel_files, process_route_excel_files
+from .pdf_import import process_pdf_files
+from .google_sheets_import import process_google_sheets_data, test_google_sheets_connection
+from .quickbooks_integration import QuickBooksClient, map_arctic_customer_to_qb, map_arctic_order_to_qb_invoice
+
+quickbooks_client = QuickBooksClient()
+
 if os.getenv("ENVIRONMENT", "development") == "development":
     from prophet import Prophet
     from sklearn.linear_model import LinearRegression
@@ -66,7 +73,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
 
 try:
-    from .weather_service import router as weather_router
+    from .weather_service import router as weather_router, weather_service
     from .monitoring_service import router as monitoring_router
     app.include_router(weather_router, prefix="/weather", tags=["weather"])
     app.include_router(monitoring_router, prefix="/monitoring", tags=["monitoring"])
@@ -3501,8 +3508,6 @@ async def import_excel_data(
         combined_metrics = {"total_revenue": 0.0, "total_expenses": 0.0}
 
         if excel_files:
-            if process_excel_files is None:
-                from .excel_import import process_excel_files
             excel_result = process_excel_files(excel_files, location_id, location_name)
             all_customers.extend(excel_result["customers"])
             all_orders.extend(excel_result["orders"])
@@ -3510,8 +3515,6 @@ async def import_excel_data(
                 combined_metrics["total_revenue"] += excel_result["financial_metrics"].get("total_revenue", 0.0)
 
         if pdf_files:
-            if process_pdf_files is None:
-                from .pdf_import import process_pdf_files
             pdf_result = process_pdf_files(pdf_files, location_id, location_name)
             all_customers.extend(pdf_result["customers"])
             all_orders.extend(pdf_result["orders"])
@@ -3659,8 +3662,6 @@ async def import_google_sheets_data(
     location_name = location_names[location_id]
 
     try:
-        if process_google_sheets_data is None:
-            from .google_sheets_import import process_google_sheets_data
         processed_data = process_google_sheets_data(sheets_url, location_id, location_name, worksheet_name)
 
         imported_customers = processed_data["customers"]
@@ -3693,9 +3694,11 @@ async def import_google_sheets_data(
 @app.post("/api/customers/bulk-import")
 async def bulk_import_customers_excel(
     files: List[UploadFile] = File(...),
+    location_id: str = Form("auto"),
+    current_user: UserInDB = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """Bulk import customers from Excel files and add to customers database"""
-    global customers_db
 
     if not files:
         raise HTTPException(status_code=400, detail="No files provided")
@@ -3730,13 +3733,9 @@ async def bulk_import_customers_excel(
             temp_file.close()
             temp_files.append(temp_file.name)
         
-        if process_customer_excel_files is None:
-            from .excel_import import process_customer_excel_files
+        processed_data = process_excel_files(temp_files, location_id, location_name)
 
-        processed_data = process_customer_excel_files(temp_files, location_id, location_name)
-
-        # Add customers to customers_db instead of imported_customers
-        from .repositories.customers import CustomerRepo
+        # Add customers to database via repository
         customer_repo = CustomerRepo(db)
         customers_imported = 0
         location_distribution = {}
@@ -3869,8 +3868,6 @@ async def bulk_import_customers_sheets(
     location_name = location_names[location_id]
 
     try:
-        if process_google_sheets_data is None:
-            from .google_sheets_import import process_google_sheets_data
         processed_data = process_google_sheets_data(sheets_url, location_id, location_name, worksheet_name)
 
         # Add customers to customers_db instead of imported_customers

@@ -65,7 +65,7 @@ export function ProductionManager() {
       setLoading(true);
       setError(null);
       
-      const response = await apiRequest('/api/production/entries');
+      const response = await apiRequest('/api/v1/production/entries');
       const data = await response?.json();
       
       setProductionEntries(Array.isArray(data) ? data : []);
@@ -89,7 +89,7 @@ export function ProductionManager() {
     try {
       setForecastLoading(true);
       
-      const response = await apiRequest('/api/inventory/forecast/loc_1?days=7');
+      const response = await apiRequest('/api/v1/inventory/forecast/loc_1?days=7');
       const data = await response?.json();
       
       setForecastData(data);
@@ -114,7 +114,7 @@ export function ProductionManager() {
     const pallets_block_ice = parseInt(formData.pallets_block_ice) || 0;
     
     try {
-      const response = await apiRequest('/api/production/entries', {
+      const response = await apiRequest('/api/v1/production/entries', {
         method: 'POST',
         body: JSON.stringify({
           date: new Date().toISOString().split('T')[0],

@@ -21,8 +21,8 @@ export function ProductionInventory() {
       setError(null);
       
       const [productsRes, productionRes] = await Promise.all([
-        apiRequest('/api/products'),
-        apiRequest('/api/dashboard/production')
+        apiRequest('/api/v1/products'),
+        apiRequest('/api/v1/dashboard/production')
       ]);
 
       const productsData = await productsRes?.json();

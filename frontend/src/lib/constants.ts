@@ -4,7 +4,7 @@ export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:80
 
 export const RouteService = {
   async optimizeRoute(locationId: string): Promise<any> {
-    const response = await fetch(buildAPIUrl(`/api/routes/optimize?location_id=${locationId}`), {
+    const response = await fetch(buildAPIUrl(`/api/v1/routes/optimize?location_id=${locationId}`), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -21,7 +21,7 @@ export const RouteService = {
   },
 
   async getRouteProgress(routeId: string): Promise<any> {
-    const response = await fetch(buildAPIUrl(`/api/routes/${routeId}/progress`), {
+    const response = await fetch(buildAPIUrl(`/api/v1/routes/${routeId}/progress`), {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       },
@@ -36,7 +36,7 @@ export const RouteService = {
   },
 
   async updateDriverLocation(driverId: string, locationData: any): Promise<any> {
-    const response = await fetch(buildAPIUrl(`/api/drivers/${driverId}/location`), {
+    const response = await fetch(buildAPIUrl(`/api/v1/drivers/${driverId}/location`), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -54,7 +54,7 @@ export const RouteService = {
   },
 
   async optimizeWeeklyRoutes(locationId: string): Promise<any> {
-    const response = await fetch(buildAPIUrl(`/api/routes/optimize-weekly?location_id=${locationId}`), {
+    const response = await fetch(buildAPIUrl(`/api/v1/routes/optimize-weekly?location_id=${locationId}`), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -71,7 +71,7 @@ export const RouteService = {
   },
 
   async getDepotInfo(): Promise<any> {
-    const response = await fetch(buildAPIUrl('/api/routes/depot-info'), {
+    const response = await fetch(buildAPIUrl('/api/v1/routes/depot-info'), {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

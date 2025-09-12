@@ -46,11 +46,11 @@ export function Dashboard() {
   const fetchDashboardData = useCallback(async () => {
     try {
       const [overviewRes, productionRes, fleetRes, financialRes, locationsRes] = await Promise.all([
-        apiRequest('/api/dashboard/overview'),
-        apiRequest('/api/dashboard/production'),
-        apiRequest('/api/dashboard/fleet'),
-        apiRequest('/api/dashboard/financial'),
-        apiRequest('/api/locations')
+        apiRequest('/api/v1/dashboard/overview'),
+        apiRequest('/api/v1/dashboard/production'),
+        apiRequest('/api/v1/dashboard/fleet'),
+        apiRequest('/api/v1/dashboard/financial'),
+        apiRequest('/api/v1/locations')
       ]);
 
       const [overview, production, fleet, financial, locations] = await Promise.all([

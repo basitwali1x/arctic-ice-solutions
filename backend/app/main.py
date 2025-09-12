@@ -17,25 +17,22 @@ import math
 from pathlib import Path
 from .google_maps_service import GoogleMapsService
 from dotenv import load_dotenv
-from .excel_import import process_excel_files, process_customer_excel_files, process_route_excel_files
-from .pdf_import import process_pdf_files
-from .google_sheets_import import process_google_sheets_data, test_google_sheets_connection
-from .quickbooks_integration import QuickBooksClient, map_arctic_customer_to_qb, map_arctic_order_to_qb_invoice, map_arctic_payment_to_qb
-from .weather_service import weather_service
-from .db import get_db
-from .repositories.users import UserRepo
-from .repositories.customers import CustomerRepo
-from sqlalchemy.orm import Session
 try:
     from .monitoring_service import router as monitoring_service
 except ImportError:
     monitoring_service = None
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from prophet import Prophet
-from sklearn.linear_model import LinearRegression
-import numpy as np
-import pandas as pd
+if os.getenv("ENVIRONMENT", "development") == "development":
+    from prophet import Prophet
+    from sklearn.linear_model import LinearRegression
+    import numpy as np
+    import pandas as pd
+else:
+    Prophet = None
+    LinearRegression = None
+    np = None
+    pd = None
 
 load_dotenv()
 
@@ -1086,7 +1083,7 @@ def create_distance_matrix(coordinates):
 
 driver_locations = {}
 quickbooks_connection = None
-quickbooks_client = QuickBooksClient()
+<
 notifications_db = {}
 
 DATA_DIR = Path("./data")
@@ -1107,6 +1104,30 @@ def save_data_to_disk():
 def load_data_from_disk():
     """DEPRECATED: Data is now persisted in Postgres database"""
     print("load_data_from_disk() is deprecated - data now persisted in Postgres")
+
+def initialize_production_admin():
+    """Create admin user in production if no users exist"""
+    global users_db
+    
+    if len(users_db) == 0:
+        admin_username = os.getenv("ADMIN_USERNAME", "admin")
+        admin_password = os.getenv("ADMIN_PASSWORD", "secure-production-password-2024")
+        
+        admin_user = {
+            "id": "admin_user",
+            "username": admin_username,
+            "email": f"{admin_username}@arcticeice.com",
+            "full_name": "System Administrator",
+            "role": "manager",
+            "location_id": "loc_1",
+            "is_active": True,
+            "hashed_password": get_password_hash(admin_password)
+        }
+        
+        users_db[admin_user["id"]] = admin_user
+        print(f"DEBUG: Created production admin user: {admin_username}")
+    else:
+        print(f"DEBUG: Users already exist ({len(users_db)} users), skipping admin creation")
 
 # In-memory storage for current driver locations
 driver_locations = {}
@@ -2303,8 +2324,7 @@ def initialize_sample_data(db: Session = None):
     print("DEBUG: Sample data initialization complete")
     
     if should_close:
-        db.close()
-
+        db.close
 
 training_modules_db = {
     "ice-handling-safety": {
@@ -3182,15 +3202,15 @@ async def get_customer_heatmap(
     current_user: UserInDB = Depends(get_current_user)
 ):
     location_list = location_ids.split(",") if location_ids else []
-
+    
     all_customers = list(customers_db.values())
     if location_list:
         all_customers = [c for c in all_customers if c["location_id"] in location_list]
-
+    
     heatmap_data = []
     for customer in all_customers:
         customer_orders = [o for o in orders_db.values() if o.get("customer_id") == customer["id"]]
-
+        
         heatmap_data.append({
             "customer_name": customer["name"],
             "address": customer["address"],
@@ -3200,7 +3220,7 @@ async def get_customer_heatmap(
             "total_revenue": sum(o.get("total_amount", 0) for o in customer_orders),
             "location_id": customer["location_id"]
         })
-
+    
     return {
         "heatmap_data": heatmap_data,
         "period": period,
@@ -3465,6 +3485,8 @@ async def import_excel_data(
         combined_metrics = {"total_revenue": 0.0, "total_expenses": 0.0}
 
         if excel_files:
+            if process_excel_files is None:
+                from .excel_import import process_excel_files
             excel_result = process_excel_files(excel_files, location_id, location_name)
             all_customers.extend(excel_result["customers"])
             all_orders.extend(excel_result["orders"])
@@ -3472,6 +3494,8 @@ async def import_excel_data(
                 combined_metrics["total_revenue"] += excel_result["financial_metrics"].get("total_revenue", 0.0)
 
         if pdf_files:
+            if process_pdf_files is None:
+                from .pdf_import import process_pdf_files
             pdf_result = process_pdf_files(pdf_files, location_id, location_name)
             all_customers.extend(pdf_result["customers"])
             all_orders.extend(pdf_result["orders"])
@@ -3619,6 +3643,8 @@ async def import_google_sheets_data(
     location_name = location_names[location_id]
 
     try:
+        if process_google_sheets_data is None:
+            from .google_sheets_import import process_google_sheets_data
         processed_data = process_google_sheets_data(sheets_url, location_id, location_name, worksheet_name)
 
         imported_customers = processed_data["customers"]
@@ -3651,9 +3677,6 @@ async def import_google_sheets_data(
 @app.post("/api/customers/bulk-import")
 async def bulk_import_customers_excel(
     files: List[UploadFile] = File(...),
-    location_id: str = Form("loc_3"),
-    current_user: UserInDB = Depends(get_current_user),
-    db: Session = Depends(get_db)
 ):
     """Bulk import customers from Excel files and add to customers database"""
     global customers_db
@@ -3662,18 +3685,19 @@ async def bulk_import_customers_excel(
         raise HTTPException(status_code=400, detail="No files provided")
 
     # Validate location_id
-    valid_locations = ["loc_1", "loc_2", "loc_3", "loc_4"]
+    valid_locations = ["loc_1", "loc_2", "loc_3", "loc_4", "auto"]
     if location_id not in valid_locations:
         raise HTTPException(status_code=400, detail=f"Invalid location_id. Must be one of: {valid_locations}")
-
-    if current_user.role != UserRole.MANAGER and location_id != current_user.location_id:
-        raise HTTPException(status_code=403, detail="Cannot import customers for different location")
+    
+    if location_id != "auto" and current_user.role != UserRole.MANAGER and location_id != current_user.location_id:
+        raise HTTPException(status_code=403, detail="Not authorized to import customers for this location")
 
     location_names = {
         "loc_1": "Leesville",
         "loc_2": "Lake Charles",
         "loc_3": "Lufkin",
-        "loc_4": "Jasper"
+        "loc_4": "Jasper",
+        "auto": "Auto-Detect"
     }
     location_name = location_names[location_id]
 
@@ -3689,6 +3713,9 @@ async def bulk_import_customers_excel(
             temp_file.write(content)
             temp_file.close()
             temp_files.append(temp_file.name)
+        
+        if process_customer_excel_files is None:
+            from .excel_import import process_customer_excel_files
 
         processed_data = process_customer_excel_files(temp_files, location_id, location_name)
 
@@ -3696,8 +3723,14 @@ async def bulk_import_customers_excel(
         from .repositories.customers import CustomerRepo
         customer_repo = CustomerRepo(db)
         customers_imported = 0
+        location_distribution = {}
+        
         for customer_data in processed_data["customers"]:
             customer_id = str(uuid.uuid4())
+            actual_location_id = customer_data["location_id"]
+            
+            location_distribution[actual_location_id] = location_distribution.get(actual_location_id, 0) + 1
+            
             customer_record = {
                 "id": customer_id,
                 "name": customer_data["name"],
@@ -3708,7 +3741,7 @@ async def bulk_import_customers_excel(
                 "city": customer_data.get("city", ""),
                 "state": customer_data.get("state", ""),
                 "zip_code": customer_data.get("zip_code", ""),
-                "location_id": location_id,
+                "location_id": actual_location_id,
                 "credit_limit": customer_data.get("credit_limit", 5000.0),
                 "payment_terms": 30,
                 "is_active": True
@@ -3718,12 +3751,13 @@ async def bulk_import_customers_excel(
 
         return {
             "success": True,
-            "message": f"Customers imported successfully to {location_name}",
+            "message": f"Customers imported successfully with {location_name}",
             "summary": {
                 "customers_imported": customers_imported,
                 "total_records": processed_data["total_records"],
                 "location_id": location_id,
                 "location_name": location_name,
+                "location_distribution": location_distribution,
                 "duplicates_removed": processed_data.get("duplicates_removed", 0)
             }
         }
@@ -3819,14 +3853,22 @@ async def bulk_import_customers_sheets(
     location_name = location_names[location_id]
 
     try:
+        if process_google_sheets_data is None:
+            from .google_sheets_import import process_google_sheets_data
         processed_data = process_google_sheets_data(sheets_url, location_id, location_name, worksheet_name)
 
         # Add customers to customers_db instead of imported_customers
         from .repositories.customers import CustomerRepo
         customer_repo = CustomerRepo(db)
         customers_imported = 0
+        location_distribution = {}
+        
         for customer_data in processed_data["customers"]:
             customer_id = str(uuid.uuid4())
+            actual_location_id = customer_data["location_id"]
+            
+            location_distribution[actual_location_id] = location_distribution.get(actual_location_id, 0) + 1
+            
             customer_record = {
                 "id": customer_id,
                 "name": customer_data["name"],
@@ -3837,7 +3879,7 @@ async def bulk_import_customers_sheets(
                 "city": customer_data.get("city", ""),
                 "state": customer_data.get("state", ""),
                 "zip_code": customer_data.get("zip_code", ""),
-                "location_id": location_id,
+                "location_id": actual_location_id,
                 "credit_limit": customer_data.get("credit_limit", 5000.0),
                 "payment_terms": 30,
                 "is_active": True

@@ -22,6 +22,10 @@ from .pdf_import import process_pdf_files
 from .google_sheets_import import process_google_sheets_data, test_google_sheets_connection
 from .quickbooks_integration import QuickBooksClient, map_arctic_customer_to_qb, map_arctic_order_to_qb_invoice, map_arctic_payment_to_qb
 from .weather_service import weather_service
+from .db import get_db
+from .repositories.users import UserRepo
+from .repositories.customers import CustomerRepo
+from sqlalchemy.orm import Session
 try:
     from .monitoring_service import router as monitoring_service
 except ImportError:
@@ -1080,36 +1084,9 @@ def create_distance_matrix(coordinates):
 
     receipt_url: Optional[str] = None
 
-users_db = {}
-customers_db = {}
-products_db = {}
-vehicles_db = {}
-locations_db = {}
-orders_db = {}
-routes_db = {}
-inventory_db = []
-work_orders_db = {}
-production_entries_db = {}
-expenses_db = {}
-financial_documents_db = {}
-customer_pricing_db = {}
 driver_locations = {}
 quickbooks_connection = None
-training_modules_db = {}
-employee_certifications_db = {}
-employee_progress_db = {}
-customer_feedback = {}
-
-imported_customers = []
-imported_orders = []
-imported_financial_data = {}
-quickbooks_connection = None
 quickbooks_client = QuickBooksClient()
-
-work_orders_db = {}
-production_entries_db = {}
-expenses_db = {}
-financial_documents_db = {}
 notifications_db = {}
 
 DATA_DIR = Path("./data")
@@ -1124,91 +1101,12 @@ EXPENSES_FILE = DATA_DIR / "expenses.json"
 DOCUMENTS_FILE = DATA_DIR / "financial_documents.json"
 
 def save_data_to_disk():
-    """Save all data to disk for persistence"""
-    try:
-        data_file = Path("data/arctic_ice_data.json")
-        data_file.parent.mkdir(exist_ok=True)
-
-        with open(data_file, 'w') as f:
-            json.dump({
-                'users': users_db,
-                'customers': customers_db,
-                'products': products_db,
-                'vehicles': vehicles_db,
-                'orders': orders_db,
-                'routes': routes_db,
-                'work_orders': work_orders_db,
-                'production_entries': production_entries_db,
-                'expenses': expenses_db,
-                'financial_documents': financial_documents_db,
-                'customer_pricing': customer_pricing_db,
-                'imported_financial_data': imported_financial_data,
-                'imported_customers': imported_customers,
-                'imported_orders': imported_orders,
-                'quickbooks_connection': quickbooks_connection
-            }, f, indent=2, default=str)
-
-        DATA_DIR.mkdir(exist_ok=True)
-
-        with open(CUSTOMERS_FILE, 'w') as f:
-            json.dump(imported_customers, f, indent=2, default=str)
-        with open(ORDERS_FILE, 'w') as f:
-            json.dump(imported_orders, f, indent=2, default=str)
-        with open(FINANCIAL_FILE, 'w') as f:
-            json.dump(imported_financial_data, f, indent=2, default=str)
-        with open(WORK_ORDERS_FILE, 'w') as f:
-            json.dump(work_orders_db, f, indent=2, default=str)
-        with open(PRODUCTION_FILE, 'w') as f:
-            json.dump(production_entries_db, f, indent=2, default=str)
-        with open(EXPENSES_FILE, 'w') as f:
-            json.dump(expenses_db, f, indent=2, default=str)
-        with open(DOCUMENTS_FILE, 'w') as f:
-            json.dump(financial_documents_db, f, indent=2, default=str)
-        print(f"Saved data: {len(imported_customers)} customers, {len(imported_orders)} orders")
-    except Exception as e:
-        print(f"Error saving data: {e}")
+    """Save all data to disk for persistence - DEPRECATED: Now using Postgres"""
+    print("save_data_to_disk() is deprecated - data is now persisted in Postgres")
 
 def load_data_from_disk():
-    """Load all data from disk on startup"""
-    global imported_customers, imported_orders, imported_financial_data
-    global work_orders_db, production_entries_db, expenses_db, financial_documents_db
-
-    try:
-        if CUSTOMERS_FILE.exists():
-            with open(CUSTOMERS_FILE, 'r') as f:
-                data = json.load(f)
-                if data:  # Only load if data is not empty
-                    imported_customers = data
-        if ORDERS_FILE.exists():
-            with open(ORDERS_FILE, 'r') as f:
-                data = json.load(f)
-                if data:  # Only load if data is not empty
-                    imported_orders = data
-        if FINANCIAL_FILE.exists():
-            with open(FINANCIAL_FILE, 'r') as f:
-                data = json.load(f)
-                if data:  # Only load if data is not empty
-                    imported_financial_data = data
-        if WORK_ORDERS_FILE.exists():
-            with open(WORK_ORDERS_FILE, 'r') as f:
-                work_orders_db = json.load(f)
-        if PRODUCTION_FILE.exists():
-            with open(PRODUCTION_FILE, 'r') as f:
-                production_entries_db = json.load(f)
-        if EXPENSES_FILE.exists():
-            with open(EXPENSES_FILE, 'r') as f:
-                expenses_db = json.load(f)
-        if DOCUMENTS_FILE.exists():
-            with open(DOCUMENTS_FILE, 'r') as f:
-                financial_documents_db = json.load(f)
-        print(f"Loaded data: {len(imported_customers)} customers, {len(imported_orders)} orders")
-    except Exception as e:
-        print(f"Error loading data: {e}")
-        imported_customers = []
-        imported_orders = []
-        imported_financial_data = {}
-
-load_data_from_disk()
+    """DEPRECATED: Data is now persisted in Postgres database"""
+    print("load_data_from_disk() is deprecated - data now persisted in Postgres")
 
 # In-memory storage for current driver locations
 driver_locations = {}
@@ -1220,10 +1118,27 @@ def get_password_hash(password):
     return pwd_context.hash(password)
 
 def get_user(username: str):
-    for user_data in users_db.values():
-        if user_data["username"] == username:
-            return UserInDB(**user_data)
-    return None
+    from .db import SessionLocal
+    from .repositories.users import UserRepo
+    
+    db = SessionLocal()
+    try:
+        user_repo = UserRepo(db)
+        user = user_repo.get_by_username(username)
+        if user:
+            return UserInDB(
+                id=user.id,
+                username=user.username,
+                email=user.email,
+                full_name=user.full_name,
+                role=user.role,
+                location_id=user.location_id,
+                is_active=user.is_active,
+                hashed_password=user.hashed_password
+            )
+        return None
+    finally:
+        db.close()
 
 def authenticate_user(username: str, password: str):
     user = get_user(username)
@@ -1269,17 +1184,32 @@ def filter_by_location(data: List[dict], user: UserInDB, location_key: str = "lo
     return [item for item in data if item.get(location_key) == user.location_id]
 
 def get_customer_price_for_product(customer_id: str, product_id: str) -> float:
-    for pricing_id, pricing in customer_pricing_db.items():
-        if pricing['customer_id'] == customer_id and pricing['product_id'] == product_id:
-            return pricing['custom_price']
-
-    if product_id in products_db:
-        return products_db[product_id]['price']
-
-    return 0.0
+    from .db import SessionLocal
+    from .models import CustomerPricing, Product
+    
+    db = SessionLocal()
+    try:
+        pricing = db.query(CustomerPricing).filter_by(customer_id=customer_id, product_id=product_id).first()
+        if pricing:
+            return float(pricing.custom_price)
+        
+        product = db.query(Product).filter_by(id=product_id).first()
+        if product:
+            return float(product.price)
+        return 0.0
+    finally:
+        db.close()
 
 def get_all_customer_pricing(customer_id: str) -> list:
-    return [pricing for pricing in customer_pricing_db.values() if pricing['customer_id'] == customer_id]
+    from .db import SessionLocal
+    from .models import CustomerPricing
+    
+    db = SessionLocal()
+    try:
+        pricings = db.query(CustomerPricing).filter_by(customer_id=customer_id).all()
+        return [{'id': p.id, 'customer_id': p.customer_id, 'product_id': p.product_id, 'custom_price': float(p.custom_price)} for p in pricings]
+    finally:
+        db.close()
 
 def import_route_json_data():
     """Import customer data from route JSON files"""
@@ -1390,7 +1320,15 @@ def is_production_mode():
         port == "8000"
     )
 
-def initialize_sample_data():
+def initialize_sample_data(db: Session = None):
+    """Initialize sample data in the database"""
+    if db is None:
+        from .db import SessionLocal
+        db = SessionLocal()
+        should_close = True
+    else:
+        should_close = False
+    
     print("DEBUG: Initializing sample data...")
     locations = [
         Location(
@@ -1432,31 +1370,40 @@ def initialize_sample_data():
     ]
 
     for location in locations:
-        locations_db[location.id] = location.dict()
+        existing = db.query(Location).filter_by(id=location.id).first()
+        if not existing:
+            db.add(location)
+    db.commit()
     print(f"DEBUG: Added {len(locations)} locations")
 
     products = [
-        Product(id="prod_1", name="8lb Ice Bag", product_type=ProductType.BAG_8LB, price=3.50, weight_lbs=8.0),
-        Product(id="prod_2", name="20lb Ice Bag", product_type=ProductType.BAG_20LB, price=7.00, weight_lbs=20.0),
-        Product(id="prod_3", name="Block Ice", product_type=ProductType.BLOCK_ICE, price=15.00, weight_lbs=25.0)
+        Product(id="prod_1", name="8lb Ice Bag", product_type="8lb_bag", price=3.50, weight_lbs=8.0),
+        Product(id="prod_2", name="20lb Ice Bag", product_type="20lb_bag", price=7.00, weight_lbs=20.0),
+        Product(id="prod_3", name="Block Ice", product_type="block_ice", price=15.00, weight_lbs=25.0)
     ]
 
     for product in products:
-        products_db[product.id] = product.dict()
+        existing = db.query(Product).filter_by(id=product.id).first()
+        if not existing:
+            db.add(product)
+    db.commit()
 
     vehicles = [
-        Vehicle(id="veh_1", license_plate="LA-ICE-01", vehicle_type=VehicleType.REEFER_53, capacity_pallets=26, location_id="loc_1"),
-        Vehicle(id="veh_2", license_plate="LA-ICE-02", vehicle_type=VehicleType.REEFER_42, capacity_pallets=20, location_id="loc_2"),
-        Vehicle(id="veh_3", license_plate="TX-ICE-01", vehicle_type=VehicleType.REEFER_20, capacity_pallets=10, location_id="loc_3"),
-        Vehicle(id="veh_4", license_plate="TX-ICE-02", vehicle_type=VehicleType.REEFER_20, capacity_pallets=10, location_id="loc_3"),
-        Vehicle(id="veh_5", license_plate="LA-ICE-03", vehicle_type=VehicleType.REEFER_20, capacity_pallets=10, location_id="loc_1"),
-        Vehicle(id="veh_6", license_plate="LA-ICE-04", vehicle_type=VehicleType.REEFER_20, capacity_pallets=10, location_id="loc_2"),
-        Vehicle(id="veh_7", license_plate="TX-ICE-03", vehicle_type=VehicleType.REEFER_16, capacity_pallets=8, location_id="loc_3"),
-        Vehicle(id="veh_8", license_plate="LA-ICE-05", vehicle_type=VehicleType.REEFER_16, capacity_pallets=8, location_id="loc_1")
+        Vehicle(id="veh_1", license_plate="LA-ICE-01", vehicle_type="reefer_53", capacity_pallets=26, location_id="loc_1"),
+        Vehicle(id="veh_2", license_plate="LA-ICE-02", vehicle_type="reefer_42", capacity_pallets=20, location_id="loc_2"),
+        Vehicle(id="veh_3", license_plate="TX-ICE-01", vehicle_type="reefer_20", capacity_pallets=10, location_id="loc_3"),
+        Vehicle(id="veh_4", license_plate="TX-ICE-02", vehicle_type="reefer_20", capacity_pallets=10, location_id="loc_3"),
+        Vehicle(id="veh_5", license_plate="LA-ICE-03", vehicle_type="reefer_20", capacity_pallets=10, location_id="loc_1"),
+        Vehicle(id="veh_6", license_plate="LA-ICE-04", vehicle_type="reefer_20", capacity_pallets=10, location_id="loc_2"),
+        Vehicle(id="veh_7", license_plate="TX-ICE-03", vehicle_type="reefer_16", capacity_pallets=8, location_id="loc_3"),
+        Vehicle(id="veh_8", license_plate="LA-ICE-05", vehicle_type="reefer_16", capacity_pallets=8, location_id="loc_1")
     ]
 
     for vehicle in vehicles:
-        vehicles_db[vehicle.id] = vehicle.dict()
+        existing = db.query(Vehicle).filter_by(id=vehicle.id).first()
+        if not existing:
+            db.add(vehicle)
+    db.commit()
 
     sample_work_orders = [
         {
@@ -1532,8 +1479,23 @@ def initialize_sample_data():
         }
     ]
 
-    for wo in sample_work_orders:
-        work_orders_db[wo["id"]] = wo
+    from .models import WorkOrder
+    for wo_data in sample_work_orders:
+        existing = db.query(WorkOrder).filter_by(id=wo_data["id"]).first()
+        if not existing:
+            work_order = WorkOrder(
+                id=wo_data["id"],
+                vehicle_id=wo_data["vehicle_id"],
+                technician_name=wo_data["technician_name"],
+                issue_description=wo_data["issue_description"],
+                priority=wo_data["priority"],
+                status=wo_data["status"],
+                work_type=wo_data["work_type"],
+                estimated_cost=wo_data["estimated_cost"],
+                estimated_hours=wo_data["estimated_hours"]
+            )
+            db.add(work_order)
+    db.commit()
 
     sample_customers = [
         {
@@ -2071,7 +2033,8 @@ def initialize_sample_data():
     ]
 
     for exp in sample_expenses:
-        expenses_db[exp["id"]] = exp
+        # expenses_db[exp["id"]] = exp  # TODO: Replace with database operations
+        pass
 
     placeholder_document = {
         "id": "doc_user_attachment_001",
@@ -2089,7 +2052,9 @@ def initialize_sample_data():
         "amount": None,
         "date": "2025-08-13"
     }
-    financial_documents_db["doc_user_attachment_001"] = placeholder_document
+    from .repositories.financial_documents import FinancialDocumentRepo
+    financial_doc_repo = FinancialDocumentRepo(db)
+    financial_doc_repo.create(**placeholder_document)
 
     demo_password = os.getenv("DEMO_USER_PASSWORD", "dev-password-change-in-production")
 
@@ -2223,7 +2188,8 @@ def initialize_sample_data():
         sample_users.extend(demo_users)
 
     for user in sample_users:
-        users_db[user["id"]] = user
+        # users_db[user["id"]] = user  # TODO: Replace with database operations
+        pass
     print(f"DEBUG: Added {len(sample_users)} users")
 
     imported_customers = import_route_json_data()
@@ -2316,14 +2282,29 @@ def initialize_sample_data():
         }
     ]
 
-    for route in sample_routes:
-        routes_db[route["id"]] = route
+    from .models import Route
+    for route_data in sample_routes:
+        existing = db.query(Route).filter_by(id=route_data["id"]).first()
+        if not existing:
+            route = Route(
+                id=route_data["id"],
+                name=route_data["name"],
+                driver_id=route_data["driver_id"],
+                vehicle_id=route_data["vehicle_id"],
+                location_id=route_data["location_id"],
+                date=route_data["date"],
+                estimated_duration_hours=route_data["estimated_duration_hours"],
+                status=route_data["status"]
+            )
+            db.add(route)
+    db.commit()
     print(f"DEBUG: Added {len(sample_routes)} routes")
 
-    print(f"DEBUG: Final counts - customers_db: {len(customers_db)}, orders_db: {len(orders_db)}, routes_db: {len(routes_db)}")
-    print(f"DEBUG: Final counts - imported_customers: {len(imported_customers)}, imported_orders: {len(imported_orders)}")
+    print("DEBUG: Sample data initialization complete")
+    
+    if should_close:
+        db.close()
 
-initialize_sample_data()
 
 training_modules_db = {
     "ice-handling-safety": {
@@ -2402,170 +2383,204 @@ async def healthz():
     return {"status": "ok"}
 
 @app.get("/api/users")
-async def get_users(role: Optional[str] = None, current_user: UserInDB = Depends(get_current_user)):
+async def get_users(role: Optional[str] = None, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.role != UserRole.MANAGER:
         raise HTTPException(status_code=403, detail="Only managers can access user management")
 
-    users = list(users_db.values())
-    if role:
-        users = [u for u in users if u["role"] == role]
-
-    return [User(**{k: v for k, v in user.items() if k != "hashed_password"}) for user in users]
+    user_repo = UserRepo(db)
+    users = user_repo.list(role=role)
+    
+    return [User(
+        id=user.id,
+        username=user.username,
+        email=user.email,
+        full_name=user.full_name,
+        role=user.role,
+        location_id=user.location_id,
+        is_active=user.is_active
+    ) for user in users]
 
 @app.post("/api/users", response_model=User)
-async def create_user(user_data: dict, current_user: UserInDB = Depends(get_current_user)):
+async def create_user(user_data: dict, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.role != UserRole.MANAGER:
         raise HTTPException(status_code=403, detail="Only managers can create users")
 
-    if any(u["username"] == user_data["username"] for u in users_db.values()):
+    user_repo = UserRepo(db)
+    
+    existing_user = user_repo.get_by_username(user_data["username"])
+    if existing_user:
         raise HTTPException(status_code=400, detail="Username already exists")
 
-    user_id = str(uuid.uuid4())
-    new_user = {
-        "id": user_id,
-        "username": user_data["username"],
-        "email": user_data["email"],
-        "full_name": user_data["full_name"],
-        "role": user_data["role"],
-        "location_id": user_data["location_id"],
-        "is_active": user_data.get("is_active", True),
-        "hashed_password": get_password_hash(user_data["password"])
-    }
-
-    users_db[user_id] = new_user
-    return User(**{k: v for k, v in new_user.items() if k != "hashed_password"})
+    new_user = user_repo.create(
+        id=str(uuid.uuid4()),
+        username=user_data["username"],
+        email=user_data["email"],
+        full_name=user_data["full_name"],
+        role=user_data["role"],
+        location_id=user_data["location_id"],
+        is_active=user_data.get("is_active", True),
+        hashed_password=get_password_hash(user_data["password"])
+    )
+    
+    return User(
+        id=new_user.id,
+        username=new_user.username,
+        email=new_user.email,
+        full_name=new_user.full_name,
+        role=new_user.role,
+        location_id=new_user.location_id,
+        is_active=new_user.is_active
+    )
 
 @app.put("/api/users/{user_id}", response_model=User)
-async def update_user(user_id: str, user_data: dict, current_user: UserInDB = Depends(get_current_user)):
+async def update_user(user_id: str, user_data: dict, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.role != UserRole.MANAGER:
         raise HTTPException(status_code=403, detail="Only managers can update users")
 
-    if user_id not in users_db:
+    user_repo = UserRepo(db)
+    user = user_repo.get(user_id)
+    
+    if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    user = users_db[user_id]
-
-    if "username" in user_data and user_data["username"] != user["username"]:
-        if any(u["username"] == user_data["username"] for u in users_db.values()):
+    if "username" in user_data and user_data["username"] != user.username:
+        existing_user = user_repo.get_by_username(user_data["username"])
+        if existing_user:
             raise HTTPException(status_code=400, detail="Username already exists")
 
+    update_data = {}
     for key, value in user_data.items():
         if key == "password":
-            user["hashed_password"] = get_password_hash(value)
+            update_data["hashed_password"] = get_password_hash(value)
         elif key != "id":
-            user[key] = value
+            update_data[key] = value
 
-    users_db[user_id] = user
-    return User(**{k: v for k, v in user.items() if k != "hashed_password"})
+    from .repositories.users import UserRepo
+    user_repo = UserRepo(db)
+    updated_user = user_repo.update(user_id, **update_data)
+    if not updated_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return User(**{k: v for k, v in updated_user.__dict__.items() if k != "hashed_password"})
 
 @app.delete("/api/users/{user_id}")
-async def delete_user(user_id: str, current_user: UserInDB = Depends(get_current_user)):
+async def delete_user(user_id: str, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.role != UserRole.MANAGER:
         raise HTTPException(status_code=403, detail="Only managers can delete users")
 
-    if user_id not in users_db:
+    user_repo = UserRepo(db)
+    user = user_repo.get(user_id)
+    
+    if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
     if user_id == current_user.id:
         raise HTTPException(status_code=400, detail="Cannot delete your own account")
 
-    del users_db[user_id]
+    user_repo.delete(user_id)
     return {"message": "User deleted successfully"}
 
 @app.get("/api/locations", response_model=List[Location])
-async def get_locations(current_user: UserInDB = Depends(get_current_user)):
-    locations = list(locations_db.values())
+async def get_locations(current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
+    from .repositories.locations import LocationRepo
+    location_repo = LocationRepo(db)
+    locations = location_repo.list()
     if current_user.role == UserRole.MANAGER:
-        return locations
-    return [loc for loc in locations if loc["id"] == current_user.location_id]
+        return [Location(**loc.__dict__) for loc in locations]
+    return [Location(**loc.__dict__) for loc in locations if loc.id == current_user.location_id]
 
 @app.get("/api/locations/{location_id}", response_model=Location)
-async def get_location(location_id: str, current_user: UserInDB = Depends(get_current_user)):
-    if location_id not in locations_db:
+async def get_location(location_id: str, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
+    from .repositories.locations import LocationRepo
+    location_repo = LocationRepo(db)
+    location = location_repo.get(location_id)
+    if not location:
         raise HTTPException(status_code=404, detail="Location not found")
     if current_user.role != UserRole.MANAGER and location_id != current_user.location_id:
         raise HTTPException(status_code=403, detail="Access denied to this location")
-    return locations_db[location_id]
+    return Location(**location.__dict__)
 
 @app.put("/api/locations/{location_id}", response_model=Location)
-async def update_location(location_id: str, location_data: dict, current_user: UserInDB = Depends(get_current_user)):
+async def update_location(location_id: str, location_data: dict, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.role != UserRole.MANAGER:
         raise HTTPException(status_code=403, detail="Only managers can update locations")
-
-    if location_id not in locations_db:
+    
+    from .repositories.locations import LocationRepo
+    location_repo = LocationRepo(db)
+    updated_location = location_repo.update(location_id, **location_data)
+    if not updated_location:
         raise HTTPException(status_code=404, detail="Location not found")
-
-    location = locations_db[location_id]
-
-    for key, value in location_data.items():
-        if key != "id":
-            location[key] = value
-
-    locations_db[location_id] = location
-    save_data_to_disk()
-    return Location(**location)
+    return Location(**updated_location.__dict__)
 
 @app.get("/api/products", response_model=List[Product])
-async def get_products(current_user: UserInDB = Depends(get_current_user)):
-    return list(products_db.values())
+async def get_products(current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
+    from .repositories.products import ProductRepo
+    product_repo = ProductRepo(db)
+    products = product_repo.list()
+    return [Product(**product.__dict__) for product in products]
 
 @app.get("/api/products/{product_id}", response_model=Product)
-async def get_product(product_id: str, current_user: UserInDB = Depends(get_current_user)):
-    if product_id not in products_db:
+async def get_product(product_id: str, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
+    from .repositories.products import ProductRepo
+    product_repo = ProductRepo(db)
+    product = product_repo.get(product_id)
+    if not product:
         raise HTTPException(status_code=404, detail="Product not found")
-    return products_db[product_id]
+    return Product(**product.__dict__)
 
 @app.get("/api/vehicles", response_model=List[Vehicle])
-async def get_vehicles(location_id: Optional[str] = None, current_user: UserInDB = Depends(get_current_user)):
-    vehicles = list(vehicles_db.values())
-    if location_id:
-        vehicles = [v for v in vehicles if v["location_id"] == location_id]
-    return filter_by_location(vehicles, current_user)
+async def get_vehicles(location_id: Optional[str] = None, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
+    from .repositories.vehicles import VehicleRepo
+    vehicle_repo = VehicleRepo(db)
+    vehicles = vehicle_repo.list(location_id=location_id)
+    vehicle_dicts = [v.__dict__ for v in vehicles]
+    return filter_by_location(vehicle_dicts, current_user)
 
 @app.get("/api/vehicles/{vehicle_id}", response_model=Vehicle)
-async def get_vehicle(vehicle_id: str, current_user: UserInDB = Depends(get_current_user)):
-    if vehicle_id not in vehicles_db:
+async def get_vehicle(vehicle_id: str, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
+    from .repositories.vehicles import VehicleRepo
+    vehicle_repo = VehicleRepo(db)
+    vehicle = vehicle_repo.get(vehicle_id)
+    if not vehicle:
         raise HTTPException(status_code=404, detail="Vehicle not found")
-    vehicle = vehicles_db[vehicle_id]
-    if current_user.role != UserRole.MANAGER and vehicle["location_id"] != current_user.location_id:
+    if current_user.role != UserRole.MANAGER and vehicle.location_id != current_user.location_id:
         raise HTTPException(status_code=403, detail="Access denied to this vehicle")
-    return vehicle
+    return Vehicle(**vehicle.__dict__)
 
 @app.post("/api/vehicles", response_model=Vehicle)
-async def create_vehicle(vehicle_data: VehicleCreate, current_user: UserInDB = Depends(get_current_user)):
+async def create_vehicle(vehicle_data: VehicleCreate, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.role != UserRole.MANAGER and vehicle_data.location_id != current_user.location_id:
         raise HTTPException(status_code=403, detail="Cannot create vehicle for different location")
 
     vehicle_id = str(uuid.uuid4())
-    vehicle = Vehicle(
-        id=vehicle_id,
-        **vehicle_data.dict()
-    )
-    vehicles_db[vehicle_id] = vehicle.dict()
-    save_data_to_disk()
-    return vehicle
+    from .repositories.vehicles import VehicleRepo
+    vehicle_repo = VehicleRepo(db)
+    vehicle_dict = {"id": vehicle_id, **vehicle_data.dict()}
+    created_vehicle = vehicle_repo.create(**vehicle_dict)
+    return Vehicle(**created_vehicle.__dict__)
 
 @app.get("/api/customers")
-async def get_customers(location_id: Optional[str] = None, current_user: UserInDB = Depends(get_current_user)):
-    if imported_customers and len(imported_customers) > 0:
-        customers = imported_customers
-    else:
-        customers = list(customers_db.values())
-
+async def get_customers(location_id: Optional[str] = None, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
+    from .repositories.customers import CustomerRepo
+    customer_repo = CustomerRepo(db)
+    customers = customer_repo.list()
+    customer_dicts = [c.__dict__ for c in customers]
+    
     if location_id:
-        customers = [c for c in customers if c.get("location_id") == location_id]
+        customer_dicts = [c for c in customer_dicts if c.get("location_id") == location_id]
 
-    return filter_by_location(customers, current_user)
+    return filter_by_location(customer_dicts, current_user)
 
 @app.get("/api/customers/by-location")
-async def get_customers_by_location(current_user: UserInDB = Depends(get_current_user)):
+async def get_customers_by_location(current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
     """Get customer counts by location for the location distribution chart"""
-    if imported_customers and len(imported_customers) > 0:
-        customers = imported_customers
-    else:
-        customers = list(customers_db.values())
+    from .repositories.customers import CustomerRepo
+    customer_repo = CustomerRepo(db)
+    customers = customer_repo.list()
+    customer_dicts = [c.__dict__ for c in customers]
 
-    all_locations = list(locations_db.values())
+    from .repositories.locations import LocationRepo
+    location_repo = LocationRepo(db)
+    all_locations = [loc.__dict__ for loc in location_repo.list()]
     filtered_locations = filter_by_location(all_locations, current_user, location_key="id")
 
     location_counts = []
@@ -2581,12 +2596,14 @@ async def get_customers_by_location(current_user: UserInDB = Depends(get_current
     return location_counts
 
 @app.post("/api/customers", response_model=Customer)
-async def create_customer(customer: Customer, current_user: UserInDB = Depends(get_current_user)):
+async def create_customer(customer: Customer, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.role != UserRole.MANAGER and customer.location_id != current_user.location_id:
         raise HTTPException(status_code=403, detail="Cannot create customer for different location")
     customer.id = str(uuid.uuid4())
-    customers_db[customer.id] = customer.dict()
-    return customer
+    from .repositories.customers import CustomerRepo
+    customer_repo = CustomerRepo(db)
+    created_customer = customer_repo.create(**customer.dict())
+    return Customer(**created_customer.__dict__)
 
 @app.get("/api/customers/{customer_id}/orders")
 async def get_customer_orders(customer_id: str, current_user: UserInDB = Depends(get_current_user)):
@@ -2675,15 +2692,18 @@ async def create_customer_order(customer_id: str, order_data: dict, current_user
     return new_order
 
 @app.get("/api/customers/{customer_id}/pricing")
-async def get_customer_pricing(customer_id: str, current_user: UserInDB = Depends(get_current_user)):
+async def get_customer_pricing(customer_id: str, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.role != UserRole.MANAGER:
         raise HTTPException(status_code=403, detail="Only managers can access customer pricing")
 
     pricing_records = get_all_customer_pricing(customer_id)
-    products = list(products_db.values())
+    from .repositories.products import ProductRepo
+    product_repo = ProductRepo(db)
+    products = product_repo.list()
+    product_dicts = [p.__dict__ for p in products]
 
     result = []
-    for product in products:
+    for product in product_dicts:
         custom_price = None
         for pricing in pricing_records:
             if pricing['product_id'] == product['id']:
@@ -2700,7 +2720,7 @@ async def get_customer_pricing(customer_id: str, current_user: UserInDB = Depend
     return result
 
 @app.post("/api/customers/{customer_id}/pricing")
-async def set_customer_pricing(customer_id: str, pricing_data: dict, current_user: UserInDB = Depends(get_current_user)):
+async def set_customer_pricing(customer_id: str, pricing_data: dict, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.role != UserRole.MANAGER:
         raise HTTPException(status_code=403, detail="Only managers can set customer pricing")
 
@@ -2713,65 +2733,68 @@ async def set_customer_pricing(customer_id: str, pricing_data: dict, current_use
     if custom_price < 0:
         raise HTTPException(status_code=400, detail="Price must be non-negative")
 
-    if product_id not in products_db:
+    from .repositories.products import ProductRepo
+    product_repo = ProductRepo(db)
+    if not product_repo.get(product_id):
         raise HTTPException(status_code=404, detail="Product not found")
 
     if customer_id not in customers_db:
         raise HTTPException(status_code=404, detail="Customer not found")
 
-    existing_pricing_id = None
-    for pricing_id, pricing in customer_pricing_db.items():
-        if pricing['customer_id'] == customer_id and pricing['product_id'] == product_id:
-            existing_pricing_id = pricing_id
-            break
-
-    if existing_pricing_id:
-        customer_pricing_db[existing_pricing_id]['custom_price'] = custom_price
-        customer_pricing_db[existing_pricing_id]['updated_by'] = current_user.username
-        pricing_record = customer_pricing_db[existing_pricing_id]
+    from .repositories.customer_pricing import CustomerPricingRepo
+    pricing_repo = CustomerPricingRepo(db)
+    
+    existing_pricing = pricing_repo.get_by_customer_and_product(customer_id, product_id)
+    
+    if existing_pricing:
+        pricing_record = pricing_repo.update(existing_pricing.id, 
+                                           custom_price=custom_price, 
+                                           updated_by=current_user.username)
     else:
         pricing_id = str(uuid.uuid4())
-        pricing_record = {
-            "id": pricing_id,
-            "customer_id": customer_id,
-            "product_id": product_id,
-            "custom_price": custom_price,
-            "created_at": datetime.now().isoformat(),
-            "updated_by": current_user.username
-        }
-        customer_pricing_db[pricing_id] = pricing_record
+        pricing_record = pricing_repo.create(
+            id=pricing_id,
+            customer_id=customer_id,
+            product_id=product_id,
+            custom_price=custom_price,
+            created_at=datetime.now(),
+            updated_by=current_user.username
+        )
 
-    save_data_to_disk()
-    return pricing_record
+    return {
+        "id": pricing_record.id,
+        "customer_id": pricing_record.customer_id,
+        "product_id": pricing_record.product_id,
+        "custom_price": float(pricing_record.custom_price),
+        "created_at": pricing_record.created_at.isoformat(),
+        "updated_by": pricing_record.updated_by
+    }
 
 @app.delete("/api/customers/{customer_id}")
-async def delete_customer(customer_id: str, current_user: UserInDB = Depends(get_current_user)):
+async def delete_customer(customer_id: str, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.role != UserRole.MANAGER:
         raise HTTPException(status_code=403, detail="Only managers can delete customers")
 
-    if customer_id not in customers_db:
+    from .repositories.customers import CustomerRepo
+    customer_repo = CustomerRepo(db)
+    if not customer_repo.delete(customer_id):
         raise HTTPException(status_code=404, detail="Customer not found")
 
-    del customers_db[customer_id]
-    save_data_to_disk()
     return {"message": "Customer deleted successfully"}
 
 @app.delete("/api/customers/{customer_id}/pricing/{product_id}")
-async def delete_customer_pricing(customer_id: str, product_id: str, current_user: UserInDB = Depends(get_current_user)):
+async def delete_customer_pricing(customer_id: str, product_id: str, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.role != UserRole.MANAGER:
         raise HTTPException(status_code=403, detail="Only managers can delete customer pricing")
 
-    pricing_id_to_delete = None
-    for pricing_id, pricing in customer_pricing_db.items():
-        if pricing['customer_id'] == customer_id and pricing['product_id'] == product_id:
-            pricing_id_to_delete = pricing_id
-            break
-
-    if not pricing_id_to_delete:
+    from .repositories.customer_pricing import CustomerPricingRepo
+    pricing_repo = CustomerPricingRepo(db)
+    
+    pricing_to_delete = pricing_repo.get_by_customer_and_product(customer_id, product_id)
+    if not pricing_to_delete:
         raise HTTPException(status_code=404, detail="Custom pricing not found")
 
-    del customer_pricing_db[pricing_id_to_delete]
-    save_data_to_disk()
+    pricing_repo.delete(pricing_to_delete.id)
     return {"message": "Custom pricing deleted successfully"}
 
 @app.get("/api/customers/{customer_id}/feedback")
@@ -2974,19 +2997,23 @@ async def get_orders(location_id: Optional[str] = None, status: Optional[str] = 
         return orders
 
 @app.post("/api/orders", response_model=Order)
-async def create_order(order: Order, current_user: UserInDB = Depends(get_current_user)):
-    customer = customers_db.get(order.customer_id)
+async def create_order(order: Order, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
+    from .repositories.customers import CustomerRepo
+    customer_repo = CustomerRepo(db)
+    customer = customer_repo.get(order.customer_id)
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
-    if current_user.role != UserRole.MANAGER and customer["location_id"] != current_user.location_id:
+    if current_user.role != UserRole.MANAGER and customer.location_id != current_user.location_id:
         raise HTTPException(status_code=403, detail="Cannot create order for customer in different location")
     order.id = str(uuid.uuid4())
     order.order_date = datetime.now()
-    orders_db[order.id] = order.dict()
-    return order
+    from .repositories.orders import OrderRepo
+    order_repo = OrderRepo(db)
+    created_order = order_repo.create(**order.dict())
+    return Order(**created_order.__dict__)
 
 @app.get("/api/dashboard/overview")
-async def get_dashboard_overview(current_user: UserInDB = Depends(get_current_user)):
+async def get_dashboard_overview(current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
     if imported_customers and len(imported_customers) > 0:
         customers = imported_customers
     else:
@@ -3004,21 +3031,34 @@ async def get_dashboard_overview(current_user: UserInDB = Depends(get_current_us
         total_orders_today = len([o for o in filtered_orders if o.get("order_date") and datetime.fromisoformat(o["order_date"].replace('Z', '+00:00')).date() == date.today()])
         total_revenue = 125000.0
 
-    filtered_vehicles = filter_by_location(list(vehicles_db.values()), current_user)
-    filtered_routes = filter_by_location(list(routes_db.values()), current_user)
+    from .repositories.vehicles import VehicleRepo
+    vehicle_repo = VehicleRepo(db)
+    vehicles = vehicle_repo.list()
+    vehicle_dicts = [v.__dict__ for v in vehicles]
+    filtered_vehicles = filter_by_location(vehicle_dicts, current_user)
+    from .repositories.routes import RouteRepo
+    from .repositories.locations import LocationRepo
+    route_repo = RouteRepo(db)
+    routes_objs = route_repo.list()
+    routes_dicts = [r.__dict__ for r in routes_objs]
+    filtered_routes = filter_by_location(routes_dicts, current_user)
 
     return {
         "total_customers": total_customers,
         "total_vehicles": len(filtered_vehicles),
         "total_orders_today": total_orders_today,
         "total_revenue": total_revenue,
-        "locations": len(locations_db) if current_user.role == UserRole.MANAGER else 1,
+        "locations": len(LocationRepo(db).list()) if current_user.role == UserRole.MANAGER else 1,
         "active_routes": len([r for r in filtered_routes if r["status"] == "active"])
     }
 
 @app.get("/api/dashboard/production")
-async def get_production_dashboard(current_user: UserInDB = Depends(get_current_user)):
-    filtered_production = filter_by_location(list(production_entries_db.values()), current_user)
+async def get_production_dashboard(current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
+    from .repositories.production_entries import ProductionEntryRepo
+    production_repo = ProductionEntryRepo(db)
+    production_objs = production_repo.list()
+    production_dicts = [p.__dict__ for p in production_objs]
+    filtered_production = filter_by_location(production_dicts, current_user)
 
     return {
         "daily_production_pallets": len([p for p in filtered_production if p.get("date") == str(date.today())]) * 10,
@@ -3034,21 +3074,33 @@ async def get_production_dashboard(current_user: UserInDB = Depends(get_current_
     }
 
 @app.get("/api/dashboard/fleet")
-async def get_fleet_dashboard(current_user: UserInDB = Depends(get_current_user)):
-    vehicles = list(vehicles_db.values())
+async def get_fleet_dashboard(current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
+    from .repositories.vehicles import VehicleRepo
+    from .repositories.work_orders import WorkOrderRepo
+    vehicle_repo = VehicleRepo(db)
+    vehicles_objs = vehicle_repo.list()
+    vehicles = [v.__dict__ for v in vehicles_objs]
     filtered_vehicles = filter_by_location(vehicles, current_user)
 
     active_vehicles = [v for v in filtered_vehicles if v.get("is_active", True)]
     total_vehicles = len(active_vehicles)
 
-    work_orders = list(work_orders_db.values())
+    work_order_repo = WorkOrderRepo(db)
+    work_orders_objs = work_order_repo.list()
+    work_orders = [w.__dict__ for w in work_orders_objs]
     vehicles_in_maintenance = set()
     for wo in work_orders:
         if wo.get("status") in ["pending", "approved"]:
             vehicles_in_maintenance.add(wo.get("vehicle_id"))
 
-    routes = list(routes_db.values())
-    orders = list(orders_db.values())
+    from .repositories.routes import RouteRepo
+    from .repositories.orders import OrderRepo
+    route_repo = RouteRepo(db)
+    routes_objs = route_repo.list()
+    routes = [r.__dict__ for r in routes_objs]
+    order_repo = OrderRepo(db)
+    orders_objs = order_repo.list()
+    orders = [o.__dict__ for o in orders_objs]
     today_str = str(date.today())
     vehicles_in_use = set()
     vehicle_loads = {}
@@ -3062,8 +3114,8 @@ async def get_fleet_dashboard(current_user: UserInDB = Depends(get_current_user)
             total_load = 0
             for stop in route.get("stops", []):
                 order_id = stop.get("order_id")
-                if order_id in orders_db:
-                    order = orders_db[order_id]
+                order = next((o for o in orders if o.get("id") == order_id), None)
+                if order:
                     total_load += max(1, order.get("quantity", 1) // 50)
 
             vehicle_loads[vehicle_id] = vehicle_loads.get(vehicle_id, 0) + total_load
@@ -3155,8 +3207,11 @@ async def get_customer_heatmap(
         "location_ids": location_list
     }
 @app.get("/api/dashboard/financial")
-async def get_financial_dashboard(current_user: UserInDB = Depends(get_current_user)):
-    total_expenses = sum(e["amount"] for e in expenses_db.values())
+async def get_financial_dashboard(current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
+    from .repositories.expenses import ExpenseRepo
+    expense_repo = ExpenseRepo(db)
+    expenses_objs = expense_repo.list()
+    total_expenses = sum(float(e.amount) for e in expenses_objs)
 
     if imported_financial_data:
         total_revenue = imported_financial_data.get("total_revenue", 0)
@@ -3324,11 +3379,15 @@ async def get_geo_temporal_sales(
 async def get_location_performance(
     location_id: str,
     period: str = Query("weekly", regex="^(daily|weekly|monthly|quarterly)$"),
-    current_user: UserInDB = Depends(get_current_user)
+    current_user: UserInDB = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """Returns performance metrics for a specific location"""
 
-    location = locations_db.get(location_id)
+    from .repositories.locations import LocationRepo
+    location_repo = LocationRepo(db)
+    location_obj = location_repo.get(location_id)
+    location = location_obj.__dict__ if location_obj else None
     if not location:
         raise HTTPException(status_code=404, detail="Location not found")
 
@@ -3337,7 +3396,10 @@ async def get_location_performance(
                 if c.get("location_id") == location_id]
     customers = filter_by_location(customers, current_user)
 
-    vehicles = [v for v in vehicles_db.values() if v.get("location_id") == location_id]
+    from .repositories.vehicles import VehicleRepo
+    vehicle_repo = VehicleRepo(db)
+    vehicles_objs = vehicle_repo.list()
+    vehicles = [v.__dict__ for v in vehicles_objs if v.location_id == location_id]
 
     location_revenue = 0
     if imported_financial_data:
@@ -3425,7 +3487,7 @@ async def import_excel_data(
             orders_db[order["id"]] = order
 
         for expense in all_expenses:
-            expenses_db[expense["id"]] = expense
+            pass
 
         imported_customers = all_customers
         imported_orders = all_orders
@@ -3535,7 +3597,8 @@ async def import_google_sheets_data(
     sheets_url: str = Form(...),
     location_id: str = Form("loc_3"),
     worksheet_name: str = Form(None),
-    current_user: UserInDB = Depends(get_current_user)
+    current_user: UserInDB = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """Import customer data from Google Sheets with location mapping"""
     global imported_customers, imported_orders, imported_financial_data
@@ -3589,7 +3652,8 @@ async def import_google_sheets_data(
 async def bulk_import_customers_excel(
     files: List[UploadFile] = File(...),
     location_id: str = Form("loc_3"),
-    current_user: UserInDB = Depends(get_current_user)
+    current_user: UserInDB = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """Bulk import customers from Excel files and add to customers database"""
     global customers_db
@@ -3629,6 +3693,8 @@ async def bulk_import_customers_excel(
         processed_data = process_customer_excel_files(temp_files, location_id, location_name)
 
         # Add customers to customers_db instead of imported_customers
+        from .repositories.customers import CustomerRepo
+        customer_repo = CustomerRepo(db)
         customers_imported = 0
         for customer_data in processed_data["customers"]:
             customer_id = str(uuid.uuid4())
@@ -3647,10 +3713,8 @@ async def bulk_import_customers_excel(
                 "payment_terms": 30,
                 "is_active": True
             }
-            customers_db[customer_id] = customer_record
+            customer_repo.create(**customer_record)
             customers_imported += 1
-
-        save_data_to_disk()
 
         return {
             "success": True,
@@ -3729,7 +3793,8 @@ async def bulk_import_customers_sheets(
     sheets_url: str = Form(...),
     location_id: str = Form("loc_3"),
     worksheet_name: str = Form(None),
-    current_user: UserInDB = Depends(get_current_user)
+    current_user: UserInDB = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """Bulk import customers from Google Sheets and add to customers database"""
     global customers_db
@@ -3757,6 +3822,8 @@ async def bulk_import_customers_sheets(
         processed_data = process_google_sheets_data(sheets_url, location_id, location_name, worksheet_name)
 
         # Add customers to customers_db instead of imported_customers
+        from .repositories.customers import CustomerRepo
+        customer_repo = CustomerRepo(db)
         customers_imported = 0
         for customer_data in processed_data["customers"]:
             customer_id = str(uuid.uuid4())
@@ -3775,10 +3842,8 @@ async def bulk_import_customers_sheets(
                 "payment_terms": 30,
                 "is_active": True
             }
-            customers_db[customer_id] = customer_record
+            customer_repo.create(**customer_record)
             customers_imported += 1
-
-        save_data_to_disk()
 
         return {
             "success": True,
@@ -3809,20 +3874,29 @@ async def test_google_sheets_connection_endpoint(current_user: UserInDB = Depend
         raise HTTPException(status_code=500, detail=f"Connection test failed: {str(e)}")
 
 @app.get("/api/maintenance/work-orders")
-async def get_work_orders(status: Optional[str] = None, current_user: UserInDB = Depends(get_current_user)):
-    orders = list(work_orders_db.values())
+async def get_work_orders(status: Optional[str] = None, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
+    from .repositories.work_orders import WorkOrderRepo
+    work_order_repo = WorkOrderRepo(db)
+    work_orders_objs = work_order_repo.list()
+    orders = [w.__dict__ for w in work_orders_objs]
     if status:
         orders = [o for o in orders if o["status"] == status]
 
     if current_user.role != UserRole.MANAGER:
-        vehicle_ids = [v["id"] for v in vehicles_db.values() if v["location_id"] == current_user.location_id]
+        from .repositories.vehicles import VehicleRepo
+        vehicle_repo = VehicleRepo(db)
+        vehicles_objs = vehicle_repo.list()
+        vehicle_ids = [v.id for v in vehicles_objs if v.location_id == current_user.location_id]
         orders = [o for o in orders if o["vehicle_id"] in vehicle_ids]
 
     return orders
 
 @app.post("/api/maintenance/work-orders")
-async def create_work_order(work_order: WorkOrderCreate, current_user: UserInDB = Depends(get_current_user)):
-    vehicle = vehicles_db.get(work_order.vehicle_id)
+async def create_work_order(work_order: WorkOrderCreate, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
+    from .repositories.vehicles import VehicleRepo
+    vehicle_repo = VehicleRepo(db)
+    vehicle_obj = vehicle_repo.get(work_order.vehicle_id)
+    vehicle = vehicle_obj.__dict__ if vehicle_obj else None
     if not vehicle:
         raise HTTPException(status_code=404, detail="Vehicle not found")
     if current_user.role != UserRole.MANAGER and vehicle["location_id"] != current_user.location_id:
@@ -3842,46 +3916,58 @@ async def create_work_order(work_order: WorkOrderCreate, current_user: UserInDB 
         estimated_cost=work_order.estimated_cost,
         estimated_hours=work_order.estimated_hours,
     )
-    work_orders_db[created.id] = created.dict()
-    save_data_to_disk()
-    return created
+    from .repositories.work_orders import WorkOrderRepo
+    work_order_repo = WorkOrderRepo(db)
+    created_work_order = work_order_repo.create(**created.dict())
+    return WorkOrder(**created_work_order.__dict__)
 
 @app.post("/api/maintenance/work-orders/{work_order_id}/approve")
-async def approve_work_order(work_order_id: str, current_user: UserInDB = Depends(get_current_user)):
+async def approve_work_order(work_order_id: str, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.role != UserRole.MANAGER:
         raise HTTPException(status_code=403, detail="Only managers can approve work orders")
 
-    if work_order_id not in work_orders_db:
+    from .repositories.work_orders import WorkOrderRepo
+    work_order_repo = WorkOrderRepo(db)
+    work_order_obj = work_order_repo.get(work_order_id)
+    if not work_order_obj:
         raise HTTPException(status_code=404, detail="Work order not found")
 
-    work_orders_db[work_order_id]["status"] = "approved"
-    work_orders_db[work_order_id]["approved_by"] = current_user.full_name
-    work_orders_db[work_order_id]["approved_date"] = datetime.now().isoformat()
+    work_order_repo.update(work_order_id, 
+        status="approved",
+        approved_by=current_user.full_name,
+        approved_date=datetime.now().isoformat()
+    )
 
     save_data_to_disk()
     return {"success": True, "message": "Work order approved"}
 
 @app.post("/api/maintenance/work-orders/{work_order_id}/reject")
-async def reject_work_order(work_order_id: str, current_user: UserInDB = Depends(get_current_user)):
+async def reject_work_order(work_order_id: str, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.role != UserRole.MANAGER:
         raise HTTPException(status_code=403, detail="Only managers can reject work orders")
 
-    if work_order_id not in work_orders_db:
+    from .repositories.work_orders import WorkOrderRepo
+    work_order_repo = WorkOrderRepo(db)
+    work_order_obj = work_order_repo.get(work_order_id)
+    if not work_order_obj:
         raise HTTPException(status_code=404, detail="Work order not found")
 
-    work_orders_db[work_order_id]["status"] = "rejected"
+    work_order_repo.update(work_order_id, status="rejected")
     save_data_to_disk()
     return {"success": True, "message": "Work order rejected"}
 
 @app.get("/api/production/entries")
-async def get_production_entries(current_user: UserInDB = Depends(get_current_user)):
-    entries = list(production_entries_db.values())
+async def get_production_entries(current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
+    from .repositories.production_entries import ProductionEntryRepo
+    production_repo = ProductionEntryRepo(db)
+    entries_objs = production_repo.list()
+    entries = [e.__dict__ for e in entries_objs]
     if current_user.role != UserRole.MANAGER:
         entries = [e for e in entries if e.get("location_id") == current_user.location_id]
     return sorted(entries, key=lambda x: x["submitted_at"], reverse=True)
 
 @app.post("/api/production/entries")
-async def create_production_entry(entry_data: ProductionEntryCreate, current_user: UserInDB = Depends(get_current_user)):
+async def create_production_entry(entry_data: ProductionEntryCreate, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
     entry = ProductionEntry(
         id=str(uuid.uuid4()),
         date=entry_data.date,
@@ -3895,7 +3981,9 @@ async def create_production_entry(entry_data: ProductionEntryCreate, current_use
         location_id=current_user.location_id
     )
     entry_dict = entry.dict()
-    production_entries_db[entry.id] = entry_dict
+    from .repositories.production_entries import ProductionEntryRepo
+    production_repo = ProductionEntryRepo(db)
+    production_repo.create(**entry_dict)
     save_data_to_disk()
     return entry
 
@@ -3903,14 +3991,18 @@ async def create_production_entry(entry_data: ProductionEntryCreate, current_use
 async def forecast_inventory(
     location_id: str,
     days: int = 7,
-    current_user: UserInDB = Depends(get_current_user)
+    current_user: UserInDB = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """
     Returns AI-powered demand predictions for ice production using Prophet.
     Integrates with existing production data structures.
     """
     try:
-        entries = [e for e in production_entries_db.values() if e.get("location_id") == location_id]
+        from .repositories.production_entries import ProductionEntryRepo
+        production_repo = ProductionEntryRepo(db)
+        entries_objs = production_repo.list()
+        entries = [e.__dict__ for e in entries_objs if e.location_id == location_id]
 
         if len(entries) < 7:
             if entries:
@@ -4016,23 +4108,27 @@ async def forecast_inventory(
         }
 
 @app.get("/api/expenses")
-async def get_expenses(location_id: Optional[str] = None, current_user: UserInDB = Depends(get_current_user)):
-    expenses = list(expenses_db.values())
+async def get_expenses(location_id: Optional[str] = None, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
+    from .repositories.expenses import ExpenseRepo
+    expense_repo = ExpenseRepo(db)
+    expenses_objs = expense_repo.list()
+    expenses = [e.__dict__ for e in expenses_objs]
     if location_id:
         expenses = [e for e in expenses if e["location_id"] == location_id]
     expenses = filter_by_location(expenses, current_user)
     return sorted(expenses, key=lambda x: x["date"], reverse=True)
 
 @app.post("/api/expenses")
-async def create_expense(expense: Expense, current_user: UserInDB = Depends(get_current_user)):
+async def create_expense(expense: Expense, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.role != UserRole.MANAGER and expense.location_id != current_user.location_id:
         raise HTTPException(status_code=403, detail="Cannot create expense for different location")
     expense.id = str(uuid.uuid4())
     expense.submitted_at = datetime.now()
     expense.submitted_by = current_user.full_name
-    expenses_db[expense.id] = expense.dict()
-    save_data_to_disk()
-    return expense
+    from .repositories.expenses import ExpenseRepo
+    expense_repo = ExpenseRepo(db)
+    created_expense = expense_repo.create(**expense.dict())
+    return Expense(**created_expense.__dict__)
 
 @app.post("/api/financial-documents/upload")
 async def upload_financial_document(
@@ -4105,8 +4201,12 @@ async def upload_financial_document(
         date=extracted_date
     )
 
-    financial_documents_db[file_id] = document.dict()
-    save_data_to_disk()
+    from .repositories.financial_documents import FinancialDocumentRepo
+    from .db import get_db
+    db = next(get_db())
+    financial_doc_repo = FinancialDocumentRepo(db)
+    created_document = financial_doc_repo.create(**document.dict())
+    db.close()
 
     return document
 
@@ -4114,9 +4214,13 @@ async def upload_financial_document(
 async def get_financial_documents(
     document_type: Optional[DocumentType] = None,
     location_id: Optional[str] = None,
-    current_user: UserInDB = Depends(get_current_user)
+    current_user: UserInDB = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
-    documents = list(financial_documents_db.values())
+    from .repositories.financial_documents import FinancialDocumentRepo
+    financial_repo = FinancialDocumentRepo(db)
+    documents_objs = financial_repo.list()
+    documents = [d.__dict__ for d in documents_objs]
 
     if document_type:
         documents = [d for d in documents if d["document_type"] == document_type]
@@ -4136,11 +4240,14 @@ async def get_financial_documents(
     return sorted(documents, key=lambda x: x["uploaded_at"], reverse=True)
 
 @app.get("/api/financial-documents/{document_id}/download")
-async def download_financial_document(document_id: str, current_user: UserInDB = Depends(get_current_user)):
-    if document_id not in financial_documents_db:
+async def download_financial_document(document_id: str, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
+    from .repositories.financial_documents import FinancialDocumentRepo
+    financial_repo = FinancialDocumentRepo(db)
+    document_obj = financial_repo.get(document_id)
+    if not document_obj:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    document = financial_documents_db[document_id]
+    document = document_obj.__dict__
     file_path = Path(document["file_path"])
 
     if not file_path.exists():
@@ -4176,14 +4283,21 @@ async def save_receipt_document(
         date=datetime.strptime(receipt_data.get("date"), "%Y-%m-%d") if receipt_data.get("date") and isinstance(receipt_data.get("date"), str) else None
     )
 
-    financial_documents_db[file_id] = document.dict()
-    save_data_to_disk()
+    from .repositories.financial_documents import FinancialDocumentRepo
+    from .db import get_db
+    db = next(get_db())
+    financial_doc_repo = FinancialDocumentRepo(db)
+    created_document = financial_doc_repo.create(**document.dict())
+    db.close()
 
     return document
 
 @app.get("/api/financial/profit-analysis")
-async def get_profit_analysis(current_user: UserInDB = Depends(get_current_user)):
-    total_expenses = sum(e["amount"] for e in expenses_db.values())
+async def get_profit_analysis(current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
+    from .repositories.expenses import ExpenseRepo
+    expense_repo = ExpenseRepo(db)
+    expenses_objs = expense_repo.list()
+    total_expenses = sum(float(e.amount) for e in expenses_objs)
 
     total_revenue = imported_financial_data.get("total_revenue", 125000.0) if imported_financial_data else 125000.0
 
@@ -4191,7 +4305,10 @@ async def get_profit_analysis(current_user: UserInDB = Depends(get_current_user)
     profit_margin = (profit / total_revenue * 100) if total_revenue > 0 else 0
 
     expense_by_category = {}
-    for expense in expenses_db.values():
+    from .repositories.expenses import ExpenseRepo
+    expense_repo = ExpenseRepo(db)
+    expenses_objs = expense_repo.list()
+    for expense in [e.__dict__ for e in expenses_objs]:
         category = expense["category"]
         expense_by_category[category] = expense_by_category.get(category, 0) + expense["amount"]
 
@@ -4281,7 +4398,7 @@ def select_optimal_vehicle(available_vehicles: List[dict], orders: List[dict], l
     return [vs["vehicle"] for vs in vehicle_scores]
 
 @app.post("/api/routes/optimize")
-async def optimize_routes(location_id: str, current_user: UserInDB = Depends(get_current_user)):
+async def optimize_routes(location_id: str, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.role not in [UserRole.MANAGER, UserRole.DISPATCHER]:
         raise HTTPException(status_code=403, detail="Only managers and dispatchers can optimize routes")
 
@@ -4300,7 +4417,10 @@ async def optimize_routes(location_id: str, current_user: UserInDB = Depends(get
     if not location_orders:
         return {"message": "No pending orders found for optimization", "routes": []}
 
-    vehicles = list(vehicles_db.values())
+    from .repositories.vehicles import VehicleRepo
+    vehicle_repo = VehicleRepo(db)
+    vehicles_objs = vehicle_repo.list()
+    vehicles = [v.__dict__ for v in vehicles_objs]
     available_vehicles = [v for v in vehicles if v["location_id"] == location_id and v["is_active"]]
     print(f"DEBUG: Available vehicles: {len(available_vehicles)}")
 
@@ -4309,7 +4429,10 @@ async def optimize_routes(location_id: str, current_user: UserInDB = Depends(get
 
     optimized_vehicles = select_optimal_vehicle(available_vehicles, location_orders, location_id)
 
-    location = locations_db.get(location_id)
+    from .repositories.locations import LocationRepo
+    location_repo = LocationRepo(db)
+    location_obj = location_repo.get(location_id)
+    location = location_obj.__dict__ if location_obj else None
     location_name = location.get('name', 'Unknown') if location else 'Unknown'
 
     depot_mapping = {
@@ -4516,7 +4639,7 @@ async def optimize_routes(location_id: str, current_user: UserInDB = Depends(get
         return {"message": f"Generated {len(optimized_routes)} optimized routes using fallback algorithm", "routes": optimized_routes}
 
 @app.post("/api/routes/optimize-weekly")
-async def optimize_weekly_routes(location_id: str, current_user: UserInDB = Depends(get_current_user)):
+async def optimize_weekly_routes(location_id: str, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
     """
     Optimize weekly delivery routes with priority-based scheduling and depot constraints.
     """
@@ -4530,13 +4653,19 @@ async def optimize_weekly_routes(location_id: str, current_user: UserInDB = Depe
             customers = list(customers_db.values())
         location_customers = [c for c in customers if c["location_id"] == location_id]
 
-        vehicles = list(vehicles_db.values())
+        from .repositories.vehicles import VehicleRepo
+        vehicle_repo = VehicleRepo(db)
+        vehicles_objs = vehicle_repo.list()
+        vehicles = [v.__dict__ for v in vehicles_objs]
         available_vehicles = [v for v in vehicles if v["location_id"] == location_id and v["is_active"]]
 
         if not location_customers or not available_vehicles:
             raise HTTPException(status_code=404, detail="No customers or vehicles found for this location")
 
-        location = locations_db.get(location_id)
+        from .repositories.locations import LocationRepo
+        location_repo = LocationRepo(db)
+        location_obj = location_repo.get(location_id)
+        location = location_obj.__dict__ if location_obj else None
         location_name = location.get('name', 'Unknown') if location else 'Unknown'
 
         depot_mapping = {
@@ -4649,11 +4778,15 @@ async def get_depot_info(current_user: UserInDB = Depends(get_current_user)):
 async def get_vehicle_allocation_analytics(
     period: str = "daily",
     location_id: Optional[str] = None,
-    current_user: UserInDB = Depends(get_current_user)
+    current_user: UserInDB = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """Get detailed vehicle allocation and utilization analytics"""
 
-    vehicles = list(vehicles_db.values())
+    from .repositories.vehicles import VehicleRepo
+    vehicle_repo = VehicleRepo(db)
+    vehicles_objs = vehicle_repo.list()
+    vehicles = [v.__dict__ for v in vehicles_objs]
     filtered_vehicles = filter_by_location(vehicles, current_user)
 
     if location_id:
@@ -4996,6 +5129,9 @@ async def update_training_progress(
     employee_id = current_user.id
     progress_key = f"{employee_id}_{module_id}"
 
+    if 'employee_progress_db' not in globals():
+        global employee_progress_db
+        employee_progress_db = {}
     employee_progress_db[progress_key] = {
         "employee_id": employee_id,
         "module_id": module_id,
@@ -5008,6 +5144,9 @@ async def update_training_progress(
         cert_id = f"cert_{employee_id}_{module_id}_{int(datetime.utcnow().timestamp())}"
         module = training_modules_db.get(module_id, {})
 
+        if 'employee_certifications_db' not in globals():
+            global employee_certifications_db
+            employee_certifications_db = {}
         employee_certifications_db[cert_id] = {
             "id": cert_id,
             "employee_id": employee_id,
@@ -5129,6 +5268,9 @@ async def submit_customer_feedback(
         "status": "new"
     }
 
+    if 'customer_feedback' not in globals():
+        global customer_feedback
+        customer_feedback = {}
     customer_feedback[feedback_id] = feedback
     save_data_to_disk()
 

@@ -1,10 +1,14 @@
 import gspread
-import pandas as pd
 from google.auth.exceptions import GoogleAuthError
 from typing import List, Dict, Any
 import logging
 import json
 import os
+
+if os.getenv("ENVIRONMENT", "development") == "development":
+    import pandas as pd
+else:
+    pd = None
 from .excel_import import extract_customers_from_excel, extract_orders_from_excel, calculate_financial_metrics
 
 logger = logging.getLogger(__name__)
@@ -39,6 +43,8 @@ def authenticate_google_sheets():
 
 def get_google_sheets_data(sheets_url: str, worksheet_name: str = None) -> pd.DataFrame:
     """Read data from Google Sheets and convert to pandas DataFrame"""
+    if pd is None:
+        import pandas as pd
     try:
         gc = authenticate_google_sheets()
         
@@ -150,6 +156,8 @@ def process_google_sheets_data(sheets_url: str, location_id: str = "loc_3", loca
 
 def detect_data_format(df: pd.DataFrame) -> str:
     """Detect if data is customer-only format or sales transaction format"""
+    if pd is None:
+        import pandas as pd
     customer_cols = ['Customer', 'Address', 'Main Phone']
     sales_cols = ['Type', 'Date', 'Name', 'Amount']
     
@@ -165,6 +173,8 @@ def detect_data_format(df: pd.DataFrame) -> str:
 
 def extract_customers_from_customer_data(df: pd.DataFrame, location_id: str = "loc_3", location_name: str = "Lufkin") -> List[Dict[str, Any]]:
     """Extract customers from customer-only data format (Customer/Address/Phone)"""
+    if pd is None:
+        import pandas as pd
     customers = []
     
     location_config = {

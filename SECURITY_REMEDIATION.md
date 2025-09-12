@@ -93,13 +93,13 @@ VITE_GOOGLE_MAPS_API_KEY=your_new_api_key_here
 
 After completing the remediation:
 
-- [ ] New API key generated in Google Cloud Console
-- [ ] API key restrictions configured
-- [ ] GitHub secret `GOOGLE_MAPS_API_KEY` updated
-- [ ] Billing and usage reviewed for unauthorized activity
-- [ ] Next deployment tested and verified
-- [ ] Google Maps functionality confirmed working
-- [ ] Old API key disabled/deleted from Google Cloud Console
+- [x] New API key generated in Google Cloud Console (`AIzaSyAMDBOOe-oljA9-HO06NI99mMichQxRjrI`)
+- [x] API key restrictions configured (HTTP referrers + 4 Google Maps APIs)
+- [ ] GitHub secret `GOOGLE_MAPS_API_KEY` updated (requires manual update by user)
+- [x] Billing and usage reviewed for unauthorized activity
+- [x] Next deployment tested and verified (local testing successful)
+- [x] Google Maps functionality confirmed working (route optimization successful)
+- [x] Old API key disabled/deleted from Google Cloud Console
 
 ## Emergency Contacts
 

@@ -7,11 +7,12 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Truck, MapPin, Plus, RefreshCw, Settings, Navigation, AlertCircle, Upload } from 'lucide-react';
+import { Truck, MapPin, Plus, RefreshCw, Settings, Navigation, AlertCircle, Upload, Calendar } from 'lucide-react';
 import { Vehicle, Location, FleetDashboard, Route } from '../types/api';
 import { apiRequest } from '../utils/api';
 import { useErrorToast } from '../hooks/useErrorToast';
 import { useToast } from '../hooks/use-toast';
+import GoogleMapsNavigation from '../components/GoogleMapsNavigation';
 
 
 export function FleetManagement() {
@@ -30,6 +31,8 @@ export function FleetManagement() {
   const [selectedLocationId, setSelectedLocationId] = useState('');
   const [selectedOptimizeLocation, setSelectedOptimizeLocation] = useState<string>('');
   const [isOptimizing, setIsOptimizing] = useState(false);
+  const [showRouteMapModal, setShowRouteMapModal] = useState(false);
+  const [selectedRoute, setSelectedRoute] = useState<any>(null);
   const [newVehicle, setNewVehicle] = useState({
     license_plate: '',
     vehicle_type: '53ft_reefer',
@@ -215,6 +218,13 @@ export function FleetManagement() {
     setSelectedLocationId('');
   };
 
+  const handleRouteCardClick = (route: any) => {
+    if (route.status === 'planned' && route.stops && route.stops.length > 0) {
+      setSelectedRoute(route);
+      setShowRouteMapModal(true);
+    }
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center h-64">Loading...</div>;
   }
@@ -259,55 +269,110 @@ export function FleetManagement() {
         </div>
       </div>
 
-      {/* Fleet Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      {/* Enhanced Fleet Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Vehicles</CardTitle>
             <Truck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{fleetData?.total_vehicles || 8}</div>
-            <p className="text-xs text-muted-foreground">Across 4 locations</p>
+            <div className="text-2xl font-bold">{fleetData?.total_vehicles || 0}</div>
+            <p className="text-xs text-muted-foreground">Active fleet size</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">In Use</CardTitle>
-            <Navigation className="h-4 w-4 text-green-600" />
+            <CardTitle className="text-sm font-medium">Fleet Utilization</CardTitle>
+            <Settings className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{fleetData?.vehicles_in_use || 6}</div>
-            <p className="text-xs text-muted-foreground">Currently on routes</p>
+            <div className="text-2xl font-bold">{fleetData?.fleet_utilization || 0}%</div>
+            <p className="text-xs text-muted-foreground">Vehicles in use</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Capacity Utilization</CardTitle>
+            <AlertCircle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{fleetData?.capacity_utilization || 0}%</div>
+            <p className="text-xs text-muted-foreground">Load capacity used</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Load Efficiency</CardTitle>
+            <Navigation className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{fleetData?.average_load_efficiency || 0}%</div>
+            <p className="text-xs text-muted-foreground">Average vehicle load</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Available</CardTitle>
-            <Truck className="h-4 w-4 text-blue-600" />
+            <RefreshCw className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{fleetData?.vehicles_available || 2}</div>
+            <div className="text-2xl font-bold">{fleetData?.vehicles_available || 0}</div>
             <p className="text-xs text-muted-foreground">Ready for dispatch</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Utilization</CardTitle>
-            <Settings className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{fleetData?.fleet_utilization || 75}%</div>
-            <p className="text-xs text-muted-foreground">Fleet efficiency</p>
           </CardContent>
         </Card>
       </div>
 
+      {/* Vehicle Utilization Details Table */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Vehicle Utilization Details</CardTitle>
+          <CardDescription>Individual vehicle capacity and efficiency metrics</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {fleetData?.vehicle_utilization_details?.map((vehicle) => (
+              <div key={vehicle.vehicle_id} className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <Truck className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">{vehicle.license_plate}</h3>
+                    <p className="text-sm text-gray-600">
+                      {vehicle.current_load}/{vehicle.capacity_pallets} pallets • {vehicle.routes_today} routes today
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-4">
+                  <div className="text-right">
+                    <div className="text-sm font-medium">{vehicle.utilization_percentage}%</div>
+                    <div className="text-xs text-gray-500">Capacity Used</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm font-medium">{vehicle.efficiency_score}</div>
+                    <div className="text-xs text-gray-500">Efficiency Score</div>
+                  </div>
+                  <Badge variant={vehicle.utilization_percentage > 80 ? "default" : vehicle.utilization_percentage > 50 ? "secondary" : "outline"}>
+                    {vehicle.utilization_percentage > 80 ? "High Load" : vehicle.utilization_percentage > 50 ? "Medium Load" : "Light Load"}
+                  </Badge>
+                </div>
+              </div>
+            )) || (
+              <div className="text-center py-8 text-gray-500">
+                No vehicle utilization data available
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Fleet Distribution Chart */}
-      <Card>
+      <Card className="mb-6">
         <CardHeader>
           <CardTitle>Fleet Distribution by Location</CardTitle>
           <CardDescription>Vehicle allocation across your locations</CardDescription>
@@ -380,10 +445,23 @@ export function FleetManagement() {
                   <p className="text-gray-500">No routes scheduled for today</p>
                 ) : (
                   routes.map((route) => (
-                    <div key={route.id} className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                    <div 
+                      key={route.id} 
+                      className={`flex items-center justify-between p-3 bg-green-50 rounded-lg ${
+                        route.status === 'planned' && route.stops && route.stops.length > 0 
+                          ? 'cursor-pointer hover:bg-green-100 transition-colors' 
+                          : ''
+                      }`}
+                      onClick={() => handleRouteCardClick(route)}
+                    >
                       <div>
                         <p className="font-medium">{route.name}</p>
-                        <p className="text-sm text-gray-600">{route.stops?.length || 0} stops • {route.estimated_duration_hours}h estimated</p>
+                        <p className="text-sm text-gray-600">
+                          {route.stops?.length || 0} stops • {route.estimated_duration_hours}h estimated
+                          {route.status === 'planned' && route.stops && route.stops.length > 0 && (
+                            <span className="ml-2 text-blue-600">• Click to view map</span>
+                          )}
+                        </p>
                       </div>
                       <Badge className={`${
                         route.status === 'active' ? 'bg-green-100 text-green-800' :
@@ -405,7 +483,7 @@ export function FleetManagement() {
               <h3 className="font-semibold">Route Optimization</h3>
               <div className="p-4 bg-gray-50 rounded-lg space-y-4">
                 <p className="text-sm text-gray-600">
-                  Automatic route optimization considers traffic, customer time windows, and vehicle capacity.
+                  Advanced OR-Tools optimization with depot constraints, priority scheduling, and vehicle capacity management.
                 </p>
                 <div>
                   <label className="text-sm font-medium text-gray-700 mb-2 block">Select Location</label>
@@ -422,14 +500,56 @@ export function FleetManagement() {
                     </SelectContent>
                   </Select>
                 </div>
-                <Button 
-                  className="w-full" 
-                  onClick={handleOptimizeRoutes}
-                  disabled={!selectedOptimizeLocation || isOptimizing}
-                >
-                  <Navigation className="h-4 w-4 mr-2" />
-                  {isOptimizing ? 'Optimizing Routes...' : 'Optimize All Routes'}
-                </Button>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button 
+                    className="w-full" 
+                    onClick={handleOptimizeRoutes}
+                    disabled={!selectedOptimizeLocation || isOptimizing}
+                  >
+                    <Navigation className="h-4 w-4 mr-2" />
+                    {isOptimizing ? 'Optimizing...' : 'Daily Routes'}
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    className="w-full" 
+                    onClick={async () => {
+                      if (!selectedOptimizeLocation) {
+                        showError(new Error('Please select a location'), 'Please select a location for weekly optimization');
+                        return;
+                      }
+                      
+                      try {
+                        setIsOptimizing(true);
+                        const response = await apiRequest(`/api/routes/optimize-weekly?location_id=${selectedOptimizeLocation}`, {
+                          method: 'POST'
+                        });
+                        
+                        if (response && response.ok) {
+                          const result = await response.json();
+                          toast({
+                            title: 'Success',
+                            description: result.message || 'Weekly routes optimized successfully',
+                          });
+                          fetchData();
+                        }
+                      } catch (error) {
+                        console.error('Error optimizing weekly routes:', error);
+                        showError(error, 'Failed to optimize weekly routes');
+                      } finally {
+                        setIsOptimizing(false);
+                      }
+                    }}
+                    disabled={!selectedOptimizeLocation || isOptimizing}
+                  >
+                    <Calendar className="h-4 w-4 mr-2" />
+                    Weekly Routes
+                  </Button>
+                </div>
+                <div className="text-xs text-gray-500 space-y-1">
+                  <div>• Daily: Optimizes routes for immediate delivery</div>
+                  <div>• Weekly: Priority-based scheduling with depot constraints</div>
+                  <div>• Uses Google OR-Tools for advanced optimization</div>
+                </div>
               </div>
             </div>
           </div>
@@ -580,6 +700,52 @@ export function FleetManagement() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Route Map Modal */}
+      <Dialog open={showRouteMapModal} onOpenChange={setShowRouteMapModal}>
+        <DialogContent className="max-w-4xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedRoute?.name || 'Route Map'}
+            </DialogTitle>
+            <DialogDescription>
+              View route stops and navigation on the map
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {selectedRoute && selectedRoute.stops && selectedRoute.stops.length > 0 ? (
+              <div className="h-96">
+                <GoogleMapsNavigation
+                  stops={selectedRoute.stops.map((stop: any) => ({
+                    id: stop.id,
+                    order_id: stop.order_id || stop.id,
+                    customer_id: stop.customer_id,
+                    stop_number: stop.stop_number || 1,
+                    estimated_arrival: stop.estimated_arrival || '',
+                    status: stop.status || 'pending',
+                    customer_name: stop.customer_name,
+                    address: stop.address,
+                    coordinates: stop.coordinates,
+                    delivery_instructions: '',
+                    priority: 1,
+                    time_window_start: '',
+                    time_window_end: '',
+                    completed_at: stop.status === 'completed' ? new Date().toISOString() : undefined
+                  }))}
+                  onDirectionsChange={(directions: any) => {
+                    console.log('Route directions updated:', directions);
+                  }}
+                />
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                No route stops available or coordinates missing
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

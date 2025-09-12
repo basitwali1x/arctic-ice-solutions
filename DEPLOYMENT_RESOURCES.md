@@ -58,7 +58,7 @@ deploy_frontend dir="/path/to/frontend/dist"
 ### 3. Current Deployment Results
 - ✅ **Deployed URL**: https://frontend-deployment-app-0vfk8kvg.devinapps.com
 - ✅ **Frontend Loading**: Arctic Ice Solutions login page displays correctly
-- ✅ **Demo Credentials**: All user roles visible on login page
+- ✅ **Security**: No demo credentials are displayed in any environment
 - ⚠️ **API Connectivity**: Login attempts return "Invalid username or password"
 - ❌ **Custom Domain**: yourchoiceice.com shows certificate error
 
@@ -256,15 +256,9 @@ arctic-ice-solutions/
 - **Solution**: Backend API endpoints now responding correctly
 - **Status**: Login functionality working perfectly on deployed site
 
-## Working Demo Credentials
+## Demo Credentials Policy
 
-**Confirmed working on deployed site:**
-- **Manager**: `manager` / `dev-password-change-in-production`
-- **Dispatcher**: `dispatcher` / `dev-password-change-in-production`  
-- **Accountant**: `accountant` / `dev-password-change-in-production`
-- **Driver**: `driver` / `dev-password-change-in-production`
-- **Employee**: `employee` / `dev-password-change-in-production`
-- **Customer**: `customer1` / `dev-password-change-in-production`
+Demo credentials are disabled in production and must not be displayed on any public UI or documentation. For local development, use test users provisioned in a non-production environment. Do not publish or hardcode example credentials in code or docs.
 
 ## Technical Resolution Applied
 

@@ -22,6 +22,8 @@ from .pdf_import import process_pdf_files
 from .google_sheets_import import process_google_sheets_data, test_google_sheets_connection
 from .quickbooks_integration import QuickBooksClient, map_arctic_customer_to_qb, map_arctic_order_to_qb_invoice, map_arctic_payment_to_qb
 from .weather_service import weather_service
+from .import_queue import import_queue
+from .import_validation import ImportSummary, RowError
 try:
     from .monitoring_service import router as monitoring_service
 except ImportError:
@@ -129,6 +131,25 @@ class WorkOrderPriority(str, Enum):
     MEDIUM = "medium"
     HIGH = "high"
     CRITICAL = "critical"
+
+@app.on_event("startup")
+async def start_import_worker():
+    async def worker_handler(job_id: str, files: List[str], ctx: Dict[str, Any]):
+        location_id = ctx.get("location_id", "loc_3")
+        location_name = ctx.get("location_name", "Lufkin")
+        excel_result = process_excel_files(files, location_id, location_name)
+        
+        for customer in excel_result["customers"]:
+            customers_db[customer["id"]] = customer
+        for order in excel_result["orders"]:
+            orders_db[order["id"]] = order
+        if "financial_metrics" in excel_result:
+            global imported_financial_data
+            imported_financial_data = excel_result["financial_metrics"]
+        save_data_to_disk()
+        
+        return ImportSummary(**excel_result["summary"])
+    await import_queue.start(worker_handler)
 
 class ExpenseCategory(str, Enum):
     FUEL = "fuel"
@@ -3461,6 +3482,44 @@ async def import_excel_data(
                 os.unlink(temp_file)
             except:
                 pass
+
+@app.post("/api/import/excel-async")
+async def import_excel_async(files: List[UploadFile] = File(...), location_id: str = Form("loc_3"), location_name: str = Form("Lufkin")):
+    """Import Excel files asynchronously and return job ID for status tracking"""
+    temp_files = []
+    try:
+        for file in files:
+            if not file.filename.endswith(('.xlsx', '.xls', '.xlsm')):
+                raise HTTPException(status_code=400, detail=f"Invalid file type: {file.filename}. Supported formats: Excel (.xlsx, .xls, .xlsm)")
+            
+            file_ext = os.path.splitext(file.filename)[1] if file.filename else '.xlsx'
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=file_ext)
+            content = await file.read()
+            temp_file.write(content)
+            temp_file.close()
+            temp_files.append(temp_file.name)
+
+        job_id = str(uuid.uuid4())
+        await import_queue.enqueue(job_id, temp_files, {"location_id": location_id, "location_name": location_name})
+        return {"job_id": job_id}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Unexpected error queueing Excel files: {e}")
+        raise HTTPException(status_code=500, detail="Failed to queue import")
+
+@app.get("/api/import/jobs")
+async def list_jobs():
+    """List all import jobs with their status"""
+    return [j.model_dump() for j in import_queue.list()]
+
+@app.get("/api/import/jobs/{job_id}")
+async def get_job(job_id: str):
+    """Get status of a specific import job"""
+    job = import_queue.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job.model_dump()
 
 @app.post("/api/import/order-sheet")
 async def import_order_sheet_data(

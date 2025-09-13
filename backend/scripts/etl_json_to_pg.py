@@ -9,7 +9,12 @@ import os
 import uuid
 from pathlib import Path
 from datetime import datetime, date
+from dotenv import load_dotenv
 from sqlalchemy.orm import Session
+from sqlalchemy import func
+
+load_dotenv()
+
 from app.db import SessionLocal
 from app import models
 
@@ -458,7 +463,7 @@ def main():
                 "full_name": "System Manager",
                 "role": "manager",
                 "location_id": "loc_1",
-                "hashed_password": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW"
+                "hashed_password": "$2b$12$fkpOy4Rp6n.B5Eo52PxImeDh1UFh3PKm7h3nVR3BUz.FlsoYXSgFS"
             }
         }
     
@@ -513,10 +518,10 @@ def main():
         print(f"Production Entries: {db.query(models.ProductionEntry).count()}")
         
         total_revenue = float(db.query(models.Order).with_entities(
-            db.func.coalesce(db.func.sum(models.Order.total_amount), 0)
+            func.coalesce(func.sum(models.Order.total_amount), 0)
         ).scalar() or 0)
         total_expenses = float(db.query(models.Expense).with_entities(
-            db.func.coalesce(db.func.sum(models.Expense.amount), 0)
+            func.coalesce(func.sum(models.Expense.amount), 0)
         ).scalar() or 0)
         
         print(f"\nFinancial Validation:")

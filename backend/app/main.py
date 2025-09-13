@@ -17,6 +17,9 @@ import math
 from pathlib import Path
 from .google_maps_service import GoogleMapsService
 from dotenv import load_dotenv
+
+load_dotenv()
+
 try:
     from .monitoring_service import router as monitoring_service
 except ImportError:
@@ -2614,7 +2617,7 @@ async def get_customers_by_location(current_user: UserInDB = Depends(get_current
 
     location_counts = []
     for location in filtered_locations:
-        location_customers = [c for c in customers if c.get("location_id") == location["id"]]
+        location_customers = [c for c in customer_dicts if c.get("location_id") == location["id"]]
 
         location_counts.append({
             "location_id": location["id"],
@@ -2631,7 +2634,24 @@ async def create_customer(customer: Customer, current_user: UserInDB = Depends(g
     customer.id = str(uuid.uuid4())
     from .repositories.customers import CustomerRepo
     customer_repo = CustomerRepo(db)
-    created_customer = customer_repo.create(**customer.dict())
+    
+    customer_data = {
+        "id": customer.id,
+        "name": customer.name,
+        "contact_person": customer.contact_person,
+        "phone": customer.phone,
+        "email": customer.email,
+        "address": customer.address,
+        "city": customer.city,
+        "state": customer.state,
+        "zip_code": customer.zip_code,
+        "location_id": customer.location_id,
+        "is_active": getattr(customer, 'is_active', True),
+        "credit_limit": getattr(customer, 'credit_limit', 0),
+        "payment_terms": getattr(customer, 'payment_terms', None)
+    }
+    
+    created_customer = customer_repo.create(**customer_data)
     return Customer(**created_customer.__dict__)
 
 @app.get("/api/customers/{customer_id}/orders")
@@ -3268,28 +3288,37 @@ async def get_financial_dashboard(current_user: UserInDB = Depends(get_current_u
     expenses_objs = expense_repo.list()
     total_expenses = sum(float(e.amount) for e in expenses_objs)
 
-    if imported_financial_data:
-        total_revenue = imported_financial_data.get("total_revenue", 0)
-        daily_revenue_data = imported_financial_data.get("daily_revenue", {})
+    # Calculate revenue from orders in database
+    from .repositories.orders import OrderRepo
+    from datetime import date, datetime
+    from sqlalchemy import func
+    from app import models
+    
+    order_repo = OrderRepo(db)
+    
+    total_revenue = float(db.query(func.coalesce(func.sum(models.Order.total_amount), 0)).scalar() or 0)
+    
+    today = date.today()
+    today_revenue = float(db.query(func.coalesce(func.sum(models.Order.total_amount), 0))
+                         .filter(func.date(models.Order.order_date) == today).scalar() or 0)
+    
+    from datetime import timedelta
+    week_ago = today - timedelta(days=7)
+    recent_revenue = float(db.query(func.coalesce(func.sum(models.Order.total_amount), 0))
+                          .filter(func.date(models.Order.order_date) >= week_ago).scalar() or 0)
+    avg_daily = recent_revenue / 7
+    
+    current_month_start = today.replace(day=1)
+    current_monthly = float(db.query(func.coalesce(func.sum(models.Order.total_amount), 0))
+                           .filter(func.date(models.Order.order_date) >= current_month_start).scalar() or 0)
 
-        from datetime import date
-        today = str(date.today())
-        today_revenue = daily_revenue_data.get(today, 0)
-
-        recent_daily = list(daily_revenue_data.values())[-7:] if daily_revenue_data else [0]
-        avg_daily = sum(recent_daily) / len(recent_daily) if recent_daily else 0
-
-        monthly_revenue_data = imported_financial_data.get("monthly_revenue", {})
-        recent_monthly = list(monthly_revenue_data.values())[-1:] if monthly_revenue_data else [0]
-        current_monthly = recent_monthly[0] if recent_monthly else 0
-
-        return {
-            "daily_revenue": today_revenue,
-            "daily_revenue_average": avg_daily,
-            "monthly_revenue": current_monthly,
-            "daily_expenses": total_expenses / 30,
-            "monthly_expenses": total_expenses,
-            "daily_profit": today_revenue - (total_expenses / 30),
+    return {
+        "daily_revenue": today_revenue,
+        "daily_revenue_average": avg_daily,
+        "monthly_revenue": current_monthly,
+        "daily_expenses": total_expenses / 30,
+        "monthly_expenses": total_expenses,
+        "daily_profit": today_revenue - (total_expenses / 30),
             "payment_breakdown": {
                 "cash": 60.0,
                 "check": 25.0,
@@ -3297,22 +3326,6 @@ async def get_financial_dashboard(current_user: UserInDB = Depends(get_current_u
             },
             "outstanding_invoices": total_revenue * 0.12,
             "tax_liability_ytd": total_revenue * 0.07
-        }
-    else:
-        return {
-            "daily_revenue": 0.00,
-            "daily_revenue_average": 12500.00,
-            "monthly_revenue": 375000.00,
-            "daily_expenses": total_expenses / 30,
-            "monthly_expenses": total_expenses,
-            "daily_profit": 0.00 - (total_expenses / 30),
-            "payment_breakdown": {
-                "cash": 45.2,
-                "check": 30.8,
-                "credit": 24.0
-            },
-            "outstanding_invoices": 25000.00,
-            "tax_liability_ytd": 45000.00
         }
 
 @app.get("/api/financial/data")
@@ -3447,20 +3460,34 @@ async def get_location_performance(
         raise HTTPException(status_code=404, detail="Location not found")
 
     # Calculate metrics
-    customers = [c for c in (imported_customers or list(customers_db.values()))
-                if c.get("location_id") == location_id]
-    customers = filter_by_location(customers, current_user)
+    from .repositories.customers import CustomerRepo
+    from app import models
+    
+    customer_repo = CustomerRepo(db)
+    customers_query = db.query(models.Customer).filter(models.Customer.location_id == location_id)
+    
+    if current_user.role != UserRole.MANAGER:
+        customers_query = customers_query.filter(models.Customer.location_id == current_user.location_id)
+    
+    customers = customers_query.all()
+    customers = [{"id": c.id, "name": c.name, "location_id": c.location_id} for c in customers]
 
     from .repositories.vehicles import VehicleRepo
     vehicle_repo = VehicleRepo(db)
     vehicles_objs = vehicle_repo.list()
     vehicles = [v.__dict__ for v in vehicles_objs if v.location_id == location_id]
 
-    location_revenue = 0
-    if imported_financial_data:
-        daily_revenue = imported_financial_data.get("daily_revenue", {})
-        total_customers = len(imported_customers or list(customers_db.values()))
-        location_revenue = sum(daily_revenue.values()) * (len(customers) / max(total_customers, 1))
+    # Calculate location revenue from orders
+    from .repositories.orders import OrderRepo
+    from sqlalchemy import func
+    
+    order_repo = OrderRepo(db)
+    orders_query = db.query(models.Order).join(models.Customer, models.Order.customer_id == models.Customer.id)\
+                                        .filter(models.Customer.location_id == location_id)
+    
+    location_revenue = float(orders_query.with_entities(
+        func.coalesce(func.sum(models.Order.total_amount), 0)
+    ).scalar() or 0)
 
     return {
         "location": location,
@@ -4414,30 +4441,23 @@ async def get_profit_analysis(current_user: UserInDB = Depends(get_current_user)
     }
 
 @app.get("/api/notifications")
-async def get_notifications(current_user: UserInDB = Depends(get_current_user)):
-    recent_orders = []
-    if imported_orders:
-        today = datetime.now().date()
-        filtered_orders = filter_by_location(imported_orders, current_user)
-        recent_orders = [o for o in filtered_orders if o.get("date", "").startswith(str(today))]
-    else:
-        filtered_orders = filter_by_location(list(orders_db.values()), current_user)
-        today = datetime.now().date()
-        recent_orders = []
-        for o in filtered_orders:
-            order_date = o.get("order_date")
-            if isinstance(order_date, str):
-                try:
-                    order_date = datetime.fromisoformat(order_date.replace('Z', '+00:00')).date()
-                except:
-                    continue
-            elif hasattr(order_date, 'date') and order_date is not None:
-                order_date = order_date.date()
-            else:
-                continue
-
-            if order_date == today:
-                recent_orders.append(o)
+async def get_notifications(current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
+    from .repositories.orders import OrderRepo
+    from datetime import datetime
+    from sqlalchemy import func
+    from app import models
+    
+    order_repo = OrderRepo(db)
+    
+    today = datetime.now().date()
+    orders_query = db.query(models.Order)
+    
+    if current_user.role != UserRole.MANAGER:
+        orders_query = orders_query.join(models.Customer, models.Order.customer_id == models.Customer.id)\
+                                  .filter(models.Customer.location_id == current_user.location_id)
+    
+    recent_orders = orders_query.filter(func.date(models.Order.order_date) == today).all()
+    recent_orders = [{"id": o.id, "customer_id": o.customer_id, "status": o.status, "date": str(o.order_date)} for o in recent_orders]
 
     notifications = []
     for order in recent_orders[-10:]:

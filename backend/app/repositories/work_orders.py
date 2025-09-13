@@ -10,7 +10,7 @@ class WorkOrderRepo:
         query = self.db.query(WorkOrder)
         if status:
             query = query.filter(WorkOrder.status == status)
-        return query.order_by(WorkOrder.created_at.desc()).offset(offset).limit(limit).all()
+        return query.order_by(WorkOrder.submitted_date.desc()).offset(offset).limit(limit).all()
 
     def get(self, work_order_id: str) -> Optional[WorkOrder]:
         return self.db.query(WorkOrder).filter(WorkOrder.id == work_order_id).first()

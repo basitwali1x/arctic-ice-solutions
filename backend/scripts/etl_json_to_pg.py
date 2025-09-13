@@ -9,7 +9,12 @@ import os
 import uuid
 from pathlib import Path
 from datetime import datetime, date
+from dotenv import load_dotenv
 from sqlalchemy.orm import Session
+from sqlalchemy import func
+
+load_dotenv()
+
 from app.db import SessionLocal
 from app import models
 
@@ -237,6 +242,110 @@ def migrate_users(db: Session, users_data):
     db.commit()
     return count
 
+def migrate_expenses(db: Session, expenses_data):
+    """Migrate expenses data"""
+    count = 0
+    for expense_data in expenses_data.values() if isinstance(expenses_data, dict) else expenses_data:
+        ensure_id(expense_data, "exp_")
+        
+        existing = db.query(models.Expense).filter_by(id=expense_data["id"]).first()
+        if not existing:
+            expense = models.Expense(
+                id=expense_data["id"],
+                category=expense_data.get("category", "general"),
+                amount=float(expense_data.get("amount", 0)),
+                description=expense_data.get("description", ""),
+                expense_date=parse_date(expense_data.get("expense_date")),
+                vendor=expense_data.get("vendor"),
+                location_id=expense_data.get("location_id"),
+                receipt_url=expense_data.get("receipt_url"),
+                approved_by=expense_data.get("approved_by"),
+                approved_date=parse_datetime(expense_data.get("approved_date"))
+            )
+            db.add(expense)
+            count += 1
+    
+    db.commit()
+    return count
+
+def migrate_financial_documents(db: Session, financial_docs_data):
+    """Migrate financial documents data"""
+    count = 0
+    for doc_data in financial_docs_data.values() if isinstance(financial_docs_data, dict) else financial_docs_data:
+        ensure_id(doc_data, "doc_")
+        
+        existing = db.query(models.FinancialDocument).filter_by(id=doc_data["id"]).first()
+        if not existing:
+            document = models.FinancialDocument(
+                id=doc_data["id"],
+                document_type=doc_data.get("document_type", "invoice"),
+                document_number=doc_data.get("document_number", ""),
+                amount=float(doc_data.get("amount", 0)),
+                document_date=parse_date(doc_data.get("document_date")),
+                customer_id=doc_data.get("customer_id"),
+                order_id=doc_data.get("order_id"),
+                file_path=doc_data.get("file_path"),
+                status=doc_data.get("status", "pending"),
+                notes=doc_data.get("notes")
+            )
+            db.add(document)
+            count += 1
+    
+    db.commit()
+    return count
+
+def migrate_routes(db: Session, routes_data):
+    """Migrate routes data"""
+    count = 0
+    for route_data in routes_data.values() if isinstance(routes_data, dict) else routes_data:
+        ensure_id(route_data, "route_")
+        
+        existing = db.query(models.Route).filter_by(id=route_data["id"]).first()
+        if not existing:
+            route = models.Route(
+                id=route_data["id"],
+                route_name=route_data.get("route_name", ""),
+                vehicle_id=route_data.get("vehicle_id"),
+                driver_name=route_data.get("driver_name"),
+                route_date=parse_date(route_data.get("route_date")),
+                start_location=route_data.get("start_location"),
+                end_location=route_data.get("end_location"),
+                total_distance=float(route_data.get("total_distance", 0)) if route_data.get("total_distance") else None,
+                estimated_duration=route_data.get("estimated_duration"),
+                status=route_data.get("status", "planned"),
+                notes=route_data.get("notes")
+            )
+            db.add(route)
+            count += 1
+    
+    db.commit()
+    return count
+
+def migrate_production_entries(db: Session, production_data):
+    """Migrate production entries data"""
+    count = 0
+    for prod_data in production_data.values() if isinstance(production_data, dict) else production_data:
+        ensure_id(prod_data, "prod_entry_")
+        
+        existing = db.query(models.ProductionEntry).filter_by(id=prod_data["id"]).first()
+        if not existing:
+            production_entry = models.ProductionEntry(
+                id=prod_data["id"],
+                production_date=parse_date(prod_data.get("production_date")),
+                shift=prod_data.get("shift", "day"),
+                product_type=prod_data.get("product_type", "8lb_bag"),
+                quantity_produced=int(prod_data.get("quantity_produced", 0)),
+                quality_rating=prod_data.get("quality_rating"),
+                operator_name=prod_data.get("operator_name"),
+                location_id=prod_data.get("location_id"),
+                notes=prod_data.get("notes")
+            )
+            db.add(production_entry)
+            count += 1
+    
+    db.commit()
+    return count
+
 def main():
     """Main ETL function"""
     print("Starting ETL: JSON → Postgres")
@@ -254,6 +363,10 @@ def main():
     orders_data = []
     work_orders_data = {}
     users_data = {}
+    expenses_data = {}
+    financial_docs_data = {}
+    routes_data = {}
+    production_data = {}
     
     for data_path in possible_data_dirs:
         if data_path.exists():
@@ -270,6 +383,26 @@ def main():
             work_orders_file = data_path / "work_orders.json"
             if work_orders_file.exists():
                 work_orders_data.update(load_json_file(work_orders_file, {}))
+            
+            expenses_file = data_path / "expenses.json"
+            if expenses_file.exists():
+                expenses_data.update(load_json_file(expenses_file, {}))
+            
+            financial_docs_file = data_path / "financial_documents.json"
+            if financial_docs_file.exists():
+                financial_docs_data.update(load_json_file(financial_docs_file, {}))
+            
+            routes_file = data_path / "routes.json"
+            if routes_file.exists():
+                routes_data.update(load_json_file(routes_file, {}))
+            
+            production_file = data_path / "production.json"
+            if production_file.exists():
+                production_data.update(load_json_file(production_file, {}))
+            
+            production_entries_file = data_path / "production_entries.json"
+            if production_entries_file.exists():
+                production_data.update(load_json_file(production_entries_file, {}))
     
     if not customers_data and not orders_data:
         print("No existing data found, creating sample data...")
@@ -330,7 +463,7 @@ def main():
                 "full_name": "System Manager",
                 "role": "manager",
                 "location_id": "loc_1",
-                "hashed_password": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW"
+                "hashed_password": "$2b$12$fkpOy4Rp6n.B5Eo52PxImeDh1UFh3PKm7h3nVR3BUz.FlsoYXSgFS"
             }
         }
     
@@ -359,6 +492,18 @@ def main():
         users_count = migrate_users(db, users_data)
         print(f"Migrated {users_count} users")
         
+        expenses_count = migrate_expenses(db, expenses_data)
+        print(f"Migrated {expenses_count} expenses")
+        
+        financial_docs_count = migrate_financial_documents(db, financial_docs_data)
+        print(f"Migrated {financial_docs_count} financial documents")
+        
+        routes_count = migrate_routes(db, routes_data)
+        print(f"Migrated {routes_count} routes")
+        
+        production_count = migrate_production_entries(db, production_data)
+        print(f"Migrated {production_count} production entries")
+        
         print("\nValidation - Database counts:")
         print(f"Locations: {db.query(models.Location).count()}")
         print(f"Products: {db.query(models.Product).count()}")
@@ -367,6 +512,21 @@ def main():
         print(f"Orders: {db.query(models.Order).count()}")
         print(f"Work Orders: {db.query(models.WorkOrder).count()}")
         print(f"Users: {db.query(models.User).count()}")
+        print(f"Expenses: {db.query(models.Expense).count()}")
+        print(f"Financial Documents: {db.query(models.FinancialDocument).count()}")
+        print(f"Routes: {db.query(models.Route).count()}")
+        print(f"Production Entries: {db.query(models.ProductionEntry).count()}")
+        
+        total_revenue = float(db.query(models.Order).with_entities(
+            func.coalesce(func.sum(models.Order.total_amount), 0)
+        ).scalar() or 0)
+        total_expenses = float(db.query(models.Expense).with_entities(
+            func.coalesce(func.sum(models.Expense.amount), 0)
+        ).scalar() or 0)
+        
+        print(f"\nFinancial Validation:")
+        print(f"Total Revenue: ${total_revenue:,.2f}")
+        print(f"Total Expenses: ${total_expenses:,.2f}")
         
         print("\nETL completed successfully!")
         

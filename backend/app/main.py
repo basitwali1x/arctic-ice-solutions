@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form, status, Query, Response
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form, status, Query, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
@@ -14,6 +14,7 @@ import os
 import logging
 import json
 import math
+import random
 from pathlib import Path
 from time import time
 from slowapi import Limiter
@@ -5248,6 +5249,81 @@ async def get_ssl_status(current_user: UserInDB = Depends(get_current_user)):
         return {"ssl_certificates": ssl_results}
     else:
         return {"ssl_certificates": [], "status": "monitoring service unavailable"}
+
+@app.post("/api/v1/admin/seed-staging-data")
+@limiter.limit("1/minute")
+async def seed_staging_data(request: Request, current_user: UserInDB = Depends(get_current_user)):
+    """Seed staging database with comprehensive demo data for pilot testing"""
+    if current_user.role != UserRole.MANAGER:
+        raise HTTPException(status_code=403, detail="Only managers can seed staging data")
+    
+    try:
+        global customers_db, orders_db, vehicles_db, work_orders_db, production_entries_db
+        customers_db.clear()
+        orders_db.clear() 
+        vehicles_db.clear()
+        work_orders_db.clear()
+        production_entries_db.clear()
+        
+        initialize_sample_data()
+        
+        staging_customers = []
+        for i in range(50):
+            customer = {
+                "id": f"staging_cust_{i+1}",
+                "name": f"Demo Customer {i+1}",
+                "email": f"demo.customer{i+1}@example.com",
+                "phone": f"(555) 000-{i+1:04d}",
+                "address": f"Demo Address {i+1}",
+                "city": "Demo City",
+                "state": "LA" if i % 2 == 0 else "TX",
+                "zip_code": "70000" if i % 2 == 0 else "75000",
+                "location_id": f"loc_{(i % 4) + 1}",
+                "is_active": True,
+                "credit_limit": 5000.0,
+                "payment_terms": "Net 30"
+            }
+            customers_db[customer["id"]] = customer
+            staging_customers.append(customer)
+        
+        staging_orders = []
+        for i in range(100):
+            order_date = datetime.now() - timedelta(days=random.randint(0, 30))
+            order = {
+                "id": f"staging_order_{i+1}",
+                "customer_id": f"staging_cust_{random.randint(1, 50)}",
+                "customer_name": f"Demo Customer {random.randint(1, 50)}",
+                "products": [
+                    {
+                        "product_id": "prod_1",
+                        "product_name": "8lb Ice Bag",
+                        "quantity": random.randint(10, 100),
+                        "price": 3.50
+                    }
+                ],
+                "total_amount": random.randint(35, 350),
+                "status": random.choice(["pending", "confirmed", "delivered"]),
+                "order_date": order_date.isoformat(),
+                "delivery_date": (order_date + timedelta(days=1)).isoformat(),
+                "location_id": f"loc_{random.randint(1, 4)}"
+            }
+            orders_db[order["id"]] = order
+            staging_orders.append(order)
+        
+        save_data_to_disk()
+        
+        return {
+            "message": "Staging data seeded successfully",
+            "data": {
+                "customers": len(customers_db),
+                "orders": len(orders_db),
+                "vehicles": len(vehicles_db),
+                "work_orders": len(work_orders_db),
+                "locations": len(locations_db)
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error seeding staging data: {str(e)}")
 
 @app.get("/{full_path:path}")
 async def catch_all(full_path: str):

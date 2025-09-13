@@ -84,7 +84,7 @@ def update_dns_record(zone_id, record_id, record_type, name, content, ttl=1):
 
 def main():
     domain = "yourchoiceice.com"
-    target = "git-pr-helper-a1lqq6oq.devinapps.com"
+    target = "ssl-certificate-fixer-qqbps3jj.devinapps.com"
     
     print("=== Cloudflare DNS Configuration ===")
     print(f"Domain: {domain}")

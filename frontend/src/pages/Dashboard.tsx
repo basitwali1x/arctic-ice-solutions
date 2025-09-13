@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import './Dashboard.css';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,32 +10,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { TrendingUp, Users, Truck, Package, DollarSign, MapPin, Clock, AlertCircle, RefreshCw, Phone, Mail, Navigation, FileText } from 'lucide-react';
 import { DashboardOverview, ProductionDashboard, FleetDashboard, FinancialDashboard, Location, Route } from '../types/api';
-import { apiRequest } from '../utils/api';
+import { apiRequest, apiJson } from '../utils/api';
 import { useErrorToast } from '../hooks/useErrorToast';
 import { LocationPerformance } from '../components/LocationPerformance';
 
 export function Dashboard() {
-  const [dashboardState, setDashboardState] = useState<{
-    data: {
-      overview: DashboardOverview | null;
-      production: ProductionDashboard | null;
-      fleet: FleetDashboard | null;
-      financial: FinancialDashboard | null;
-    };
-    locations: Location[];
-    loading: boolean;
-    error: string | null;
-  }>({
-    data: {
-      overview: null,
-      production: null,
-      fleet: null,
-      financial: null
-    },
-    locations: [],
-    loading: true,
-    error: null
-  });
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [selectedOptimizeLocation, setSelectedOptimizeLocation] = useState<string>('');
@@ -42,67 +22,85 @@ export function Dashboard() {
   const [isOptimizing, setIsOptimizing] = useState(false);
   const { showError } = useErrorToast();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  const fetchDashboardData = useCallback(async () => {
-    try {
-      const [overviewRes, productionRes, fleetRes, financialRes, locationsRes] = await Promise.all([
-        apiRequest('/api/v1/dashboard/overview'),
-        apiRequest('/api/v1/dashboard/production'),
-        apiRequest('/api/v1/dashboard/fleet'),
-        apiRequest('/api/v1/dashboard/financial'),
-        apiRequest('/api/v1/locations')
-      ]);
+  const overviewQuery = useQuery({
+    queryKey: ['dashboard', 'overview'],
+    queryFn: () => apiJson<DashboardOverview>('/api/dashboard/overview')
+  });
 
-      const [overview, production, fleet, financial, locations] = await Promise.all([
-        overviewRes?.ok ? overviewRes.json() : null,
-        productionRes?.ok ? productionRes.json() : null,
-        fleetRes?.ok ? fleetRes.json() : null,
-        financialRes?.ok ? financialRes.json() : null,
-        locationsRes?.ok ? locationsRes.json() : null
-      ]);
+  const productionQuery = useQuery({
+    queryKey: ['dashboard', 'production'],
+    queryFn: () => apiJson<ProductionDashboard>('/api/dashboard/production')
+  });
 
-      setDashboardState({
-        data: { overview, production, fleet, financial },
-        locations: locations || [],
-        loading: false,
-        error: null
-      });
-    } catch (error) {
-      console.error('Failed to fetch dashboard data:', error);
-      setDashboardState(prev => ({
-        ...prev,
-        loading: false,
-        error: 'Failed to load dashboard data'
-      }));
-    }
-  }, []);
+  const fleetQuery = useQuery({
+    queryKey: ['dashboard', 'fleet'],
+    queryFn: () => apiJson<FleetDashboard>('/api/dashboard/fleet')
+  });
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, [fetchDashboardData]);
+  const financialQuery = useQuery({
+    queryKey: ['dashboard', 'financial'],
+    queryFn: () => apiJson<FinancialDashboard>('/api/dashboard/financial')
+  });
+
+  const locationsQuery = useQuery({
+    queryKey: ['locations'],
+    queryFn: () => apiJson<Location[]>('/api/locations')
+  });
 
   const productionData = useMemo(() => [
-    { name: 'Shift 1', pallets: dashboardState.data.production?.shift_1_pallets || 45 },
-    { name: 'Shift 2', pallets: dashboardState.data.production?.shift_2_pallets || 35 },
-  ], [dashboardState.data.production]);
+    { name: 'Shift 1', pallets: productionQuery.data?.shift_1_pallets || 45 },
+    { name: 'Shift 2', pallets: productionQuery.data?.shift_2_pallets || 35 },
+  ], [productionQuery.data]);
 
-  const paymentData = useMemo(() => dashboardState.data.financial?.payment_breakdown ? [
-    { name: 'Cash', value: dashboardState.data.financial.payment_breakdown.cash, color: '#0088FE' },
-    { name: 'Check', value: dashboardState.data.financial.payment_breakdown.check, color: '#00C49F' },
-    { name: 'Credit', value: dashboardState.data.financial.payment_breakdown.credit, color: '#FFBB28' }
+  const paymentData = useMemo(() => financialQuery.data?.payment_breakdown ? [
+    { name: 'Cash', value: financialQuery.data.payment_breakdown.cash, color: '#0088FE' },
+    { name: 'Check', value: financialQuery.data.payment_breakdown.check, color: '#00C49F' },
+    { name: 'Credit', value: financialQuery.data.payment_breakdown.credit, color: '#FFBB28' }
   ] : [
     { name: 'Cash', value: 45, color: '#0088FE' },
     { name: 'Check', value: 30, color: '#00C49F' },
     { name: 'Credit', value: 25, color: '#FFBB28' }
-  ], [dashboardState.data.financial]);
+  ], [financialQuery.data]);
 
-  const fleetData = useMemo(() => Object.entries(dashboardState.data.fleet?.vehicles_by_location || {}).map(([location, count]) => ({
+  const fleetData = useMemo(() => Object.entries(fleetQuery.data?.vehicles_by_location || {}).map(([location, count]) => ({
     location,
     vehicles: count
-  })), [dashboardState.data.fleet]);
+  })), [fleetQuery.data]);
+
+  const isLoading = overviewQuery.isLoading || productionQuery.isLoading || fleetQuery.isLoading || financialQuery.isLoading || locationsQuery.isLoading;
+  const error = overviewQuery.error || productionQuery.error || fleetQuery.error || financialQuery.error || locationsQuery.error;
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-64">Loading dashboard...</div>;
+  }
+
+  if (error) {
+    return (
+      <Card className="border-red-200 bg-red-50">
+        <CardHeader>
+          <CardTitle className="flex items-center text-red-800">
+            <AlertCircle className="h-5 w-5 mr-2" />
+            Dashboard Unavailable
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-red-700 mb-4">Failed to load dashboard data</p>
+          <Button 
+            onClick={() => queryClient.invalidateQueries({ queryKey: ['dashboard'] })} 
+            variant="outline"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Retry
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const handleLocationClick = (locationName: string) => {
-    const location = dashboardState.locations.find(loc => 
+    const location = locationsQuery.data?.find(loc => 
       loc.name.toLowerCase().includes(locationName.toLowerCase()) ||
       locationName.toLowerCase().includes(loc.name.toLowerCase())
     );
@@ -199,29 +197,6 @@ export function Dashboard() {
     }
   };
 
-  if (dashboardState.loading) {
-    return <div className="flex items-center justify-center h-64 dashboard-loading">Loading dashboard...</div>;
-  }
-
-  if (dashboardState.error) {
-    return (
-      <Card className="border-red-200 bg-red-50">
-        <CardHeader>
-          <CardTitle className="flex items-center text-red-800">
-            <AlertCircle className="h-5 w-5 mr-2" />
-            Dashboard Unavailable
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-red-700 mb-4">{dashboardState.error}</p>
-          <Button onClick={fetchDashboardData} variant="outline">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Retry
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
 
   return (
     <div className="space-y-6 dashboard-container dashboard-content dashboard-loaded">
@@ -229,7 +204,7 @@ export function Dashboard() {
         <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
         <div className="flex items-center space-x-2 text-sm text-gray-600">
           <Clock className="h-4 w-4" />
-          <span>Last updated: {dashboardState.loading ? 'Loading...' : 'Just now'}</span>
+          <span>Last updated: Just now</span>
         </div>
       </div>
 
@@ -241,7 +216,7 @@ export function Dashboard() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{dashboardState.data.overview?.total_customers || 1200}</div>
+            <div className="text-2xl font-bold">{overviewQuery.data?.total_customers || 1200}</div>
             <p className="text-xs text-muted-foreground">
               <span className="text-green-600 flex items-center">
                 <TrendingUp className="h-3 w-3 mr-1" />
@@ -257,9 +232,9 @@ export function Dashboard() {
             <Truck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{dashboardState.data.overview?.total_vehicles || 8}</div>
+            <div className="text-2xl font-bold">{overviewQuery.data?.total_vehicles || 8}</div>
             <p className="text-xs text-muted-foreground">
-              {dashboardState.data.fleet?.vehicles_in_use || 6} in use, {dashboardState.data.fleet?.vehicles_available || 2} available
+              {fleetQuery.data?.vehicles_in_use || 6} in use, {fleetQuery.data?.vehicles_available || 2} available
             </p>
           </CardContent>
         </Card>
@@ -270,7 +245,7 @@ export function Dashboard() {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{dashboardState.data.overview?.total_orders_today || 0}</div>
+            <div className="text-2xl font-bold">{overviewQuery.data?.total_orders_today || 0}</div>
             <p className="text-xs text-muted-foreground">
               <span className="text-green-600 flex items-center">
                 <TrendingUp className="h-3 w-3 mr-1" />
@@ -286,7 +261,7 @@ export function Dashboard() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${dashboardState.data.financial?.daily_revenue?.toLocaleString() || '0'}</div>
+            <div className="text-2xl font-bold">${financialQuery.data?.daily_revenue?.toLocaleString() || '0'}</div>
             <p className="text-xs text-muted-foreground">
               <span className="text-green-600 flex items-center">
                 <TrendingUp className="h-3 w-3 mr-1" />
@@ -302,7 +277,7 @@ export function Dashboard() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${dashboardState.data.financial?.daily_revenue_average?.toLocaleString() || '12,500'}</div>
+            <div className="text-2xl font-bold">${financialQuery.data?.daily_revenue_average?.toLocaleString() || '12,500'}</div>
             <p className="text-xs text-muted-foreground">
               <span className="text-blue-600 flex items-center">
                 <TrendingUp className="h-3 w-3 mr-1" />
@@ -318,7 +293,7 @@ export function Dashboard() {
             <FileText className="h-4 w-4 text-yellow-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">${dashboardState.data.financial?.outstanding_invoices?.toLocaleString() || '25,000'}</div>
+            <div className="text-2xl font-bold text-yellow-600">${financialQuery.data?.outstanding_invoices?.toLocaleString() || '25,000'}</div>
             <p className="text-xs text-muted-foreground">Accounts receivable</p>
           </CardContent>
         </Card>
@@ -343,7 +318,7 @@ export function Dashboard() {
               </BarChart>
             </ResponsiveContainer>
             <div className="mt-4 text-sm text-gray-600">
-              Target: {dashboardState.data.production?.target_production_pallets || 160} pallets/day
+              Target: {productionQuery.data?.target_production_pallets || 160} pallets/day
             </div>
           </CardContent>
         </Card>
@@ -486,11 +461,11 @@ export function Dashboard() {
                     <SelectValue placeholder="Choose location for optimization" />
                   </SelectTrigger>
                   <SelectContent>
-                    {dashboardState.locations.map((location) => (
+                    {locationsQuery.data?.map((location) => (
                       <SelectItem key={location.id} value={location.id}>
                         {location.name}
                       </SelectItem>
-                    ))}
+                    )) || []}
                   </SelectContent>
                 </Select>
               </div>
@@ -556,7 +531,7 @@ export function Dashboard() {
 
       {/* Customer Mapping and Location Performance */}
       <div className="grid grid-cols-1 gap-6">
-        <LocationPerformance locations={dashboardState.locations} />
+        <LocationPerformance locations={locationsQuery.data || []} />
       </div>
 
       {/* Location Details Modal */}

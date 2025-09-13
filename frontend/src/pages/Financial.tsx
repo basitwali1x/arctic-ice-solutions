@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
-import { DollarSign, TrendingUp, FileText, RefreshCw, Download, Upload, CheckCircle, AlertCircle, Plus } from 'lucide-react';
+import { DollarSign, TrendingUp, FileText, RefreshCw, Download, Upload, CheckCircle, AlertCircle, Plus, X } from 'lucide-react';
 import { FinancialDashboard, Expense, QuickBooksStatus, QuickBooksSyncResult, Location } from '../types/api';
 import { apiRequest } from '../utils/api';
 import { useErrorToast } from '../hooks/useErrorToast';
@@ -47,6 +47,11 @@ export function Financial() {
   const [quickbooksSyncing, setQuickbooksSyncing] = useState(false);
   const [showDocumentForm, setShowDocumentForm] = useState(false);
   const [documents, setDocuments] = useState<any[]>([]);
+  const [importJobId, setImportJobId] = useState<string | null>(null);
+  console.log('Import job ID:', importJobId);
+  const [importErrors, setImportErrors] = useState<any[]>([]);
+  const [importSummary, setImportSummary] = useState<any | null>(null);
+  const [showErrorsModal, setShowErrorsModal] = useState(false);
 
   const [newExpense, setNewExpense] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -119,6 +124,8 @@ export function Financial() {
     if (!files || files.length === 0) return;
 
     setUploading(true);
+    setImportErrors([]);
+    setImportSummary(null);
     console.log('Starting file upload');
 
     try {
@@ -128,32 +135,64 @@ export function Financial() {
       });
       formData.append('location_id', selectedLocation);
 
-      const response = await apiRequest('/api/import/excel', {
+      const response = await apiRequest('/api/import/excel-async', {
         method: 'POST',
         body: formData
       });
 
       if (response?.ok) {
-        console.log('File upload successful');
+        const { job_id } = await response.json();
+        setImportJobId(job_id);
+        console.log('File upload queued, job ID:', job_id);
 
-        const [financialResponse, statusResponse, expensesResponse, profitResponse] = await Promise.all([
-          apiRequest('/api/dashboard/financial'),
-          apiRequest('/api/import/status'),
-          apiRequest('/api/expenses'),
-          apiRequest('/api/financial/profit-analysis')
-        ]);
+        const poll = async () => {
+          if (!job_id) return;
+          try {
+            const statusResponse = await apiRequest(`/api/import/jobs/${job_id}`);
+            if (!statusResponse?.ok) return;
+            
+            const status = await statusResponse.json();
+            console.log('Job status:', status);
+            
+            if (status.state === 'completed') {
+              setImportSummary(status.summary || null);
+              setImportErrors(status.summary?.errors || []);
+              
+              const [financialResponse, statusResponse, expensesResponse, profitResponse] = await Promise.all([
+                apiRequest('/api/dashboard/financial'),
+                apiRequest('/api/import/status'),
+                apiRequest('/api/expenses'),
+                apiRequest('/api/financial/profit-analysis')
+              ]);
 
-        const financialData = await financialResponse?.json();
-        const statusData = await statusResponse?.json();
-        const expensesData = await expensesResponse?.json();
-        const profitAnalysis = await profitResponse?.json();
+              const financialData = await financialResponse?.json();
+              const statusData = await statusResponse?.json();
+              const expensesData = await expensesResponse?.json();
+              const profitAnalysis = await profitResponse?.json();
 
-        setFinancialData(financialData);
-        setImportStatus(statusData);
-        setExpenses(expensesData);
-        setProfitData(profitAnalysis);
+              setFinancialData(financialData);
+              setImportStatus(statusData);
+              setExpenses(expensesData);
+              setProfitData(profitAnalysis);
+              setUploading(false);
+            } else if (status.state === 'failed') {
+              setImportSummary(status.summary || null);
+              setImportErrors(status.summary?.errors || []);
+              showError(new Error(status.error || 'Import failed'), 'Import failed');
+              setUploading(false);
+            } else {
+              setTimeout(poll, 1000);
+            }
+          } catch (error) {
+            console.error('Error polling job status:', error);
+            setTimeout(poll, 2000);
+          }
+        };
+        setTimeout(poll, 1000);
       } else {
         console.error('File upload failed');
+        showError(new Error('Upload failed'), 'Failed to queue import');
+        setUploading(false);
       }
     } catch (error) {
       console.error('File upload error:', error);
@@ -162,13 +201,14 @@ export function Financial() {
       } else {
         showError(error, 'Failed to upload files');
       }
-    } finally {
       setUploading(false);
+    } finally {
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
     }
   };
+
 
   const handleQuickBooksConnect = async () => {
     setQuickbooksConnecting(true);
@@ -278,6 +318,33 @@ export function Financial() {
 
   const triggerFileUpload = () => {
     fileInputRef.current?.click();
+  };
+
+  const downloadErrorsCSV = () => {
+    if (!importErrors || importErrors.length === 0) return;
+    
+    const headers = ['Sheet', 'Row', 'Column', 'Error Code', 'Message', 'Value'];
+    const csvContent = [
+      headers.join(','),
+      ...importErrors.map(error => [
+        error.sheet || '',
+        error.row_index || '',
+        error.column || '',
+        error.error_code || '',
+        `"${(error.message || '').replace(/"/g, '""')}"`,
+        `"${(error.value || '').toString().replace(/"/g, '""')}"`
+      ].join(','))
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `import-errors-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
   };
 
   const handleGoogleSheetsConnect = async () => {
@@ -821,9 +888,117 @@ export function Financial() {
                 </div>
               </div>
             )}
+
+            {importSummary && (
+              <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Import Summary</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-600">Total Rows:</span>
+                    <span className="ml-2 font-medium">{importSummary.total_rows}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Success:</span>
+                    <span className="ml-2 font-medium text-green-600">{importSummary.success_rows}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Errors:</span>
+                    <span className="ml-2 font-medium text-red-600">{importSummary.error_rows}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Duplicates Skipped:</span>
+                    <span className="ml-2 font-medium text-yellow-600">{importSummary.duplicates_skipped}</span>
+                  </div>
+                </div>
+                {importErrors && importErrors.length > 0 && (
+                  <div className="mt-3 flex items-center space-x-2">
+                    <Button
+                      onClick={() => setShowErrorsModal(true)}
+                      variant="outline"
+                      size="sm"
+                      className="text-red-600 border-red-300 hover:bg-red-50"
+                    >
+                      <AlertCircle className="h-4 w-4 mr-2" />
+                      View {importErrors.length} Error{importErrors.length !== 1 ? 's' : ''}
+                    </Button>
+                    <Button
+                      onClick={downloadErrorsCSV}
+                      variant="outline"
+                      size="sm"
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Download Errors CSV
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
+
+      {showErrorsModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[80vh] overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b">
+              <h3 className="text-lg font-medium text-gray-900">Import Errors</h3>
+              <button
+                onClick={() => setShowErrorsModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="p-6 overflow-auto max-h-[60vh]">
+              {importErrors && importErrors.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sheet</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Row</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Column</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Error</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Message</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {importErrors.map((error, index) => (
+                        <tr key={index}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{error.sheet}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{error.row_index}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{error.column || '-'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded-full">
+                              {error.error_code}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-900">{error.message}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-gray-500">No errors to display.</p>
+              )}
+            </div>
+            <div className="flex items-center justify-end space-x-2 p-6 border-t">
+              <Button
+                onClick={downloadErrorsCSV}
+                variant="outline"
+                disabled={!importErrors || importErrors.length === 0}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Download CSV
+              </Button>
+              <Button onClick={() => setShowErrorsModal(false)}>
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Integration Status */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

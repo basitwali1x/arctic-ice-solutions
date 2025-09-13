@@ -5,7 +5,7 @@ import urllib.parse
 import os
 
 def update_dns_record():
-    token = os.environ.get('CLOUDFLARE_API_TOKEN')
+    token = os.environ.get('cl')
     if not token:
         print("❌ CLOUDFLARE_API_TOKEN environment variable not set")
         return False
@@ -31,7 +31,7 @@ def update_dns_record():
             update_data = {
                 'type': 'CNAME',
                 'name': 'yourchoiceice.com',
-                'content': 'git-pr-helper-a1lqq6oq.devinapps.com',
+                'content': 'arctic-ice-app-umm6bktp.devinapps.com',
                 'proxied': True,
                 'ttl': 1
             }

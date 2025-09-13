@@ -6,6 +6,7 @@ import { Button } from './ui/button';
 interface Props {
   children: ReactNode;
   fallback?: ReactNode;
+  onRetry?: () => void;
 }
 
 interface State {
@@ -28,6 +29,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   private handleRetry = () => {
     this.setState({ hasError: false, error: undefined });
+    this.props.onRetry?.();
   };
 
   public render() {

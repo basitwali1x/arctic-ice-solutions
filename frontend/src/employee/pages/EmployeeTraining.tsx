@@ -51,8 +51,8 @@ export function EmployeeTraining() {
       setError(null);
 
       const [modulesResponse, progressResponse] = await Promise.all([
-        apiRequest('/api/training/modules'),
-        apiRequest('/api/employee/progress')
+        apiRequest('/api/v1/training/modules'),
+        apiRequest('/api/v1/employee/progress')
       ]);
 
       if (!modulesResponse || !progressResponse) {
@@ -92,7 +92,7 @@ export function EmployeeTraining() {
       const currentProgress = getModuleProgress(moduleId);
       const newProgress = currentProgress === 0 ? 25 : Math.min(currentProgress + 25, 100);
       
-      await apiRequest(`/api/training/modules/${moduleId}/progress`, {
+      await apiRequest(`/api/v1/training/modules/${moduleId}/progress`, {
         method: 'POST',
         body: JSON.stringify({ progress: newProgress })
       });

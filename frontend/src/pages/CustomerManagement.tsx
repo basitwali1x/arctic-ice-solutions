@@ -124,7 +124,7 @@ export function CustomerManagement() {
 
   const fetchCustomerPricing = async (customerId: string) => {
     try {
-      const response = await apiRequest(`/api/customers/${customerId}/pricing`);
+      const response = await apiRequest(`/api/v1/customers/${customerId}/pricing`);
       if (response?.ok) {
         const pricingData = await response.json();
         setCustomerPricing(pricingData);
@@ -168,7 +168,7 @@ export function CustomerManagement() {
       setSavingPricing(true);
       
       for (const [productId, price] of Object.entries(pricingChanges)) {
-        await apiRequest(`/api/customers/${selectedCustomer.id}/pricing`, {
+        await apiRequest(`/api/v1/customers/${selectedCustomer.id}/pricing`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -185,7 +185,7 @@ export function CustomerManagement() {
       );
 
       for (const pricing of pricingToDelete) {
-        await apiRequest(`/api/customers/${selectedCustomer.id}/pricing/${pricing.product_id}`, {
+        await apiRequest(`/api/v1/customers/${selectedCustomer.id}/pricing/${pricing.product_id}`, {
           method: 'DELETE',
         });
       }
@@ -240,7 +240,7 @@ export function CustomerManagement() {
           formData.append('location_id', selectedLocationId);
         }
 
-        response = await apiRequest('/api/customers/bulk-import', {
+        response = await apiRequest('/api/v1/customers/bulk-import', {
           method: 'POST',
           body: formData,
         });
@@ -253,7 +253,7 @@ export function CustomerManagement() {
           formData.append('location_id', selectedLocationId);
         }
 
-        response = await apiRequest('/api/customers/bulk-import-sheets', {
+        response = await apiRequest('/api/v1/customers/bulk-import-sheets', {
           method: 'POST',
           body: formData,
         });

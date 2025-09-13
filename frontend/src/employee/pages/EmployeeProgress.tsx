@@ -86,7 +86,7 @@ export function EmployeeProgress() {
       setLoading(true);
       setError(null);
 
-      const response = await apiRequest('/api/employee/progress');
+      const response = await apiRequest('/api/v1/employee/progress');
       if (!response) {
         throw new Error('Failed to fetch progress data');
       }

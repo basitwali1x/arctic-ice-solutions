@@ -1,10 +1,10 @@
 {
-  "timestamp": "2025-08-11T02:55:41.612255",
+  "timestamp": "2025-09-13T23:07:01.819888",
   "dns_resolution": [
     {
       "domain": "yourchoiceice.com",
       "status": "resolved",
-      "ip": "52.88.16.158"
+      "ip": "52.32.102.240"
     },
     {
       "domain": "api.yourchoiceice.com",
@@ -23,12 +23,12 @@
       "status": "accessible",
       "http_code": 200,
       "headers": {
-        "date": "Mon, 11 Aug 2025 02:55:41 GMT",
-        "server": "Fly/3fc8d4ba2 (2025-08-04)",
+        "date": "Sat, 13 Sep 2025 23:07:00 GMT",
+        "server": "Fly/9fea047a (2025-09-12)",
         "content-length": "15",
         "content-type": "application/json",
         "via": "1.1 fly.io, 1.1 fly.io",
-        "fly-request-id": "01K2BGW7HGK3KQCRR0DF0RA60X-sea"
+        "fly-request-id": "01K52N9ZCK871YV2B8E90TQRCJ-sea"
       }
     }
   ],

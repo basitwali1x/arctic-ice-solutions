@@ -49,9 +49,6 @@ export function Dashboard() {
     queryFn: () => apiJson<Location[]>('/api/locations')
   });
 
-  const isLoading = overviewQuery.isLoading || productionQuery.isLoading || fleetQuery.isLoading || financialQuery.isLoading || locationsQuery.isLoading;
-  const error = overviewQuery.error || productionQuery.error || fleetQuery.error || financialQuery.error || locationsQuery.error;
-
   const productionData = useMemo(() => [
     { name: 'Shift 1', pallets: productionQuery.data?.shift_1_pallets || 45 },
     { name: 'Shift 2', pallets: productionQuery.data?.shift_2_pallets || 35 },
@@ -71,6 +68,9 @@ export function Dashboard() {
     location,
     vehicles: count
   })), [fleetQuery.data]);
+
+  const isLoading = overviewQuery.isLoading || productionQuery.isLoading || fleetQuery.isLoading || financialQuery.isLoading || locationsQuery.isLoading;
+  const error = overviewQuery.error || productionQuery.error || fleetQuery.error || financialQuery.error || locationsQuery.error;
 
   if (isLoading) {
     return <div className="flex items-center justify-center h-64">Loading dashboard...</div>;

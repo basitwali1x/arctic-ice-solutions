@@ -1,14 +1,81 @@
-import pandas as pd
 from datetime import datetime
 from typing import List, Dict, Any
 import logging
 import re
+import os
 from fastapi import UploadFile
+from .import_validation import SalesRow, RowError, ImportSummary, CustomerRow
+from .import_idempotency import hash_file_bytes, stable_row_hash, make_idempotency_key
+
+if os.getenv("ENVIRONMENT", "development") == "development":
+    import pandas as pd
+else:
+    pd = None
 
 logger = logging.getLogger(__name__)
 
+imported_record_keys = set()
+
+def detect_customer_location(customer_name: str, address: str, phone: str = '') -> str:
+    """Detect customer location based on address, city, and phone area code"""
+    
+    location_patterns = {
+        'loc_1': {
+            'cities': ['leesville', 'deridder', 'many', 'zwolle', 'vernon', 'new llano', 'anacoco'],
+            'area_codes': ['337'],
+            'states': ['la', 'louisiana'],
+            'zip_prefixes': ['714']
+        },
+        'loc_2': {
+            'cities': ['lake charles', 'sulphur', 'westlake', 'vinton', 'cameron'],
+            'area_codes': ['337'],
+            'states': ['la', 'louisiana'],
+            'zip_prefixes': ['706', '707']
+        },
+        'loc_3': {
+            'cities': ['lufkin', 'huntsville', 'crockett', 'livingston', 'nacogdoches'],
+            'area_codes': ['936', '409'],
+            'states': ['tx', 'texas'],
+            'zip_prefixes': ['759']
+        },
+        'loc_4': {
+            'cities': ['jasper', 'newton', 'hemphill', 'woodville', 'kirbyville'],
+            'area_codes': ['903'],
+            'states': ['tx', 'texas'],
+            'zip_prefixes': ['759']
+        }
+    }
+    
+    address_lower = address.lower() if address else ''
+    
+    for loc_id, patterns in location_patterns.items():
+        if any(city in address_lower for city in patterns['cities']):
+            return loc_id
+    
+    phone_digits = ''.join(filter(str.isdigit, str(phone)))
+    area_code = phone_digits[:3] if len(phone_digits) >= 10 else ''
+    
+    for loc_id, patterns in location_patterns.items():
+        if any(state in address_lower for state in patterns['states']):
+            if area_code in patterns['area_codes']:
+                return loc_id
+            return loc_id
+    
+    for loc_id, patterns in location_patterns.items():
+        if area_code in patterns['area_codes']:
+            return loc_id
+    
+    if any(state in address_lower for state in ['la', 'louisiana']):
+        return 'loc_1'
+    
+    if any(state in address_lower for state in ['tx', 'texas']):
+        return 'loc_3'
+    
+    return 'loc_1'
 def clean_excel_data(df: pd.DataFrame) -> pd.DataFrame:
     """Clean and standardize Excel data"""
+    if pd is None:
+        import pandas as pd
     required_cols = ['Type', 'Date', 'Name', 'Amount']
     missing_cols = [col for col in required_cols if col not in df.columns]
     if missing_cols:
@@ -36,6 +103,8 @@ def clean_excel_data(df: pd.DataFrame) -> pd.DataFrame:
 
 def extract_timesheet_sales_data(df: pd.DataFrame, date_from_filename: str = None) -> pd.DataFrame:
     """Extract sales data from timesheet format and convert to standard format"""
+    if pd is None:
+        import pandas as pd
     sales_data = []
 
     for i, row in df.iterrows():
@@ -81,6 +150,8 @@ def extract_timesheet_sales_data(df: pd.DataFrame, date_from_filename: str = Non
 
 def extract_customers_from_excel(df: pd.DataFrame, location_id: str = "loc_3", location_name: str = "Lufkin") -> List[Dict[str, Any]]:
     """Extract unique customers from Excel data with proper location mapping"""
+    if pd is None:
+        import pandas as pd
     customers = []
     unique_customers = df['Name'].unique()
 
@@ -157,6 +228,8 @@ def extract_customers_from_excel(df: pd.DataFrame, location_id: str = "loc_3", l
 
 def extract_orders_from_excel(df: pd.DataFrame, location_id: str = "loc_3", location_name: str = "Lufkin") -> List[Dict[str, Any]]:
     """Extract orders from Excel data"""
+    if pd is None:
+        import pandas as pd
     orders = []
 
     location_config = {
@@ -212,6 +285,8 @@ def extract_orders_from_excel(df: pd.DataFrame, location_id: str = "loc_3", loca
 
 def calculate_financial_metrics(df: pd.DataFrame) -> Dict[str, Any]:
     """Calculate financial metrics from Excel data"""
+    if pd is None:
+        import pandas as pd
     total_revenue = df['Amount'].sum()
     total_transactions = len(df)
 
@@ -237,8 +312,10 @@ def calculate_financial_metrics(df: pd.DataFrame) -> Dict[str, Any]:
         }
     }
 
-def extract_customers_from_customer_list(df: pd.DataFrame, location_id: str = "loc_3", location_name: str = "Lufkin") -> List[Dict[str, Any]]:
+def extract_customers_from_customer_list(df: pd.DataFrame, location_id: str = "auto", location_name: str = "Auto-Detect") -> List[Dict[str, Any]]:
     """Extract customers from customer list format (Customer, Address, Main Phone)"""
+    if pd is None:
+        import pandas as pd
     customers = []
 
     location_config = {
@@ -268,15 +345,20 @@ def extract_customers_from_customer_list(df: pd.DataFrame, location_id: str = "l
         }
     }
 
-    config = location_config.get(location_id, location_config["loc_3"])
-
     for i, row in df.iterrows():
         if pd.isna(row.get('Customer')) or str(row.get('Customer')).strip() == '':
             continue
 
         customer_name = str(row['Customer']).strip()
         address = str(row.get('Address', '')).strip() if pd.notna(row.get('Address')) else f"{100 + i} Customer St"
-        phone = str(row.get('Main Phone', '')).strip() if pd.notna(row.get('Main Phone')) else f"({config['area_code']}) 555-{1000 + i:04d}"
+        phone = str(row.get('Main Phone', '')).strip() if pd.notna(row.get('Main Phone')) else ""
+
+        if location_id == "auto":
+            detected_location_id = detect_customer_location(customer_name, address, phone)
+        else:
+            detected_location_id = location_id
+
+        config = location_config.get(detected_location_id, location_config["loc_3"])
 
         if phone and phone != 'nan':
             phone = re.sub(r'[^\d\-\(\)\s\+ext]', '', phone)
@@ -317,7 +399,7 @@ def extract_customers_from_customer_list(df: pd.DataFrame, location_id: str = "l
             "city": city,
             "state": state,
             "zip_code": zip_code,
-            "location_id": location_id,
+            "location_id": detected_location_id,
             "credit_limit": 5000.0,
             "payment_terms": 30,
             "is_active": True
@@ -326,11 +408,16 @@ def extract_customers_from_customer_list(df: pd.DataFrame, location_id: str = "l
     return customers
 
 def process_customer_excel_files(file_paths: List[str], location_id: str = "loc_3", location_name: str = "Lufkin") -> Dict[str, Any]:
-    """Process customer list Excel files and return customer data"""
+    """Process customer list Excel files and return customer data with validation"""
     all_customers = []
+    errors = []
+    success_rows_total = 0
+    duplicates_total = 0
+    total_rows = 0
+    file_hash = ""
 
     location_sheet_map = {
-        "loc_1": ["leesville", "leesville "],  # Note the space variant
+        "loc_1": ["leesville", "leesville "],
         "loc_2": ["lake charles", "lakecharles", "lake_charles"],
         "loc_3": ["lufkin"],
         "loc_4": ["jasper"]
@@ -339,6 +426,10 @@ def process_customer_excel_files(file_paths: List[str], location_id: str = "loc_
     for file_path in file_paths:
         try:
             logger.info(f"Processing customer Excel file: {file_path}")
+
+            with open(file_path, 'rb') as f:
+                file_bytes = f.read()
+            file_hash = hash_file_bytes(file_bytes)
 
             xl_file = pd.ExcelFile(file_path)
             logger.info(f"Available sheets: {xl_file.sheet_names}")
@@ -351,52 +442,78 @@ def process_customer_excel_files(file_paths: List[str], location_id: str = "loc_
                     try:
                         df = pd.read_excel(file_path, sheet_name=sheet_name)
                         if not df.empty and 'Customer' in df.columns:
-                            customers = extract_customers_from_customer_list(df, location_id, location_name)
-                            all_customers.extend(customers)
+                            total_rows += len(df)
+                            validated_rows, success_rows, dupes = _validate_customer_df(df, sheet=sheet_name, file_hash=file_hash, errors=errors, idempotent_keys=imported_record_keys)
+                            success_rows_total += success_rows
+                            duplicates_total += dupes
+                            if validated_rows:
+                                customers = extract_customers_from_customer_list(df, location_id, location_name)
+                                all_customers.extend(customers)
                             customers_found = True
-                            logger.info(f"Processed {len(customers)} customers from {sheet_name} sheet")
+                            logger.info(f"Processed {len(validated_rows)} customers from {sheet_name} sheet")
                             break
                     except Exception as e:
                         logger.warning(f"Failed to process {sheet_name} sheet: {e}")
+                        errors.append(RowError(sheet=sheet_name, row_index=0, error_code="SHEET_ERROR", message=f"Failed to process sheet: {str(e)}").model_dump())
 
             if not customers_found and 'all' in xl_file.sheet_names:
                 try:
                     df = pd.read_excel(file_path, sheet_name='all')
                     if not df.empty and 'Customer' in df.columns:
-                        customers = extract_customers_from_customer_list(df, location_id, location_name)
-                        all_customers.extend(customers)
+                        total_rows += len(df)
+                        validated_rows, success_rows, dupes = _validate_customer_df(df, sheet='all', file_hash=file_hash, errors=errors, idempotent_keys=imported_record_keys)
+                        success_rows_total += success_rows
+                        duplicates_total += dupes
+                        if validated_rows:
+                            customers = extract_customers_from_customer_list(df, location_id, location_name)
+                            all_customers.extend(customers)
                         customers_found = True
-                        logger.info(f"Processed {len(customers)} customers from 'all' sheet")
+                        logger.info(f"Processed {len(validated_rows)} customers from 'all' sheet")
                 except Exception as e:
                     logger.warning(f"Failed to process 'all' sheet: {e}")
+                    errors.append(RowError(sheet='all', row_index=0, error_code="SHEET_ERROR", message=f"Failed to process sheet: {str(e)}").model_dump())
 
             if not customers_found and 'Sheet1' in xl_file.sheet_names:
                 try:
                     df = pd.read_excel(file_path, sheet_name='Sheet1')
                     if not df.empty and 'Customer' in df.columns:
-                        customers = extract_customers_from_customer_list(df, location_id, location_name)
-                        all_customers.extend(customers)
+                        total_rows += len(df)
+                        validated_rows, success_rows, dupes = _validate_customer_df(df, sheet='Sheet1', file_hash=file_hash, errors=errors, idempotent_keys=imported_record_keys)
+                        success_rows_total += success_rows
+                        duplicates_total += dupes
+                        if validated_rows:
+                            customers = extract_customers_from_customer_list(df, location_id, location_name)
+                            all_customers.extend(customers)
                         customers_found = True
-                        logger.info(f"Processed {len(customers)} customers from Sheet1")
+                        logger.info(f"Processed {len(validated_rows)} customers from Sheet1")
                 except Exception as e:
                     logger.warning(f"Failed to process Sheet1: {e}")
+                    errors.append(RowError(sheet='Sheet1', row_index=0, error_code="SHEET_ERROR", message=f"Failed to process sheet: {str(e)}").model_dump())
 
             if not customers_found:
                 try:
                     df = pd.read_excel(file_path, sheet_name=0)
                     if not df.empty and 'Customer' in df.columns:
-                        customers = extract_customers_from_customer_list(df, location_id, location_name)
-                        all_customers.extend(customers)
+                        total_rows += len(df)
+                        validated_rows, success_rows, dupes = _validate_customer_df(df, sheet='first_sheet', file_hash=file_hash, errors=errors, idempotent_keys=imported_record_keys)
+                        success_rows_total += success_rows
+                        duplicates_total += dupes
+                        if validated_rows:
+                            customers = extract_customers_from_customer_list(df, location_id, location_name)
+                            all_customers.extend(customers)
                         customers_found = True
-                        logger.info(f"Processed {len(customers)} customers from first sheet")
+                        logger.info(f"Processed {len(validated_rows)} customers from first sheet")
                 except Exception as e:
                     logger.warning(f"Failed to process first sheet: {e}")
+                    errors.append(RowError(sheet='first_sheet', row_index=0, error_code="SHEET_ERROR", message=f"Failed to process sheet: {str(e)}").model_dump())
 
             if not customers_found:
                 logger.warning(f"No valid customer data found in {file_path}")
+                errors.append(RowError(sheet='file', row_index=0, error_code="NO_DATA", message=f"No valid customer data found in {file_path}").model_dump())
 
         except Exception as e:
             logger.error(f"Error processing {file_path}: {e}")
+            errors.append(RowError(sheet='file', row_index=0, error_code="FILE_ERROR", message=f"Error processing file: {str(e)}").model_dump())
             continue
 
     if not all_customers:
@@ -409,13 +526,22 @@ def process_customer_excel_files(file_paths: List[str], location_id: str = "loc_
             unique_customers[key] = customer
         else:
             logger.info(f"Skipping duplicate customer: {customer['name']}")
+            duplicates_total += 1
 
     deduplicated_customers = list(unique_customers.values())
 
     return {
         "customers": deduplicated_customers,
         "total_records": len(deduplicated_customers),
-        "duplicates_removed": len(all_customers) - len(deduplicated_customers)
+        "duplicates_removed": len(all_customers) - len(deduplicated_customers),
+        "summary": ImportSummary(
+            total_rows=total_rows,
+            success_rows=success_rows_total,
+            error_rows=len(errors),
+            duplicates_skipped=duplicates_total,
+            file_hash=file_hash,
+            errors=errors
+        ).model_dump()
     }
 
 def extract_customers_from_order_sheet(df: pd.DataFrame, location_id: str, location_name: str) -> List[Dict[str, Any]]:
@@ -638,14 +764,117 @@ def process_route_excel_files(files: List[UploadFile], location_id: str) -> dict
         'routes_created': len(all_routes)
     }
 
+def _validate_sales_df(df: pd.DataFrame, sheet: str, file_hash: str, errors: list, idempotent_keys: set):
+    """Validate sales data with row-level error reporting and deduplication"""
+    logger.info(f"Validating DataFrame with columns: {list(df.columns)}")
+    required_cols = ['Type', 'Date', 'Name', 'Amount', 'Item', 'Qty', 'Sales Price', 'Num']
+    for col in required_cols:
+        if col not in df.columns:
+            errors.append(RowError(sheet=sheet, row_index=0, column=col, error_code="MISSING_COLUMN", message=f"Required column '{col}' not found").model_dump())
+    
+    success_rows = 0
+    duplicates_skipped = 0
+
+    if errors:
+        return [], success_rows, duplicates_skipped
+
+    valid_rows = []
+    for idx, row in df.iterrows():
+        try:
+            date_val = row.get('Date')
+            if pd.isna(date_val):
+                date_val = None
+            elif hasattr(date_val, 'to_pydatetime'):
+                date_val = date_val.to_pydatetime()
+            elif isinstance(date_val, str):
+                try:
+                    date_val = pd.to_datetime(date_val).to_pydatetime()
+                except:
+                    pass  # Let Pydantic handle the validation error
+            
+            name_val = row.get('Name')
+            if pd.isna(name_val):
+                name_val = None
+                
+            num_val = row.get('Num')
+            if pd.isna(num_val):
+                num_val = None
+            
+            payload = {
+                "Type": row.get('Type'),
+                "Date": date_val,
+                "Name": name_val,
+                "Item": row.get('Item'),
+                "Qty": row.get('Qty'),
+                "Sales_Price": row['Sales Price'] if 'Sales Price' in row else None,
+                "Amount": row.get('Amount'),
+                "Num": num_val
+            }
+            model = SalesRow(**payload)
+            r_hash = stable_row_hash(payload)
+            key = make_idempotency_key(file_hash, sheet, int(idx), r_hash)
+            if key in idempotent_keys:
+                duplicates_skipped += 1
+                continue
+            idempotent_keys.add(key)
+            valid_rows.append(model)
+            success_rows += 1
+        except Exception as e:
+            errors.append(RowError(sheet=sheet, row_index=int(idx), error_code="VALIDATION_ERROR", message=str(e)).model_dump())
+    return valid_rows, success_rows, duplicates_skipped
+
+def _validate_customer_df(df: pd.DataFrame, sheet: str, file_hash: str, errors: list, idempotent_keys: set):
+    """Validate customer data with row-level error reporting and deduplication"""
+    required_cols = ['Customer']
+    for col in required_cols:
+        if col not in df.columns:
+            errors.append(RowError(sheet=sheet, row_index=0, column=col, error_code="MISSING_COLUMN", message=f"Required column '{col}' not found").model_dump())
+    
+    success_rows = 0
+    duplicates_skipped = 0
+
+    if errors:
+        return [], success_rows, duplicates_skipped
+
+    valid_rows = []
+    for idx, row in df.iterrows():
+        try:
+            payload = {
+                "Customer": row.get('Customer'),
+                "Address": row.get('Address', ''),
+                "Main_Phone": row.get('Main Phone')
+            }
+            model = CustomerRow(**payload)
+            r_hash = stable_row_hash(payload)
+            key = make_idempotency_key(file_hash, sheet, int(idx), r_hash)
+            if key in idempotent_keys:
+                duplicates_skipped += 1
+                continue
+            idempotent_keys.add(key)
+            valid_rows.append(model)
+            success_rows += 1
+        except Exception as e:
+            errors.append(RowError(sheet=sheet, row_index=int(idx), error_code="VALIDATION_ERROR", message=str(e)).model_dump())
+    return valid_rows, success_rows, duplicates_skipped
+
 def process_excel_files(file_paths: List[str], location_id: str = "loc_3", location_name: str = "Lufkin") -> Dict[str, Any]:
-    """Process multiple Excel files and return consolidated data"""
+    """Process multiple Excel files and return consolidated data with validation"""
     all_data = []
+    errors = []
+    success_rows_total = 0
+    duplicates_total = 0
+    total_rows = 0
+    file_hash = ""
 
     for file_path in file_paths:
         try:
             logger.info(f"Processing Excel file: {file_path}")
             df_clean = None
+            df_raw = None
+
+            with open(file_path, 'rb') as f:
+                file_bytes = f.read()
+            file_hash = hash_file_bytes(file_bytes)
 
             xl_file = pd.ExcelFile(file_path)
             logger.info(f"Available sheets: {xl_file.sheet_names}")
@@ -656,9 +885,9 @@ def process_excel_files(file_paths: List[str], location_id: str = "loc_3", locat
                     if len(df_sample.columns) > 100:
                         logger.warning(f"Sheet {sheet_name} has {len(df_sample.columns)} columns, limiting to first 10 for memory efficiency")
                         usecols = list(range(min(10, len(df_sample.columns))))
-                        df = pd.read_excel(file_path, sheet_name=sheet_name, usecols=usecols)
+                        df_raw = pd.read_excel(file_path, sheet_name=sheet_name, usecols=usecols)
                     else:
-                        df = pd.read_excel(file_path, sheet_name=sheet_name)
+                        df_raw = pd.read_excel(file_path, sheet_name=sheet_name)
                     break
                 except Exception as e:
                     logger.warning(f"Failed to read sheet {sheet_name}: {e}")
@@ -666,9 +895,10 @@ def process_excel_files(file_paths: List[str], location_id: str = "loc_3", locat
             else:
                 logger.error(f"Could not read any sheets from {file_path}")
                 continue
+
             if 'Sheet1' in xl_file.sheet_names:
                 try:
-                    df_clean = clean_excel_data(df)
+                    df_clean = clean_excel_data(df_raw)
                     if not df_clean.empty:
                         logger.info(f"Successfully processed as sales data from Sheet1")
                 except Exception as e:
@@ -682,7 +912,7 @@ def process_excel_files(file_paths: List[str], location_id: str = "loc_3", locat
                         day, year = date_match.groups()
                         date_str = f"{year}-07-{day.zfill(2)}"
 
-                    df_timesheet = extract_timesheet_sales_data(df, date_str)
+                    df_timesheet = extract_timesheet_sales_data(df_raw, date_str)
                     if not df_timesheet.empty:
                         df_clean = clean_excel_data(df_timesheet)
                         if not df_clean.empty:
@@ -697,10 +927,10 @@ def process_excel_files(file_paths: List[str], location_id: str = "loc_3", locat
                             df_sample = pd.read_excel(file_path, sheet_name=sheet_name, nrows=1)
                             if len(df_sample.columns) > 100:
                                 usecols = list(range(min(10, len(df_sample.columns))))
-                                df = pd.read_excel(file_path, sheet_name=sheet_name, usecols=usecols)
+                                df_sheet = pd.read_excel(file_path, sheet_name=sheet_name, usecols=usecols)
                             else:
-                                df = pd.read_excel(file_path, sheet_name=sheet_name)
-                            df_clean = clean_excel_data(df)
+                                df_sheet = pd.read_excel(file_path, sheet_name=sheet_name)
+                            df_clean = clean_excel_data(df_sheet)
                             if not df_clean.empty:
                                 logger.info(f"Successfully processed sales data from {sheet_name}")
                                 break
@@ -709,22 +939,91 @@ def process_excel_files(file_paths: List[str], location_id: str = "loc_3", locat
                             continue
 
             if df_clean is not None and not df_clean.empty:
-                all_data.append(df_clean)
+                total_rows += len(df_clean)
+                validated_rows, success_rows, dupes = _validate_sales_df(df_clean, sheet="auto", file_hash=file_hash, errors=errors, idempotent_keys=imported_record_keys)
+                success_rows_total += success_rows
+                duplicates_total += dupes
+                if validated_rows:
+                    df_valid = pd.DataFrame([{
+                        'Type': vr.Type,
+                        'Date': vr.Date,
+                        'Name': vr.Name,
+                        'Item': vr.Item,
+                        'Qty': vr.Qty,
+                        'Sales Price': vr.Sales_Price,  # Map back to original column name
+                        'Amount': vr.Amount,
+                        'Num': vr.Num
+                    } for vr in validated_rows])
+                    all_data.append(df_valid)
                 logger.info(f"Processed {len(df_clean)} records from {file_path}")
             else:
-                logger.warning(f"No valid data found in {file_path}")
+                if df_raw is not None and not df_raw.empty:
+                    total_rows += len(df_raw)
+                    validated_rows, success_rows, dupes = _validate_sales_df(df_raw, sheet="auto", file_hash=file_hash, errors=errors, idempotent_keys=imported_record_keys)
+                    success_rows_total += success_rows
+                    duplicates_total += dupes
+                    if validated_rows:
+                        df_valid = pd.DataFrame([{
+                            'Type': vr.Type,
+                            'Date': vr.Date,
+                            'Name': vr.Name,
+                            'Item': vr.Item,
+                            'Qty': vr.Qty,
+                            'Sales Price': vr.Sales_Price,  # Map back to original column name
+                            'Amount': vr.Amount,
+                            'Num': vr.Num
+                        } for vr in validated_rows])
+                        all_data.append(df_valid)
+                    logger.info(f"Processed {success_rows} valid records from {len(df_raw)} total rows in {file_path}")
+                else:
+                    logger.warning(f"No valid data found in {file_path}")
 
         except Exception as e:
             logger.error(f"Error processing {file_path}: {e}")
+            errors.append(RowError(sheet="file", row_index=0, error_code="FILE_ERROR", message=f"Error processing file: {str(e)}").model_dump())
             continue
 
     if not all_data:
-        raise ValueError("No valid sales data found in any Excel files. Please ensure files contain either:\n1. Standard sales data with columns: Type, Date, Name, Amount, Item, Qty, Sales Price, Num\n2. Timesheet format with customer names in first column and quantities in columns 3 and 4\n3. Check that your Excel files are not corrupted and contain actual data rows")
+        if errors:
+            return {
+                "customers": [],
+                "orders": [],
+                "financial_metrics": {"total_revenue": 0, "date_range": {"start": None, "end": None}},
+                "total_records": 0,
+                "date_range": {"start": None, "end": None},
+                "summary": ImportSummary(
+                    total_rows=total_rows,
+                    success_rows=success_rows_total,
+                    error_rows=len(errors),
+                    duplicates_skipped=duplicates_total,
+                    file_hash=file_hash,
+                    errors=errors
+                ).model_dump()
+            }
+        else:
+            raise ValueError("No valid sales data found in any Excel files. Please ensure files contain either:\n1. Standard sales data with columns: Type, Date, Name, Amount, Item, Qty, Sales Price, Num\n2. Timesheet format with customer names in first column and quantities in columns 3 and 4\n3. Check that your Excel files are not corrupted and contain actual data rows")
 
     combined_df = pd.concat(all_data, ignore_index=True)
 
     if combined_df.empty:
-        raise ValueError("Combined data is empty after processing all Excel files")
+        if errors:
+            return {
+                "customers": [],
+                "orders": [],
+                "financial_metrics": {"total_revenue": 0, "date_range": {"start": None, "end": None}},
+                "total_records": 0,
+                "date_range": {"start": None, "end": None},
+                "summary": ImportSummary(
+                    total_rows=total_rows,
+                    success_rows=success_rows_total,
+                    error_rows=len(errors),
+                    duplicates_skipped=duplicates_total,
+                    file_hash=file_hash,
+                    errors=errors
+                ).model_dump()
+            }
+        else:
+            raise ValueError("Combined data is empty after processing all Excel files")
 
     customers = extract_customers_from_excel(combined_df, location_id, location_name)
     orders = extract_orders_from_excel(combined_df, location_id, location_name)
@@ -735,5 +1034,13 @@ def process_excel_files(file_paths: List[str], location_id: str = "loc_3", locat
         "orders": orders,
         "financial_metrics": financial_metrics,
         "total_records": len(combined_df),
-        "date_range": financial_metrics["date_range"]
+        "date_range": financial_metrics["date_range"],
+        "summary": ImportSummary(
+            total_rows=total_rows,
+            success_rows=success_rows_total,
+            error_rows=len(errors),
+            duplicates_skipped=duplicates_total,
+            file_hash=file_hash,
+            errors=errors
+        ).model_dump()
     }

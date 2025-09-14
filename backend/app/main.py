@@ -2625,35 +2625,19 @@ async def get_vehicles(
     limit: int = Query(50, ge=1, le=1000),
     offset: int = Query(0, ge=0),
     response: Response = None,
-    current_user: UserInDB = Depends(get_current_user)
+    current_user: UserInDB = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
-||||||| e23e690
-@app.get("/api/vehicles", response_model=List[Vehicle])
-async def get_vehicles(location_id: Optional[str] = None, current_user: UserInDB = Depends(get_current_user)):
-=======
-@app.get("/api/vehicles", response_model=List[Vehicle])
-async def get_vehicles(location_id: Optional[str] = None, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
     from .repositories.vehicles import VehicleRepo
     vehicle_repo = VehicleRepo(db)
-    vehicles = vehicle_repo.list(location_id=location_id)
-    vehicle_dicts = [v.__dict__ for v in vehicles]
-    return filter_by_location(vehicle_dicts, current_user)
-
-@app.get("/api/v1/vehicles", response_model=List[Vehicle])
-async def get_vehicles_v1(
-    location_id: Optional[str] = None,
-    limit: int = Query(50, ge=1, le=1000),
-    offset: int = Query(0, ge=0),
-    response: Response = None,
-    current_user: UserInDB = Depends(get_current_user)
-):
->>>>>>> origin/main
-    vehicles = list(vehicles_db.values())
+    vehicles = [v.__dict__ for v in vehicle_repo.list()]
+    
     if location_id:
-        vehicles = [v for v in vehicles if v["location_id"] == location_id]
+        vehicles = [v for v in vehicles if v.get("location_id") == location_id]
     vehicles = filter_by_location(vehicles, current_user)
+    
     total = len(vehicles)
-    if response is not None:
+    if response:
         response.headers["X-Total-Count"] = str(total)
     return vehicles[offset: offset + limit]
 
@@ -2668,13 +2652,8 @@ async def get_vehicle(vehicle_id: str, current_user: UserInDB = Depends(get_curr
 
 @app.post("/api/v1/vehicles", response_model=Vehicle)
 async def create_vehicle(vehicle_data: VehicleCreate, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
-||||||| e23e690
-@app.post("/api/vehicles", response_model=Vehicle)
-async def create_vehicle(vehicle_data: VehicleCreate, current_user: UserInDB = Depends(get_current_user)):
-=======
-@app.post("/api/vehicles", response_model=Vehicle)
-async def create_vehicle(vehicle_data: VehicleCreate, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
->>>>>>> origin/main
+    from .repositories.vehicles import VehicleRepo
+    vehicle_repo = VehicleRepo(db)
     if current_user.role != UserRole.MANAGER and vehicle_data.location_id != current_user.location_id:
         raise HTTPException(status_code=403, detail="Cannot create vehicle for different location")
 
@@ -2685,18 +2664,6 @@ async def create_vehicle(vehicle_data: VehicleCreate, current_user: UserInDB = D
     created_vehicle = vehicle_repo.create(**vehicle_dict)
     return Vehicle(**created_vehicle.__dict__)
 
-@app.post("/api/v1/vehicles", response_model=Vehicle)
-async def create_vehicle_v1(vehicle_data: VehicleCreate, current_user: UserInDB = Depends(get_current_user)):
-    if current_user.role != UserRole.MANAGER and vehicle_data.location_id != current_user.location_id:
-        raise HTTPException(status_code=403, detail="Cannot create vehicle for different location")
-
-    vehicle_id = str(uuid.uuid4())
-    vehicle_dict = {"id": vehicle_id, **vehicle_data.dict()}
-    vehicle_dict["created_at"] = datetime.now()
-    vehicle_dict["updated_at"] = datetime.now()
-    
-    vehicles_db[vehicle_id] = Vehicle(**vehicle_dict)
-    return vehicles_db[vehicle_id]
 
 @app.get("/api/v1/customers")
 async def get_customers(
@@ -2704,46 +2671,22 @@ async def get_customers(
     limit: int = Query(50, ge=1, le=1000),
     offset: int = Query(0, ge=0),
     response: Response = None,
-    current_user: UserInDB = Depends(get_current_user)
+    current_user: UserInDB = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
-||||||| e23e690
-@app.get("/api/customers")
-async def get_customers(location_id: Optional[str] = None, current_user: UserInDB = Depends(get_current_user)):
-=======
-@app.get("/api/customers")
-async def get_customers(location_id: Optional[str] = None, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
     from .repositories.customers import CustomerRepo
     customer_repo = CustomerRepo(db)
-    customers = customer_repo.list()
-    customer_dicts = [c.__dict__ for c in customers]
+    customers = [c.__dict__ for c in customer_repo.list()]
+    
+    filtered_customers = filter_by_location(customers, current_user)
     
     if location_id:
-        customer_dicts = [c for c in customer_dicts if c.get("location_id") == location_id]
-
-    return filter_by_location(customer_dicts, current_user)
-
-@app.get("/api/v1/customers")
-async def get_customers_v1(
-    location_id: Optional[str] = None,
-    limit: int = Query(50, ge=1, le=1000),
-    offset: int = Query(0, ge=0),
-    response: Response = None,
-    current_user: UserInDB = Depends(get_current_user)
-):
->>>>>>> origin/main
-    if imported_customers and len(imported_customers) > 0:
-        customers = imported_customers
-    else:
-        customers = list(customers_db.values())
-
-    if location_id:
-        customers = [c for c in customers if c.get("location_id") == location_id]
-
-    customers = filter_by_location(customers, current_user)
-    total = len(customers)
-    if response is not None:
+        filtered_customers = [c for c in filtered_customers if c.get("location_id") == location_id]
+    
+    total = len(filtered_customers)
+    if response:
         response.headers["X-Total-Count"] = str(total)
-    return customers[offset: offset + limit]
+    return filtered_customers[offset: offset + limit]
 
 @app.get("/api/v1/customers/by-location")
 async def get_customers_by_location(current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -2772,35 +2715,14 @@ async def get_customers_by_location(current_user: UserInDB = Depends(get_current
 
 @app.post("/api/v1/customers", response_model=Customer)
 async def create_customer(customer: Customer, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
-||||||| e23e690
-@app.post("/api/customers", response_model=Customer)
-async def create_customer(customer: Customer, current_user: UserInDB = Depends(get_current_user)):
-=======
-@app.get("/api/v1/customers/by-location")
-async def get_customers_by_location_v1(current_user: UserInDB = Depends(get_current_user)):
-    """Get customer counts by location for the location distribution chart"""
-    customers = list(customers_db.values())
-    customer_dicts = [customer.__dict__ for customer in customers]
-    
-    filtered_customers = filter_by_location(customer_dicts, current_user)
-    
-    location_counts = {}
-    for customer in filtered_customers:
-        location_id = customer.get("location_id", "unknown")
-        if location_id not in location_counts:
-            location_counts[location_id] = 0
-        location_counts[location_id] += 1
-
-    return location_counts
-
-@app.post("/api/customers", response_model=Customer)
-async def create_customer(customer: Customer, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
->>>>>>> origin/main
-    if current_user.role != UserRole.MANAGER and customer.location_id != current_user.location_id:
-        raise HTTPException(status_code=403, detail="Cannot create customer for different location")
-    customer.id = str(uuid.uuid4())
     from .repositories.customers import CustomerRepo
     customer_repo = CustomerRepo(db)
+    if current_user.role != UserRole.MANAGER and customer.location_id != current_user.location_id:
+        raise HTTPException(status_code=403, detail="Cannot create customer for different location")
+    
+    customer.id = str(uuid.uuid4())
+    customer.created_at = datetime.now()
+    customer.updated_at = datetime.now()
     
     customer_data = {
         "id": customer.id,
@@ -2815,30 +2737,15 @@ async def create_customer(customer: Customer, current_user: UserInDB = Depends(g
         "location_id": customer.location_id,
         "is_active": getattr(customer, 'is_active', True),
         "credit_limit": getattr(customer, 'credit_limit', 0),
-        "payment_terms": getattr(customer, 'payment_terms', None)
+        "payment_terms": getattr(customer, 'payment_terms', None),
+        "created_at": customer.created_at,
+        "updated_at": customer.updated_at
     }
     
     created_customer = customer_repo.create(**customer_data)
     return Customer(**created_customer.__dict__)
 
 @app.get("/api/v1/customers/{customer_id}/orders")
-=======
-@app.post("/api/v1/customers", response_model=Customer)
-async def create_customer_v1(customer: Customer, current_user: UserInDB = Depends(get_current_user)):
-    if current_user.role != UserRole.MANAGER and customer.location_id != current_user.location_id:
-        raise HTTPException(status_code=403, detail="Cannot create customer for different location")
-    
-    customer_id = str(uuid.uuid4())
-    customer_dict = customer.dict()
-    customer_dict["id"] = customer_id
-    customer_dict["created_at"] = datetime.now()
-    customer_dict["updated_at"] = datetime.now()
-    
-    customers_db[customer_id] = Customer(**customer_dict)
-    return customers_db[customer_id]
-
-@app.get("/api/v1/customers/{customer_id}/orders")
->>>>>>> origin/main
 async def get_customer_orders(customer_id: str, current_user: UserInDB = Depends(get_current_user)):
     sample_orders = [
         {
@@ -2957,6 +2864,38 @@ async def get_customer_pricing(customer_id: str, current_user: UserInDB = Depend
 
 @app.post("/api/v1/customers/{customer_id}/pricing")
 async def set_customer_pricing(customer_id: str, pricing_data: dict, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
+    from .repositories.customers import CustomerRepo
+    customer_repo = CustomerRepo(db)
+    
+    if current_user.role != UserRole.MANAGER:
+        raise HTTPException(status_code=403, detail="Only managers can set customer pricing")
+
+    product_id = pricing_data.get('product_id')
+    price = pricing_data.get('price')
+    effective_date = pricing_data.get('effective_date', datetime.now())
+
+    if not product_id or price is None:
+        raise HTTPException(status_code=400, detail="product_id and price are required")
+    
+    pricing_record = customer_repo.set_pricing(
+        customer_id=customer_id,
+        product_id=product_id,
+        price=price,
+        effective_date=effective_date,
+        created_by=current_user.id
+    )
+    
+    return {
+        "id": pricing_record.id,
+        "customer_id": pricing_record.customer_id,
+        "product_id": pricing_record.product_id,
+        "price": pricing_record.price,
+        "effective_date": pricing_record.effective_date,
+        "created_at": pricing_record.created_at,
+        "updated_at": pricing_record.updated_at,
+        "created_by": pricing_record.created_by,
+        "updated_by": pricing_record.updated_by
+    }
 ||||||| e23e690
 @app.post("/api/customers/{customer_id}/pricing")
 async def set_customer_pricing(customer_id: str, pricing_data: dict, current_user: UserInDB = Depends(get_current_user)):
@@ -3093,17 +3032,6 @@ async def delete_customer(customer_id: str, current_user: UserInDB = Depends(get
 
     return {"message": "Customer deleted successfully"}
 
-@app.delete("/api/v1/customers/{customer_id}")
-async def delete_customer_v1(customer_id: str, current_user: UserInDB = Depends(get_current_user)):
->>>>>>> origin/main
-    if current_user.role != UserRole.MANAGER:
-        raise HTTPException(status_code=403, detail="Only managers can delete customers")
-
-    if customer_id not in customers_db:
-        raise HTTPException(status_code=404, detail="Customer not found")
-
-    del customers_db[customer_id]
-    return {"message": "Customer deleted successfully"}
 
 <<<<<<< HEAD
 @app.delete("/api/v1/customers/{customer_id}/pricing/{product_id}")

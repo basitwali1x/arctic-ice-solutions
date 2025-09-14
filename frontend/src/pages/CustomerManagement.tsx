@@ -56,17 +56,17 @@ export function CustomerManagement() {
 
   const customersQuery = useQuery({
     queryKey: ['customers', { q: searchTerm }],
-    queryFn: () => apiJson<Customer[]>('/api/customers')
+    queryFn: () => apiJson<Customer[]>('/api/v1/customers')
   });
 
   const locationsQuery = useQuery({
     queryKey: ['locations'],
-    queryFn: () => apiJson<Location[]>('/api/locations')
+    queryFn: () => apiJson<Location[]>('/api/v1/locations')
   });
 
   const customersByLocationQuery = useQuery({
     queryKey: ['customers', 'byLocation'],
-    queryFn: () => apiJson<Array<{location_id: string, location_name: string, customer_count: number}>>('/api/customers/by-location')
+    queryFn: () => apiJson<Array<{location_id: string, location_name: string, customer_count: number}>>('/api/v1/customers/by-location')
   });
 
   const form = useForm<CustomerForm>({
@@ -86,7 +86,7 @@ export function CustomerManagement() {
 
   const createCustomerMutation = useMutation({
     mutationFn: (data: CustomerForm) =>
-      apiJson('/api/customers', { 
+      apiJson('/api/v1/customers', { 
         method: 'POST', 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data) 

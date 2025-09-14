@@ -18,6 +18,7 @@ import { Financial } from './pages/Financial';
 import { Settings } from './pages/Settings';
 import { Maintenance } from './pages/Maintenance';
 import { ProductionManager } from './pages/ProductionManager';
+import { LandingPage } from './pages/LandingPage';
 import MobileApp from './mobile/MobileApp';
 import EmployeeApp from './employee/EmployeeApp';
 import { useIsMobile } from './hooks/use-mobile';
@@ -68,6 +69,7 @@ function App() {
                 <Router>
                   <PRProvider>
             <Routes>
+              <Route path="/" element={<LandingPage />} />
               <Route path="/login" element={<LoginPage />} />
               
               <Route path="/pr/:prNumber/login" element={<LoginPage />} />

@@ -4913,22 +4913,24 @@ async def get_work_orders(status: Optional[str] = None, current_user: UserInDB =
 
     return orders
 
-<<<<<<< HEAD
 @app.post("/api/v1/maintenance/work-orders")
 async def create_work_order(work_order: WorkOrderCreate, current_user: UserInDB = Depends(get_current_user)):
     vehicle = vehicles_db.get(work_order.vehicle_id)
-||||||| e23e690
-@app.post("/api/maintenance/work-orders")
-async def create_work_order(work_order: WorkOrderCreate, current_user: UserInDB = Depends(get_current_user)):
-    vehicle = vehicles_db.get(work_order.vehicle_id)
-=======
-@app.get("/api/v1/maintenance/work-orders")
-async def get_work_orders_v1(
-    status: Optional[str] = None,
-    limit: int = Query(50, ge=1, le=1000),
-    offset: int = Query(0, ge=0),
-    response: Response = None,
-    current_user: UserInDB = Depends(get_current_user)
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    
+    if current_user.role != UserRole.MANAGER:
+        raise HTTPException(status_code=403, detail="Only managers can create work orders")
+    
+    work_order_id = str(uuid.uuid4())
+    work_order_dict = work_order.dict()
+    work_order_dict["id"] = work_order_id
+    work_order_dict["created_at"] = datetime.now()
+    work_order_dict["updated_at"] = datetime.now()
+    work_order_dict["status"] = WorkOrderStatus.PENDING
+    
+    work_orders_db[work_order_id] = WorkOrder(**work_order_dict)
+    return work_orders_db[work_order_id]
 ):
     cache_key = f"work_orders:{status or 'all'}:{current_user.role}:{current_user.location_id or 'all'}"
     cached = _get_cached(cache_key)

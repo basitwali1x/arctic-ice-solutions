@@ -2896,10 +2896,7 @@ async def set_customer_pricing(customer_id: str, pricing_data: dict, current_use
         "created_by": pricing_record.created_by,
         "updated_by": pricing_record.updated_by
     }
-||||||| e23e690
-@app.post("/api/customers/{customer_id}/pricing")
-async def set_customer_pricing(customer_id: str, pricing_data: dict, current_user: UserInDB = Depends(get_current_user)):
-=======
+
 @app.get("/api/v1/customers/{customer_id}/pricing")
 async def get_customer_pricing_v1(customer_id: str, current_user: UserInDB = Depends(get_current_user)):
     if current_user.role != UserRole.MANAGER:
@@ -2922,9 +2919,8 @@ async def get_customer_pricing_v1(customer_id: str, current_user: UserInDB = Dep
 
     return result
 
-@app.post("/api/customers/{customer_id}/pricing")
+@app.post("/api/v1/customers/{customer_id}/pricing")
 async def set_customer_pricing(customer_id: str, pricing_data: dict, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
->>>>>>> origin/main
     if current_user.role != UserRole.MANAGER:
         raise HTTPException(status_code=403, detail="Only managers can set customer pricing")
 
@@ -3013,13 +3009,10 @@ async def set_customer_pricing_v1(customer_id: str, pricing_data: dict, current_
         "updated_by": pricing_record.updated_by
     }
 
-<<<<<<< HEAD
 @app.delete("/api/v1/customers/{customer_id}")
 async def delete_customer(customer_id: str, current_user: UserInDB = Depends(get_current_user)):
-||||||| e23e690
 @app.delete("/api/customers/{customer_id}")
 async def delete_customer(customer_id: str, current_user: UserInDB = Depends(get_current_user)):
-=======
 @app.delete("/api/customers/{customer_id}")
 async def delete_customer(customer_id: str, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.role != UserRole.MANAGER:
@@ -3048,25 +3041,7 @@ async def delete_customer_pricing(customer_id: str, product_id: str, current_use
     pricing_repo.delete(pricing_to_delete.id)
     return {"message": "Custom pricing deleted successfully"}
 
-<<<<<<< HEAD
 @app.get("/api/v1/customers/{customer_id}/feedback")
-||||||| e23e690
-@app.get("/api/customers/{customer_id}/feedback")
-=======
-@app.delete("/api/v1/customers/{customer_id}/pricing/{product_id}")
-async def delete_customer_pricing_v1(customer_id: str, product_id: str, current_user: UserInDB = Depends(get_current_user)):
-    if current_user.role != UserRole.MANAGER:
-        raise HTTPException(status_code=403, detail="Only managers can delete customer pricing")
-
-    pricing_key = f"{customer_id}:{product_id}"
-    if pricing_key not in customer_pricing_db:
-        raise HTTPException(status_code=404, detail="Customer pricing not found")
-
-    del customer_pricing_db[pricing_key]
-    return {"message": "Customer pricing deleted successfully"}
-
-@app.get("/api/v1/customers/{customer_id}/feedback")
->>>>>>> origin/main
 async def get_customer_feedback(customer_id: str, current_user: UserInDB = Depends(get_current_user)):
     sample_feedback = [
         {
@@ -3245,7 +3220,6 @@ async def process_payment(payment_data: dict, current_user: UserInDB = Depends(g
     }
     return new_payment
 
-<<<<<<< HEAD
 @app.get("/api/v1/orders")
 async def get_orders(
     location_id: Optional[str] = None,
@@ -3255,10 +3229,8 @@ async def get_orders(
     response: Response = None,
     current_user: UserInDB = Depends(get_current_user)
 ):
-||||||| e23e690
 @app.get("/api/orders")
 async def get_orders(location_id: Optional[str] = None, status: Optional[str] = None, current_user: UserInDB = Depends(get_current_user)):
-=======
 @app.get("/api/orders")
 async def get_orders(
     location_id: Optional[str] = None,
@@ -3298,7 +3270,6 @@ async def get_orders_v1(
     response: Response = None,
     current_user: UserInDB = Depends(get_current_user)
 ):
->>>>>>> origin/main
     if imported_orders is not None and len(imported_orders) > 0:
         orders = imported_orders
         if location_id:
@@ -3321,21 +3292,11 @@ async def get_orders_v1(
         response.headers["X-Total-Count"] = str(total)
     return orders[offset: offset + limit]
 
-<<<<<<< HEAD
 @app.post("/api/v1/orders", response_model=Order)
-async def create_order(order: Order, current_user: UserInDB = Depends(get_current_user)):
-    customer = customers_db.get(order.customer_id)
-||||||| e23e690
-@app.post("/api/orders", response_model=Order)
-async def create_order(order: Order, current_user: UserInDB = Depends(get_current_user)):
-    customer = customers_db.get(order.customer_id)
-=======
-@app.post("/api/orders", response_model=Order)
 async def create_order(order: Order, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
     from .repositories.customers import CustomerRepo
     customer_repo = CustomerRepo(db)
     customer = customer_repo.get(order.customer_id)
->>>>>>> origin/main
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
     if current_user.role != UserRole.MANAGER and customer.location_id != current_user.location_id:
@@ -3362,7 +3323,6 @@ async def create_order_v1(order: Order, current_user: UserInDB = Depends(get_cur
     orders_db[order.id] = order
     return order
 
-<<<<<<< HEAD
 @app.get("/api/v1/dashboard/overview")
 async def get_dashboard_overview(response: Response, current_user: UserInDB = Depends(get_current_user)):
     cache_key = f"overview:{current_user.role}:{current_user.location_id or 'all'}"
@@ -3371,10 +3331,8 @@ async def get_dashboard_overview(response: Response, current_user: UserInDB = De
         response.headers["Cache-Control"] = f"public, max-age={DASHBOARD_CACHE_TTL}"
         return cached
 
-||||||| e23e690
 @app.get("/api/dashboard/overview")
 async def get_dashboard_overview(current_user: UserInDB = Depends(get_current_user)):
-=======
 @app.get("/api/dashboard/overview")
 async def get_dashboard_overview(current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
     from .repositories.customers import CustomerRepo
@@ -3417,7 +3375,6 @@ async def get_dashboard_overview_v1(response: Response, current_user: UserInDB =
         response.headers["Cache-Control"] = f"public, max-age={DASHBOARD_CACHE_TTL}"
         return cached
 
->>>>>>> origin/main
     if imported_customers and len(imported_customers) > 0:
         customers = imported_customers
     else:
@@ -3439,13 +3396,10 @@ async def get_dashboard_overview_v1(response: Response, current_user: UserInDB =
     orders = list(orders_db.values())
     production_entries = list(production_entries_db.values())
 
-<<<<<<< HEAD
     result = {
         "total_customers": total_customers,
-||||||| e23e690
     return {
         "total_customers": total_customers,
-=======
     filtered_vehicles = filter_by_location(vehicles, current_user)
     filtered_orders = filter_by_location(orders, current_user, location_key="customer_id", lookup_dict=customers_db)
     filtered_production = filter_by_location(production_entries, current_user)
@@ -3455,7 +3409,6 @@ async def get_dashboard_overview_v1(response: Response, current_user: UserInDB =
 
     result = {
         "total_customers": len(filtered_customers),
->>>>>>> origin/main
         "total_vehicles": len(filtered_vehicles),
         "total_revenue": total_revenue,
         "total_production": total_production,
@@ -3475,11 +3428,8 @@ async def get_production_dashboard(response: Response, current_user: UserInDB = 
         response.headers["Cache-Control"] = f"public, max-age={DASHBOARD_CACHE_TTL}"
         return cached
 
-<<<<<<< HEAD
-||||||| e23e690
 @app.get("/api/dashboard/production")
 async def get_production_dashboard(current_user: UserInDB = Depends(get_current_user)):
-=======
     _set_cached(cache_key, result)
     response.headers["Cache-Control"] = f"public, max-age={DASHBOARD_CACHE_TTL}"
     return result
@@ -3579,7 +3529,6 @@ async def get_production_dashboard_v1(response: Response, current_user: UserInDB
         response.headers["Cache-Control"] = f"public, max-age={DASHBOARD_CACHE_TTL}"
         return cached
 
->>>>>>> origin/main
     filtered_production = filter_by_location(list(production_entries_db.values()), current_user)
 
     result = {
@@ -3599,13 +3548,10 @@ async def get_production_dashboard_v1(response: Response, current_user: UserInDB
     response.headers["Cache-Control"] = f"public, max-age={DASHBOARD_CACHE_TTL}"
     return result
 
-<<<<<<< HEAD
 @app.get("/api/v1/dashboard/fleet")
 async def get_fleet_dashboard(response: Response, current_user: UserInDB = Depends(get_current_user)):
-||||||| e23e690
 @app.get("/api/dashboard/fleet")
 async def get_fleet_dashboard(current_user: UserInDB = Depends(get_current_user)):
-=======
 @app.get("/api/dashboard/fleet")
 async def get_fleet_dashboard(current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
     from .repositories.vehicles import VehicleRepo
@@ -3646,7 +3592,6 @@ async def get_fleet_dashboard_v1(response: Response, current_user: UserInDB = De
         response.headers["Cache-Control"] = f"public, max-age={DASHBOARD_CACHE_TTL}"
         return cached
 
->>>>>>> origin/main
     vehicles = list(vehicles_db.values())
     filtered_vehicles = filter_by_location(vehicles, current_user)
 
@@ -3743,10 +3688,8 @@ async def get_fleet_dashboard_v1(response: Response, current_user: UserInDB = De
         "vehicle_utilization_details": vehicle_utilization_details
     }
 
-<<<<<<< HEAD
 @app.get("/api/v1/analytics/customer-heatmap")
 async def get_customer_heatmap(
-||||||| e23e690
 @app.get("/api/analytics/customer-heatmap")
 async def get_customer_heatmap(
     period: str = "weekly",
@@ -3761,7 +3704,6 @@ async def get_customer_heatmap(
 
 @app.get("/api/analytics/customer-heatmap")
 async def get_customer_heatmap(
-=======
 @app.get("/api/analytics/customer-heatmap")
 async def get_customer_heatmap(
     period: str = "weekly",
@@ -3805,7 +3747,6 @@ async def get_customer_heatmap(
 
 @app.get("/api/v1/analytics/customer-heatmap")
 async def get_customer_heatmap_v1(
->>>>>>> origin/main
     period: str = "weekly",
     location_ids: str = "",
     response: Response = None,
@@ -3842,13 +3783,10 @@ async def get_customer_heatmap_v1(
         "period": period,
         "location_ids": location_list
     }
-<<<<<<< HEAD
 @app.get("/api/v1/dashboard/financial")
 async def get_financial_dashboard(response: Response, current_user: UserInDB = Depends(get_current_user)):
-||||||| e23e690
 @app.get("/api/dashboard/financial")
 async def get_financial_dashboard(current_user: UserInDB = Depends(get_current_user)):
-=======
     
     if response:
         _set_cached(cache_key, result)
@@ -3908,7 +3846,6 @@ async def get_financial_dashboard_v1(response: Response, current_user: UserInDB 
         response.headers["Cache-Control"] = f"public, max-age={DASHBOARD_CACHE_TTL}"
         return cached
     
->>>>>>> origin/main
     total_expenses = sum(e["amount"] for e in expenses_db.values())
     total_revenue = sum(o.get("total_amount", 0) for o in orders_db.values())
     
@@ -3936,7 +3873,6 @@ async def get_financial_dashboard_v1(response: Response, current_user: UserInDB 
     response.headers["Cache-Control"] = f"public, max-age={DASHBOARD_CACHE_TTL}"
     return result
 
-<<<<<<< HEAD
     if imported_financial_data:
         total_revenue = imported_financial_data.get("total_revenue", 0)
         daily_revenue_data = imported_financial_data.get("daily_revenue", {})
@@ -3985,7 +3921,6 @@ async def get_financial_dashboard_v1(response: Response, current_user: UserInDB 
         }
 
 @app.get("/api/v1/financial/data")
-||||||| e23e690
     if imported_financial_data:
         total_revenue = imported_financial_data.get("total_revenue", 0)
         daily_revenue_data = imported_financial_data.get("daily_revenue", {})
@@ -4034,9 +3969,7 @@ async def get_financial_dashboard_v1(response: Response, current_user: UserInDB 
         }
 
 @app.get("/api/financial/data")
-=======
 @app.get("/api/v1/financial/data")
->>>>>>> origin/main
 async def get_financial_data(current_user: UserInDB = Depends(get_current_user)):
     if not imported_financial_data:
         return {
@@ -4330,11 +4263,8 @@ async def import_excel_data(
             except:
                 pass
 
-<<<<<<< HEAD
 @app.post("/api/v1/import/order-sheet")
-||||||| e23e690
 @app.post("/api/import/order-sheet")
-=======
 @app.post("/api/import/excel-async")
 async def import_excel_async(files: List[UploadFile] = File(...), location_id: str = Form("loc_3"), location_name: str = Form("Lufkin")):
     """Import Excel files asynchronously and return job ID for status tracking"""
@@ -4374,7 +4304,6 @@ async def get_job(job_id: str):
     return job.model_dump()
 
 @app.post("/api/import/order-sheet")
->>>>>>> origin/main
 async def import_order_sheet_data(
     files: List[UploadFile] = File(...),
     location_id: str = Form("loc_3"),
@@ -4797,7 +4726,6 @@ async def test_google_sheets_connection_endpoint(current_user: UserInDB = Depend
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Connection test failed: {str(e)}")
 
-<<<<<<< HEAD
 @app.get("/api/v1/maintenance/work-orders")
 async def get_work_orders(
     status: Optional[str] = None,
@@ -4807,11 +4735,9 @@ async def get_work_orders(
     current_user: UserInDB = Depends(get_current_user)
 ):
     orders = list(work_orders_db.values())
-||||||| e23e690
 @app.get("/api/maintenance/work-orders")
 async def get_work_orders(status: Optional[str] = None, current_user: UserInDB = Depends(get_current_user)):
     orders = list(work_orders_db.values())
-=======
 @app.get("/api/maintenance/work-orders")
 async def get_work_orders(status: Optional[str] = None, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
     from .repositories.work_orders import WorkOrderRepo
@@ -4821,7 +4747,6 @@ async def get_work_orders(status: Optional[str] = None, current_user: UserInDB =
     work_orders_objs = work_order_repo.list()
     orders = [w.__dict__ for w in work_orders_objs]
     
->>>>>>> origin/main
     if status:
         orders = [o for o in orders if o["status"] == status]
 
@@ -4884,7 +4809,6 @@ async def create_work_order(work_order: WorkOrderCreate, current_user: UserInDB 
     vehicle_repo = VehicleRepo(db)
     vehicle_obj = vehicle_repo.get(work_order.vehicle_id)
     vehicle = vehicle_obj.__dict__ if vehicle_obj else None
->>>>>>> origin/main
     if not vehicle:
         raise HTTPException(status_code=404, detail="Vehicle not found")
     if current_user.role != UserRole.MANAGER and vehicle["location_id"] != current_user.location_id:

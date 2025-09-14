@@ -3033,16 +3033,8 @@ async def delete_customer(customer_id: str, current_user: UserInDB = Depends(get
     return {"message": "Customer deleted successfully"}
 
 
-<<<<<<< HEAD
 @app.delete("/api/v1/customers/{customer_id}/pricing/{product_id}")
-async def delete_customer_pricing(customer_id: str, product_id: str, current_user: UserInDB = Depends(get_current_user)):
-||||||| e23e690
-@app.delete("/api/customers/{customer_id}/pricing/{product_id}")
-async def delete_customer_pricing(customer_id: str, product_id: str, current_user: UserInDB = Depends(get_current_user)):
-=======
-@app.delete("/api/customers/{customer_id}/pricing/{product_id}")
 async def delete_customer_pricing(customer_id: str, product_id: str, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
->>>>>>> origin/main
     if current_user.role != UserRole.MANAGER:
         raise HTTPException(status_code=403, detail="Only managers can delete customer pricing")
 

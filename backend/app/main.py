@@ -2570,14 +2570,7 @@ async def delete_user(user_id: str, current_user: UserInDB = Depends(get_current
     user_repo.delete(user_id)
     return {"message": "User deleted successfully"}
 
-<<<<<<< HEAD
 @app.get("/api/v1/locations", response_model=List[Location])
-async def get_locations(current_user: UserInDB = Depends(get_current_user)):
-||||||| e23e690
-@app.get("/api/locations", response_model=List[Location])
-async def get_locations(current_user: UserInDB = Depends(get_current_user)):
-=======
-@app.get("/api/locations", response_model=List[Location])
 async def get_locations(current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
     from .repositories.locations import LocationRepo
     location_repo = LocationRepo(db)
@@ -2586,22 +2579,7 @@ async def get_locations(current_user: UserInDB = Depends(get_current_user), db: 
         return [Location(**loc.__dict__) for loc in locations]
     return [Location(**loc.__dict__) for loc in locations if loc.id == current_user.location_id]
 
-@app.get("/api/v1/locations", response_model=List[Location])
-async def get_locations_v1(current_user: UserInDB = Depends(get_current_user)):
->>>>>>> origin/main
-    locations = list(locations_db.values())
-    if current_user.role == UserRole.MANAGER:
-        return [Location(**loc.__dict__) for loc in locations]
-    return [Location(**loc.__dict__) for loc in locations if loc.id == current_user.location_id]
-
-<<<<<<< HEAD
 @app.get("/api/v1/locations/{location_id}", response_model=Location)
-async def get_location(location_id: str, current_user: UserInDB = Depends(get_current_user)):
-||||||| e23e690
-@app.get("/api/locations/{location_id}", response_model=Location)
-async def get_location(location_id: str, current_user: UserInDB = Depends(get_current_user)):
-=======
-@app.get("/api/locations/{location_id}", response_model=Location)
 async def get_location(location_id: str, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
     from .repositories.locations import LocationRepo
     location_repo = LocationRepo(db)
@@ -2610,16 +2588,6 @@ async def get_location(location_id: str, current_user: UserInDB = Depends(get_cu
         raise HTTPException(status_code=404, detail="Location not found")
     if current_user.role != UserRole.MANAGER and location_id != current_user.location_id:
         raise HTTPException(status_code=403, detail="Access denied to this location")
-    return Location(**location.__dict__)
-
-@app.get("/api/v1/locations/{location_id}", response_model=Location)
-async def get_location_v1(location_id: str, current_user: UserInDB = Depends(get_current_user)):
->>>>>>> origin/main
-    if location_id not in locations_db:
-        raise HTTPException(status_code=404, detail="Location not found")
-    if current_user.role != UserRole.MANAGER and location_id != current_user.location_id:
-        raise HTTPException(status_code=403, detail="Access denied to this location")
-    location = locations_db[location_id]
     return Location(**location.__dict__)
 
 @app.put("/api/v1/locations/{location_id}", response_model=Location)
@@ -2634,58 +2602,21 @@ async def update_location(location_id: str, location_data: dict, current_user: U
         raise HTTPException(status_code=404, detail="Location not found")
     return Location(**updated_location.__dict__)
 
-@app.put("/api/v1/locations/{location_id}", response_model=Location)
-async def update_location_v1(location_id: str, location_data: dict, current_user: UserInDB = Depends(get_current_user)):
-    if current_user.role != UserRole.MANAGER:
-        raise HTTPException(status_code=403, detail="Only managers can update locations")
-    
-    if location_id not in locations_db:
-        raise HTTPException(status_code=404, detail="Location not found")
-    
-    locations_db[location_id].update(location_data)
-    return Location(**locations_db[location_id].__dict__)
 
-<<<<<<< HEAD
 @app.get("/api/v1/products", response_model=List[Product])
-async def get_products(current_user: UserInDB = Depends(get_current_user)):
-||||||| e23e690
-@app.get("/api/products", response_model=List[Product])
-async def get_products(current_user: UserInDB = Depends(get_current_user)):
-=======
-@app.get("/api/products", response_model=List[Product])
 async def get_products(current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
     from .repositories.products import ProductRepo
     product_repo = ProductRepo(db)
     products = product_repo.list()
     return [Product(**product.__dict__) for product in products]
 
-@app.get("/api/v1/products", response_model=List[Product])
-async def get_products_v1(current_user: UserInDB = Depends(get_current_user)):
->>>>>>> origin/main
-    return list(products_db.values())
-
-<<<<<<< HEAD
 @app.get("/api/v1/products/{product_id}", response_model=Product)
-async def get_product(product_id: str, current_user: UserInDB = Depends(get_current_user)):
-||||||| e23e690
-@app.get("/api/products/{product_id}", response_model=Product)
-async def get_product(product_id: str, current_user: UserInDB = Depends(get_current_user)):
-=======
-@app.get("/api/products/{product_id}", response_model=Product)
 async def get_product(product_id: str, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
     from .repositories.products import ProductRepo
     product_repo = ProductRepo(db)
     product = product_repo.get(product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
-    return Product(**product.__dict__)
-
-@app.get("/api/v1/products/{product_id}", response_model=Product)
-async def get_product_v1(product_id: str, current_user: UserInDB = Depends(get_current_user)):
->>>>>>> origin/main
-    if product_id not in products_db:
-        raise HTTPException(status_code=404, detail="Product not found")
-    product = products_db[product_id]
     return Product(**product.__dict__)
 
 @app.get("/api/v1/vehicles", response_model=List[Vehicle])
@@ -2728,24 +2659,6 @@ async def get_vehicles_v1(
 
 @app.get("/api/v1/vehicles/{vehicle_id}", response_model=Vehicle)
 async def get_vehicle(vehicle_id: str, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
-||||||| e23e690
-@app.get("/api/vehicles/{vehicle_id}", response_model=Vehicle)
-async def get_vehicle(vehicle_id: str, current_user: UserInDB = Depends(get_current_user)):
-=======
-@app.get("/api/vehicles/{vehicle_id}", response_model=Vehicle)
-async def get_vehicle(vehicle_id: str, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
-    from .repositories.vehicles import VehicleRepo
-    vehicle_repo = VehicleRepo(db)
-    vehicle = vehicle_repo.get(vehicle_id)
-    if not vehicle:
-        raise HTTPException(status_code=404, detail="Vehicle not found")
-    if current_user.role != UserRole.MANAGER and vehicle.location_id != current_user.location_id:
-        raise HTTPException(status_code=403, detail="Access denied to this vehicle")
-    return Vehicle(**vehicle.__dict__)
-
-@app.get("/api/v1/vehicles/{vehicle_id}", response_model=Vehicle)
-async def get_vehicle_v1(vehicle_id: str, current_user: UserInDB = Depends(get_current_user)):
->>>>>>> origin/main
     if vehicle_id not in vehicles_db:
         raise HTTPException(status_code=404, detail="Vehicle not found")
     vehicle = vehicles_db[vehicle_id]
@@ -2834,13 +2747,6 @@ async def get_customers_v1(
 
 @app.get("/api/v1/customers/by-location")
 async def get_customers_by_location(current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
-||||||| e23e690
-@app.get("/api/customers/by-location")
-async def get_customers_by_location(current_user: UserInDB = Depends(get_current_user)):
-=======
-@app.get("/api/customers/by-location")
-async def get_customers_by_location(current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
->>>>>>> origin/main
     """Get customer counts by location for the location distribution chart"""
     from .repositories.customers import CustomerRepo
     customer_repo = CustomerRepo(db)
@@ -3020,13 +2926,6 @@ async def create_customer_order(customer_id: str, order_data: dict, current_user
 
 @app.get("/api/v1/customers/{customer_id}/pricing")
 async def get_customer_pricing(customer_id: str, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
-||||||| e23e690
-@app.get("/api/customers/{customer_id}/pricing")
-async def get_customer_pricing(customer_id: str, current_user: UserInDB = Depends(get_current_user)):
-=======
-@app.get("/api/customers/{customer_id}/pricing")
-async def get_customer_pricing(customer_id: str, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
->>>>>>> origin/main
     if current_user.role != UserRole.MANAGER:
         raise HTTPException(status_code=403, detail="Only managers can access customer pricing")
 

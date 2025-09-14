@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Google Play Console Setup Guide - Arctic Ice Solutions
 
 ## Overview

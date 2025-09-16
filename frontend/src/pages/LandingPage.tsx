@@ -1,12 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Truck, Users, BarChart3, Wrench, Phone, Mail, MapPin, Play } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const LandingPage: React.FC = () => {
   const navigate = useNavigate();
+  const [showDemoModal, setShowDemoModal] = useState(false);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -39,7 +41,7 @@ export const LandingPage: React.FC = () => {
             <Button size="lg" onClick={() => navigate('/login')} className="bg-blue-600 hover:bg-blue-700">
               Get Started
             </Button>
-            <Button size="lg" variant="outline" className="flex items-center">
+            <Button size="lg" variant="outline" className="flex items-center" onClick={() => setShowDemoModal(true)}>
               <Play className="w-4 h-4 mr-2" />
               Watch Demo
             </Button>
@@ -247,6 +249,64 @@ export const LandingPage: React.FC = () => {
           <p className="text-gray-400 mt-2">Comprehensive business management across Louisiana and Texas operations</p>
         </div>
       </footer>
+
+      {/* Demo Video Modal */}
+      <Dialog open={showDemoModal} onOpenChange={setShowDemoModal}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Arctic Ice Solutions Demo</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-6">
+            <div className="bg-gray-100 rounded-lg p-8 text-center">
+              <Play className="w-16 h-16 text-blue-600 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Demo Video Coming Soon</h3>
+              <p className="text-gray-600 mb-4">
+                We're preparing an exciting demo video that will showcase all the powerful features of the Arctic Ice Solutions platform.
+              </p>
+              <div className="text-sm text-gray-500 bg-white rounded p-4 border">
+                <p className="font-medium mb-2">For developers: To add a real video, replace this placeholder with:</p>
+                <ul className="text-left space-y-1">
+                  <li>• YouTube embed: &lt;iframe src="https://www.youtube.com/embed/VIDEO_ID"&gt;&lt;/iframe&gt;</li>
+                  <li>• Direct video: &lt;video controls&gt;&lt;source src="/path/to/video.mp4"&gt;&lt;/video&gt;</li>
+                  <li>• Vimeo embed: &lt;iframe src="https://player.vimeo.com/video/VIDEO_ID"&gt;&lt;/iframe&gt;</li>
+                </ul>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">What You'll See</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ul className="space-y-2 text-sm text-gray-600">
+                    <li>• AI-powered route optimization in action</li>
+                    <li>• Real-time fleet tracking and management</li>
+                    <li>• Customer order processing workflow</li>
+                    <li>• Production monitoring and analytics</li>
+                    <li>• Mobile app features for drivers and customers</li>
+                  </ul>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Get Started Now</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Ready to see the platform in action? Access the live system with your credentials.
+                  </p>
+                  <Button onClick={() => { setShowDemoModal(false); navigate('/login'); }} className="w-full">
+                    Access Platform
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -1,0 +1,30 @@
+# fly.toml app configuration file generated for arctic-ice-api on 2024-08-22T18:10:00Z
+
+app = "app-hjvipiga"
+primary_region = "iad"
+
+[build]
+
+[env]
+  ENVIRONMENT = "production"
+  PORT = "8000"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 2
+  memory_mb = 4096
+
+[deploy]
+  release_command = "echo 'Starting Arctic Ice Solutions API'"
+
+[[statics]]
+  guest_path = "/app/static"
+  url_prefix = "/static/"

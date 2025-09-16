@@ -14,6 +14,7 @@ import os
 import logging
 import json
 import math
+import random
 from pathlib import Path
 from time import time
 from slowapi import Limiter
@@ -924,7 +925,12 @@ class RouteOptimizer:
 
         distance_matrix = await self.google_maps.calculate_distance_matrix(all_locations)
 
-        int_distance_matrix = [[int(dist * 100) for dist in row] for row in distance_matrix]
+        int_distance_matrix = []
+        for row in distance_matrix:
+            int_row = [int(dist * 100) for dist in row]
+            int_distance_matrix.append(int_row)
+        
+        del distance_matrix
 
         manager = pywrapcp.RoutingIndexManager(
             len(all_locations),
@@ -996,11 +1002,14 @@ class RouteOptimizer:
 
         if solution:
             print(f"✅ OR-Tools optimization successful for {depot_name} with {len(customers)} customers")
-            return await self._extract_routes(
-                manager, routing, solution, customers, geocoded_locations, distance_matrix, depot_name
+            routes = await self._extract_routes(
+                manager, routing, solution, customers, geocoded_locations, int_distance_matrix, depot_name
             )
+            del manager, routing, solution, int_distance_matrix
+            return routes
         else:
             print(f"⚠️ OR-Tools optimization failed for {depot_name} with {len(customers)} customers - using fallback")
+            del manager, routing, int_distance_matrix
             return self._create_fallback_routes(customers, geocoded_locations, num_vehicles, depot_name)
 
     async def _extract_routes(self, manager, routing, solution, customers, geocoded_locations, distance_matrix, depot_name):
@@ -1166,6 +1175,19 @@ def create_distance_matrix(coordinates):
 driver_locations = {}
 quickbooks_connection = None
 
+# In-memory database dictionaries
+locations_db = {}
+products_db = {}
+vehicles_db = {}
+customers_db = {}
+orders_db = {}
+routes_db = {}
+work_orders_db = {}
+production_entries_db = {}
+expenses_db = {}
+financial_documents_db = {}
+users_db = {}
+customer_pricing_db = {}
 notifications_db = {}
 
 DATA_DIR = Path("./data")
@@ -1417,12 +1439,16 @@ def is_production_mode():
 
     return (
         environment == "production" or
-        fly_app_name == "arctic-ice-api" or
+        fly_app_name.startswith("app-") or
         port == "8000"
     )
 
 def initialize_sample_data(db: Session = None):
     """Initialize sample data in the database"""
+    if is_production_mode():
+        print("DEBUG: Skipping sample data initialization in production mode")
+        return
+        
     if db is None:
         from .db import SessionLocal
         db = SessionLocal()
@@ -3471,61 +3497,68 @@ async def get_dashboard_overview_v1(response: Response, current_user: UserInDB =
         "completed_orders": len([o for o in filtered_orders if o.get("status") == "completed"])
     }
 
-    _set_cached(cache_key, result)
-    response.headers["Cache-Control"] = f"public, max-age={DASHBOARD_CACHE_TTL}"
-    return result
-    from .repositories.vehicles import VehicleRepo
-    from .repositories.routes import RouteRepo
-    from .repositories.locations import LocationRepo
-    from .repositories.work_orders import WorkOrderRepo
-    from . import models
-    import sqlalchemy as sa
-    
-    customer_repo = CustomerRepo(db)
-    order_repo = OrderRepo(db)
-    vehicle_repo = VehicleRepo(db)
-    route_repo = RouteRepo(db)
-    location_repo = LocationRepo(db)
-    work_order_repo = WorkOrderRepo(db)
+    return {
+        "total_customers": len(filtered_customers),
+        "total_vehicles": len(filtered_vehicles),
+        "total_revenue": total_revenue,
+        "total_production": total_production,
+        "active_orders": len([o for o in filtered_orders if o.status in ["pending", "in_progress", "out_for_delivery"]]),
+        "completed_orders": len([o for o in filtered_orders if o.status == "completed"])
+    }
 
-    customers_q = db.query(models.Customer)
-    if current_user.role != UserRole.MANAGER:
-        customers_q = customers_q.filter(models.Customer.location_id == current_user.location_id)
-    total_customers = customers_q.count()
+@app.get("/api/v1/dashboard/production")
+async def get_production_dashboard(response: Response, current_user: UserInDB = Depends(get_current_user)):
+    cache_key = f"production:{current_user.role}:{current_user.location_id or 'all'}"
+    cached = _get_cached(cache_key)
+    if cached is not None:
+        response.headers["Cache-Control"] = f"public, max-age={DASHBOARD_CACHE_TTL}"
+        return cached
 
-    orders_q = db.query(models.Order)
-    if current_user.role != UserRole.MANAGER:
-        orders_q = orders_q.join(models.Customer, models.Order.customer_id == models.Customer.id)\
-                           .filter(models.Customer.location_id == current_user.location_id)
-    
-    today = date.today()
-    total_orders_today = orders_q.filter(sa.func.date(models.Order.order_date) == today).count()
+@app.get("/api/v1/dashboard/overview")
+async def get_dashboard_overview_v1(response: Response, current_user: UserInDB = Depends(get_current_user)):
+    cache_key = f"overview:{current_user.role}:{current_user.location_id or 'all'}"
+    cached = _get_cached(cache_key)
+    if cached is not None:
+        response.headers["Cache-Control"] = f"public, max-age={DASHBOARD_CACHE_TTL}"
+        return cached
 
-    # Calculate total revenue based on user role
-    revenue_q = db.query(sa.func.coalesce(sa.func.sum(models.Order.total_amount), 0))
-    if current_user.role != UserRole.MANAGER:
-        revenue_q = revenue_q.join(models.Customer, models.Order.customer_id == models.Customer.id)\
-                             .filter(models.Customer.location_id == current_user.location_id)
-    total_revenue = float(revenue_q.scalar() or 0)
+    if imported_customers and len(imported_customers) > 0:
+        customers = imported_customers
+    else:
+        customers = list(customers_db.values())
 
-    vehicles_q = db.query(models.Vehicle)
-    if current_user.role != UserRole.MANAGER:
-        vehicles_q = vehicles_q.filter(models.Vehicle.location_id == current_user.location_id)
-    total_vehicles = vehicles_q.count()
+    filtered_customers = filter_by_location(customers, current_user)
+    total_customers = len(filtered_customers)
 
-    active_routes = db.query(models.Route).filter(models.Route.status == "active").count()
-    
-    total_locations = len(location_repo.list()) if current_user.role == UserRole.MANAGER else 1
+    if imported_orders is not None and len(imported_orders) > 0:
+        filtered_orders = filter_by_location(imported_orders, current_user)
+        total_orders_today = len([o for o in filtered_orders if o.get("order_date", "") and datetime.fromisoformat(o["order_date"].replace('Z', '+00:00')).date() == date.today()])
+        total_revenue = imported_financial_data.get("total_revenue", 0) if imported_financial_data else 0
+    else:
+        filtered_orders = filter_by_location(list(orders_db.values()), current_user)
+        total_orders_today = len([o for o in filtered_orders if o.get("order_date") and datetime.fromisoformat(o["order_date"].replace('Z', '+00:00')).date() == date.today()])
+        total_revenue = 125000.0
+
+    vehicles = list(vehicles_db.values())
+    orders = list(orders_db.values())
+    production_entries = list(production_entries_db.values())
+
+    filtered_vehicles = filter_by_location(vehicles, current_user)
+    filtered_orders = filter_by_location(orders, current_user, location_key="customer_id", lookup_dict=customers_db)
+    filtered_production = filter_by_location(production_entries, current_user)
+
+    total_revenue = sum(order.get("total_amount", 0) for order in filtered_orders if order.get("status") == "completed")
+    total_production = sum(entry.get("pallets_produced", 0) for entry in filtered_production)
 
     result = {
-        "total_customers": total_customers,
-        "total_vehicles": total_vehicles,
-        "total_orders_today": total_orders_today,
+        "total_customers": len(filtered_customers),
+        "total_vehicles": len(filtered_vehicles),
         "total_revenue": total_revenue,
-        "locations": total_locations,
-        "active_routes": active_routes
+        "total_production": total_production,
+        "active_orders": len([o for o in filtered_orders if o.get("status") in ["pending", "in_progress", "out_for_delivery"]]),
+        "completed_orders": len([o for o in filtered_orders if o.get("status") == "completed"])
     }
-    
+
     _set_cached(cache_key, result)
     response.headers["Cache-Control"] = f"public, max-age={DASHBOARD_CACHE_TTL}"
     return result
@@ -3621,8 +3654,9 @@ async def get_fleet_dashboard(current_user: UserInDB = Depends(get_current_user)
         "vehicle_utilization_details": vehicle_utilization_details
     }
 
+
 @app.get("/api/v1/dashboard/fleet")
-async def get_fleet_dashboard_v1(response: Response, current_user: UserInDB = Depends(get_current_user)):
+async def get_fleet_dashboard_v1(response: Response, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
     cache_key = f"fleet:{current_user.role}:{current_user.location_id or 'all'}"
     cached = _get_cached(cache_key)
     if cached is not None:

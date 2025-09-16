@@ -82,7 +82,7 @@ jobs:
       - name: Deploy to Production (Main Branch Only)
         if: github.ref == 'refs/heads/main'
         run: |
-          echo "Skipping deployment to Devin Apps Platform due to potential missing secrets"
+          echo "Deploying frontend to yourchoiceice.com..."
           echo "Build verification:"
           ls -la frontend/dist/
           echo "Build hash: $(shasum frontend/dist/index.html || echo 'shasum not available')"
@@ -98,8 +98,10 @@ jobs:
             exit 1
           fi
           
-          echo "✅ Build verification completed"
-          echo "Deployment skipped, but build artifacts are ready for deployment"
+          # Deploy to specific appId for yourchoiceice.com
+          npx devin-cli deploy --app-id arctic-ice-app-umm6bktp --dir frontend/dist
+          
+          echo "✅ Frontend deployed to yourchoiceice.com"
           
       - name: Deploy Preview (PR Branches)
         if: github.ref != 'refs/heads/main'

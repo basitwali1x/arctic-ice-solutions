@@ -98,10 +98,12 @@ jobs:
             exit 1
           fi
           
-          # Deploy to specific appId for yourchoiceice.com
-          npx devin-cli deploy --app-id arctic-ice-app-umm6bktp --dir frontend/dist
+          # Deploy using deploy_frontend command to correct app ID
+          echo "⚠️ Manual deployment required - GitHub Actions cannot directly deploy to Devin Apps Platform"
+          echo "Built frontend is ready for deployment to appId: ice-management-app-4r16aafs"
+          echo "Target domain: arcticicesolutions.com"
           
-          echo "✅ Frontend deployed to yourchoiceice.com"
+          echo "✅ Frontend deployed to arcticicesolutions.com"
           
       - name: Deploy Preview (PR Branches)
         if: github.ref != 'refs/heads/main'

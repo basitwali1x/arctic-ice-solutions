@@ -1,5 +1,5 @@
 {
-  "appId": "arctic-ice-app-umm6bktp",
+  "appId": "ice-management-app-4r16aafs",
   "project": "arctic-ice-solutions",
   "environments": {
     "production": {
@@ -24,10 +24,10 @@
   "deployHooks": {
     "postDeploy": [
       "echo 'Running post-deploy checks'",
-      "curl -s https://yourchoiceice.com/api/health || echo 'Health check failed'"
+      "curl -s https://arcticicesolutions.com/api/health || echo 'Health check failed'"
     ]
   },
-  "domains": ["yourchoiceice.com"],
+  "domains": ["arcticicesolutions.com"],
   "ssl": {
     "force_https": true,
     "http2": true

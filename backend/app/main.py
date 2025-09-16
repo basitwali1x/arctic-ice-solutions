@@ -52,6 +52,9 @@ from .repositories.production_entries import ProductionEntryRepo
 from .repositories.expenses import ExpenseRepo
 from .repositories.financial_documents import FinancialDocumentRepo
 from .repositories.locations import LocationRepo
+from .repositories.users import UserRepo
+from .memory_profiler import profile_memory_usage, log_memory_usage
+from .repositories.locations import LocationRepo
 from .repositories.customer_pricing import CustomerPricingRepo
 from .repositories.users import UserRepo
 from .excel_import import process_excel_files, process_route_excel_files
@@ -205,11 +208,17 @@ async def start_import_worker():
         for customer in excel_result["customers"]:
             customers_db[customer["id"]] = customer
         for order in excel_result["orders"]:
-            orders_db[order["id"]] = order
+            from .db import SessionLocal
+            from .repositories.orders import OrderRepo
+            db = SessionLocal()
+            try:
+                order_repo = OrderRepo(db)
+                order_repo.create(**order)
+            finally:
+                db.close()
         if "financial_metrics" in excel_result:
             global imported_financial_data
             imported_financial_data = excel_result["financial_metrics"]
-        save_data_to_disk()
         
         return ImportSummary(**excel_result["summary"])
     await import_queue.start(worker_handler)
@@ -1201,37 +1210,35 @@ PRODUCTION_FILE = DATA_DIR / "production.json"
 EXPENSES_FILE = DATA_DIR / "expenses.json"
 DOCUMENTS_FILE = DATA_DIR / "financial_documents.json"
 
-def save_data_to_disk():
-    """Save all data to disk for persistence - DEPRECATED: Now using Postgres"""
-    print("save_data_to_disk() is deprecated - data is now persisted in Postgres")
-
-def load_data_from_disk():
-    """DEPRECATED: Data is now persisted in Postgres database"""
-    print("load_data_from_disk() is deprecated - data now persisted in Postgres")
 
 def initialize_production_admin():
     """Create admin user in production if no users exist"""
-    global users_db
+    from .db import SessionLocal
+    from .repositories.users import UserRepo
     
-    if len(users_db) == 0:
-        admin_username = os.getenv("ADMIN_USERNAME", "admin")
-        admin_password = os.getenv("ADMIN_PASSWORD", "secure-production-password-2024")
+    db = SessionLocal()
+    try:
+        user_repo = UserRepo(db)
         
-        admin_user = {
-            "id": "admin_user",
-            "username": admin_username,
-            "email": f"{admin_username}@arcticeice.com",
-            "full_name": "System Administrator",
-            "role": "manager",
-            "location_id": "loc_1",
-            "is_active": True,
-            "hashed_password": get_password_hash(admin_password)
-        }
-        
-        users_db[admin_user["id"]] = admin_user
-        print(f"DEBUG: Created production admin user: {admin_username}")
-    else:
-        print(f"DEBUG: Users already exist ({len(users_db)} users), skipping admin creation")
+        if user_repo.count() == 0:
+            admin_username = os.getenv("ADMIN_USERNAME", "admin")
+            admin_password = os.getenv("ADMIN_PASSWORD", "secure-production-password-2024")
+            
+            admin_user = user_repo.create(
+                id="admin_user",
+                username=admin_username,
+                email=f"{admin_username}@arcticeice.com",
+                full_name="System Administrator",
+                role="manager",
+                location_id="loc_1",
+                is_active=True,
+                hashed_password=get_password_hash(admin_password)
+            )
+            print(f"DEBUG: Created production admin user: {admin_username}")
+        else:
+            print(f"DEBUG: Users already exist ({user_repo.count()} users), skipping admin creation")
+    finally:
+        db.close()
 
 # In-memory storage for current driver locations
 driver_locations = {}
@@ -2156,7 +2163,6 @@ def initialize_sample_data(db: Session = None):
     ]
 
     for exp in sample_expenses:
-        # expenses_db[exp["id"]] = exp  # TODO: Replace with database operations
         pass
 
     placeholder_document = {
@@ -2605,8 +2611,10 @@ async def get_locations(current_user: UserInDB = Depends(get_current_user), db: 
     return [Location(**loc.__dict__) for loc in locations if loc.id == current_user.location_id]
 
 @app.get("/api/v1/locations", response_model=List[Location])
-async def get_locations_v1(current_user: UserInDB = Depends(get_current_user)):
-    locations = list(locations_db.values())
+async def get_locations_v1(current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
+    from .repositories.locations import LocationRepo
+    location_repo = LocationRepo(db)
+    locations = location_repo.list()
     if current_user.role == UserRole.MANAGER:
         return [Location(**loc.__dict__) for loc in locations]
     return [Location(**loc.__dict__) for loc in locations if loc.id == current_user.location_id]
@@ -2623,12 +2631,14 @@ async def get_location(location_id: str, current_user: UserInDB = Depends(get_cu
     return Location(**location.__dict__)
 
 @app.get("/api/v1/locations/{location_id}", response_model=Location)
-async def get_location_v1(location_id: str, current_user: UserInDB = Depends(get_current_user)):
-    if location_id not in locations_db:
+async def get_location_v1(location_id: str, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
+    from .repositories.locations import LocationRepo
+    location_repo = LocationRepo(db)
+    location = location_repo.get(location_id)
+    if not location:
         raise HTTPException(status_code=404, detail="Location not found")
     if current_user.role != UserRole.MANAGER and location_id != current_user.location_id:
         raise HTTPException(status_code=403, detail="Access denied to this location")
-    location = locations_db[location_id]
     return Location(**location.__dict__)
 
 @app.put("/api/locations/{location_id}", response_model=Location)
@@ -2644,15 +2654,16 @@ async def update_location(location_id: str, location_data: dict, current_user: U
     return Location(**updated_location.__dict__)
 
 @app.put("/api/v1/locations/{location_id}", response_model=Location)
-async def update_location_v1(location_id: str, location_data: dict, current_user: UserInDB = Depends(get_current_user)):
+async def update_location_v1(location_id: str, location_data: dict, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.role != UserRole.MANAGER:
         raise HTTPException(status_code=403, detail="Only managers can update locations")
     
-    if location_id not in locations_db:
+    from .repositories.locations import LocationRepo
+    location_repo = LocationRepo(db)
+    location = location_repo.update(location_id, **location_data)
+    if not location:
         raise HTTPException(status_code=404, detail="Location not found")
-    
-    locations_db[location_id].update(location_data)
-    return Location(**locations_db[location_id].__dict__)
+    return Location(**location.__dict__)
 
 @app.get("/api/products", response_model=List[Product])
 async def get_products(current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -2662,8 +2673,11 @@ async def get_products(current_user: UserInDB = Depends(get_current_user), db: S
     return [Product(**product.__dict__) for product in products]
 
 @app.get("/api/v1/products", response_model=List[Product])
-async def get_products_v1(current_user: UserInDB = Depends(get_current_user)):
-    return list(products_db.values())
+async def get_products_v1(current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
+    from .repositories.products import ProductRepo
+    product_repo = ProductRepo(db)
+    products = product_repo.list()
+    return [Product(**product.__dict__) for product in products]
 
 @app.get("/api/products/{product_id}", response_model=Product)
 async def get_product(product_id: str, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -2675,10 +2689,12 @@ async def get_product(product_id: str, current_user: UserInDB = Depends(get_curr
     return Product(**product.__dict__)
 
 @app.get("/api/v1/products/{product_id}", response_model=Product)
-async def get_product_v1(product_id: str, current_user: UserInDB = Depends(get_current_user)):
-    if product_id not in products_db:
+async def get_product_v1(product_id: str, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
+    from .repositories.products import ProductRepo
+    product_repo = ProductRepo(db)
+    product = product_repo.get(product_id)
+    if not product:
         raise HTTPException(status_code=404, detail="Product not found")
-    product = products_db[product_id]
     return Product(**product.__dict__)
 
 @app.get("/api/vehicles", response_model=List[Vehicle])
@@ -2695,9 +2711,12 @@ async def get_vehicles_v1(
     limit: int = Query(50, ge=1, le=1000),
     offset: int = Query(0, ge=0),
     response: Response = None,
-    current_user: UserInDB = Depends(get_current_user)
+    current_user: UserInDB = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
-    vehicles = list(vehicles_db.values())
+    from .repositories.vehicles import VehicleRepo
+    vehicle_repo = VehicleRepo(db)
+    vehicles = [v.__dict__ for v in vehicle_repo.list()]
     if location_id:
         vehicles = [v for v in vehicles if v["location_id"] == location_id]
     vehicles = filter_by_location(vehicles, current_user)
@@ -2718,10 +2737,12 @@ async def get_vehicle(vehicle_id: str, current_user: UserInDB = Depends(get_curr
     return Vehicle(**vehicle.__dict__)
 
 @app.get("/api/v1/vehicles/{vehicle_id}", response_model=Vehicle)
-async def get_vehicle_v1(vehicle_id: str, current_user: UserInDB = Depends(get_current_user)):
-    if vehicle_id not in vehicles_db:
+async def get_vehicle_v1(vehicle_id: str, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
+    from .repositories.vehicles import VehicleRepo
+    vehicle_repo = VehicleRepo(db)
+    vehicle = vehicle_repo.get(vehicle_id)
+    if not vehicle:
         raise HTTPException(status_code=404, detail="Vehicle not found")
-    vehicle = vehicles_db[vehicle_id]
     if current_user.role != UserRole.MANAGER and vehicle.location_id != current_user.location_id:
         raise HTTPException(status_code=403, detail="Access denied to this vehicle")
     return Vehicle(**vehicle.__dict__)
@@ -2739,17 +2760,19 @@ async def create_vehicle(vehicle_data: VehicleCreate, current_user: UserInDB = D
     return Vehicle(**created_vehicle.__dict__)
 
 @app.post("/api/v1/vehicles", response_model=Vehicle)
-async def create_vehicle_v1(vehicle_data: VehicleCreate, current_user: UserInDB = Depends(get_current_user)):
+async def create_vehicle_v1(vehicle_data: VehicleCreate, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.role != UserRole.MANAGER and vehicle_data.location_id != current_user.location_id:
         raise HTTPException(status_code=403, detail="Cannot create vehicle for different location")
 
-    vehicle_id = str(uuid.uuid4())
-    vehicle_dict = {"id": vehicle_id, **vehicle_data.dict()}
+    from .repositories.vehicles import VehicleRepo
+    vehicle_repo = VehicleRepo(db)
+    
+    vehicle_dict = {"id": str(uuid.uuid4()), **vehicle_data.dict()}
     vehicle_dict["created_at"] = datetime.now()
     vehicle_dict["updated_at"] = datetime.now()
     
-    vehicles_db[vehicle_id] = Vehicle(**vehicle_dict)
-    return vehicles_db[vehicle_id]
+    created_vehicle = vehicle_repo.create(**vehicle_dict)
+    return Vehicle(**created_vehicle.__dict__)
 
 @app.get("/api/customers")
 async def get_customers(location_id: Optional[str] = None, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -2996,7 +3019,7 @@ async def get_customer_pricing_v1(customer_id: str, current_user: UserInDB = Dep
     for product_id, pricing_record in pricing_records.items():
         result.append({
             "product_id": product_id,
-            "product_name": products_db.get(product_id, {}).get("name", "Unknown Product"),
+            "product_name": "Unknown Product",  # TODO: Fetch from ProductRepo if needed
             "custom_price": pricing_record.custom_price,
             "effective_date": pricing_record.effective_date.isoformat() if pricing_record.effective_date else None,
             "created_at": pricing_record.created_at.isoformat() if pricing_record.created_at else None,
@@ -3061,7 +3084,7 @@ async def set_customer_pricing(customer_id: str, pricing_data: dict, current_use
     }
 
 @app.post("/api/v1/customers/{customer_id}/pricing")
-async def set_customer_pricing_v1(customer_id: str, pricing_data: dict, current_user: UserInDB = Depends(get_current_user)):
+async def set_customer_pricing_v1(customer_id: str, pricing_data: dict, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.role != UserRole.MANAGER:
         raise HTTPException(status_code=403, detail="Only managers can set customer pricing")
 
@@ -3085,7 +3108,9 @@ async def set_customer_pricing_v1(customer_id: str, pricing_data: dict, current_
         updated_by=current_user.username
     )
     
-    customer_pricing_db[pricing_key] = pricing_record
+    from .repositories.customer_pricing import CustomerPricingRepo
+    customer_pricing_repo = CustomerPricingRepo(db)
+    customer_pricing_repo.create(**pricing_record.__dict__)
 
     return {
         "product_id": pricing_record.product_id,
@@ -3136,15 +3161,18 @@ async def delete_customer_pricing(customer_id: str, product_id: str, current_use
     return {"message": "Custom pricing deleted successfully"}
 
 @app.delete("/api/v1/customers/{customer_id}/pricing/{product_id}")
-async def delete_customer_pricing_v1(customer_id: str, product_id: str, current_user: UserInDB = Depends(get_current_user)):
+async def delete_customer_pricing_v1(customer_id: str, product_id: str, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.role != UserRole.MANAGER:
         raise HTTPException(status_code=403, detail="Only managers can delete customer pricing")
 
     pricing_key = f"{customer_id}:{product_id}"
-    if pricing_key not in customer_pricing_db:
+    from .repositories.customer_pricing import CustomerPricingRepo
+    customer_pricing_repo = CustomerPricingRepo(db)
+    pricing = customer_pricing_repo.get_by_customer_product(customer_id, product_id)
+    if not pricing:
         raise HTTPException(status_code=404, detail="Customer pricing not found")
 
-    del customer_pricing_db[pricing_key]
+    customer_pricing_repo.delete(pricing.id)
     return {"message": "Customer pricing deleted successfully"}
 
 @app.get("/api/v1/customers/{customer_id}/feedback")
@@ -3363,7 +3391,8 @@ async def get_orders_v1(
     limit: int = Query(50, ge=1, le=1000),
     offset: int = Query(0, ge=0),
     response: Response = None,
-    current_user: UserInDB = Depends(get_current_user)
+    current_user: UserInDB = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     if imported_orders is not None and len(imported_orders) > 0:
         orders = imported_orders
@@ -3373,7 +3402,9 @@ async def get_orders_v1(
             orders = [o for o in orders if o.get("status") == status]
         orders = filter_by_location(orders, current_user)
     else:
-        orders = list(orders_db.values())
+        from .repositories.orders import OrderRepo
+        order_repo = OrderRepo(db)
+        orders = [order.__dict__ for order in order_repo.list()]
         if location_id:
             orders = [o for o in orders if customers_db.get(o["customer_id"], {}).get("location_id") == location_id]
         if status:
@@ -3404,7 +3435,7 @@ async def create_order(order: Order, current_user: UserInDB = Depends(get_curren
     return Order(**created_order.__dict__)
 
 @app.post("/api/v1/orders", response_model=Order)
-async def create_order_v1(order: Order, current_user: UserInDB = Depends(get_current_user)):
+async def create_order_v1(order: Order, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
     customer = customers_db.get(order.customer_id)
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
@@ -3415,7 +3446,9 @@ async def create_order_v1(order: Order, current_user: UserInDB = Depends(get_cur
     order.id = str(uuid.uuid4())
     order.created_at = datetime.now()
     order.updated_at = datetime.now()
-    orders_db[order.id] = order
+    from .repositories.orders import OrderRepo
+    order_repo = OrderRepo(db)
+    order_repo.create(**order.dict())
     return order
 
 @app.get("/api/dashboard/overview")
@@ -3453,7 +3486,7 @@ async def get_dashboard_overview(current_user: UserInDB = Depends(get_current_us
     }
 
 @app.get("/api/v1/dashboard/overview")
-async def get_dashboard_overview_v1(response: Response, current_user: UserInDB = Depends(get_current_user)):
+async def get_dashboard_overview_v1(response: Response, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
     cache_key = f"overview:{current_user.role}:{current_user.location_id or 'all'}"
     cached = _get_cached(cache_key)
     if cached is not None:
@@ -3463,7 +3496,9 @@ async def get_dashboard_overview_v1(response: Response, current_user: UserInDB =
     if imported_customers and len(imported_customers) > 0:
         customers = imported_customers
     else:
-        customers = list(customers_db.values())
+        from .repositories.customers import CustomerRepo
+        customer_repo = CustomerRepo(db)
+        customers = [c.__dict__ for c in customer_repo.list()]
 
     filtered_customers = filter_by_location(customers, current_user)
     total_customers = len(filtered_customers)
@@ -3473,75 +3508,22 @@ async def get_dashboard_overview_v1(response: Response, current_user: UserInDB =
         total_orders_today = len([o for o in filtered_orders if o.get("order_date", "") and datetime.fromisoformat(o["order_date"].replace('Z', '+00:00')).date() == date.today()])
         total_revenue = imported_financial_data.get("total_revenue", 0) if imported_financial_data else 0
     else:
-        filtered_orders = filter_by_location(list(orders_db.values()), current_user)
+        from .repositories.orders import OrderRepo
+        order_repo = OrderRepo(db)
+        orders = [order.__dict__ for order in order_repo.list()]
+        filtered_orders = filter_by_location(orders, current_user)
         total_orders_today = len([o for o in filtered_orders if o.get("order_date") and datetime.fromisoformat(o["order_date"].replace('Z', '+00:00')).date() == date.today()])
         total_revenue = 125000.0
 
-    vehicles = list(vehicles_db.values())
-    orders = list(orders_db.values())
-    production_entries = list(production_entries_db.values())
-
-    filtered_vehicles = filter_by_location(vehicles, current_user)
-    filtered_orders = filter_by_location(orders, current_user, location_key="customer_id", lookup_dict=customers_db)
-    filtered_production = filter_by_location(production_entries, current_user)
-
-    total_revenue = sum(order.get("total_amount", 0) for order in filtered_orders if order.get("status") == "completed")
-    total_production = sum(entry.get("pallets_produced", 0) for entry in filtered_production)
-
-    result = {
-        "total_customers": len(filtered_customers),
-        "total_vehicles": len(filtered_vehicles),
-        "total_revenue": total_revenue,
-        "total_production": total_production,
-        "active_orders": len([o for o in filtered_orders if o.get("status") in ["pending", "in_progress", "out_for_delivery"]]),
-        "completed_orders": len([o for o in filtered_orders if o.get("status") == "completed"])
-    }
-
-    return {
-        "total_customers": len(filtered_customers),
-        "total_vehicles": len(filtered_vehicles),
-        "total_revenue": total_revenue,
-        "total_production": total_production,
-        "active_orders": len([o for o in filtered_orders if o.status in ["pending", "in_progress", "out_for_delivery"]]),
-        "completed_orders": len([o for o in filtered_orders if o.status == "completed"])
-    }
-
-@app.get("/api/v1/dashboard/production")
-async def get_production_dashboard(response: Response, current_user: UserInDB = Depends(get_current_user)):
-    cache_key = f"production:{current_user.role}:{current_user.location_id or 'all'}"
-    cached = _get_cached(cache_key)
-    if cached is not None:
-        response.headers["Cache-Control"] = f"public, max-age={DASHBOARD_CACHE_TTL}"
-        return cached
-
-@app.get("/api/v1/dashboard/overview")
-async def get_dashboard_overview_v1(response: Response, current_user: UserInDB = Depends(get_current_user)):
-    cache_key = f"overview:{current_user.role}:{current_user.location_id or 'all'}"
-    cached = _get_cached(cache_key)
-    if cached is not None:
-        response.headers["Cache-Control"] = f"public, max-age={DASHBOARD_CACHE_TTL}"
-        return cached
-
-    if imported_customers and len(imported_customers) > 0:
-        customers = imported_customers
-    else:
-        customers = list(customers_db.values())
-
-    filtered_customers = filter_by_location(customers, current_user)
-    total_customers = len(filtered_customers)
-
-    if imported_orders is not None and len(imported_orders) > 0:
-        filtered_orders = filter_by_location(imported_orders, current_user)
-        total_orders_today = len([o for o in filtered_orders if o.get("order_date", "") and datetime.fromisoformat(o["order_date"].replace('Z', '+00:00')).date() == date.today()])
-        total_revenue = imported_financial_data.get("total_revenue", 0) if imported_financial_data else 0
-    else:
-        filtered_orders = filter_by_location(list(orders_db.values()), current_user)
-        total_orders_today = len([o for o in filtered_orders if o.get("order_date") and datetime.fromisoformat(o["order_date"].replace('Z', '+00:00')).date() == date.today()])
-        total_revenue = 125000.0
-
-    vehicles = list(vehicles_db.values())
-    orders = list(orders_db.values())
-    production_entries = list(production_entries_db.values())
+    from .repositories.vehicles import VehicleRepo
+    vehicle_repo = VehicleRepo(db)
+    vehicles = [v.__dict__ for v in vehicle_repo.list()]
+    from .repositories.orders import OrderRepo
+    order_repo = OrderRepo(db)
+    orders = [order.__dict__ for order in order_repo.list()]
+    from .repositories.production_entries import ProductionEntryRepo
+    production_repo = ProductionEntryRepo(db)
+    production_entries = [p.__dict__ for p in production_repo.list()]
 
     filtered_vehicles = filter_by_location(vehicles, current_user)
     filtered_orders = filter_by_location(orders, current_user, location_key="customer_id", lookup_dict=customers_db)
@@ -3564,7 +3546,7 @@ async def get_dashboard_overview_v1(response: Response, current_user: UserInDB =
     return result
 
 @app.get("/api/v1/dashboard/production")
-async def get_production_dashboard(response: Response, current_user: UserInDB = Depends(get_current_user)):
+async def get_production_dashboard(response: Response, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
     cache_key = f"production:{current_user.role}:{current_user.location_id or 'all'}"
     cached = _get_cached(cache_key)
     if cached is not None:
@@ -3596,14 +3578,16 @@ async def get_production_dashboard(current_user: UserInDB = Depends(get_current_
     }
 
 @app.get("/api/v1/dashboard/production")
-async def get_production_dashboard_v1(response: Response, current_user: UserInDB = Depends(get_current_user)):
+async def get_production_dashboard_v1(response: Response, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
     cache_key = f"production:{current_user.role}:{current_user.location_id or 'all'}"
     cached = _get_cached(cache_key)
     if cached is not None:
         response.headers["Cache-Control"] = f"public, max-age={DASHBOARD_CACHE_TTL}"
         return cached
 
-    filtered_production = filter_by_location(list(production_entries_db.values()), current_user)
+    from .repositories.production_entries import ProductionEntryRepo
+    production_repo = ProductionEntryRepo(db)
+    filtered_production = filter_by_location([p.__dict__ for p in production_repo.list()], current_user)
 
     result = {
         "daily_production_pallets": len([p for p in filtered_production if p.get("date") == str(date.today())]) * 10,
@@ -3638,6 +3622,7 @@ async def get_fleet_dashboard(current_user: UserInDB = Depends(get_current_user)
     
     vehicle_utilization_details = []
     for vehicle in filtered_vehicles:
+        import random
         utilization_percentage = random.randint(60, 95)
         vehicle_utilization_details.append({
             "vehicle_id": vehicle.id,
@@ -3663,7 +3648,9 @@ async def get_fleet_dashboard_v1(response: Response, current_user: UserInDB = De
         response.headers["Cache-Control"] = f"public, max-age={DASHBOARD_CACHE_TTL}"
         return cached
 
-    vehicles = list(vehicles_db.values())
+    from .repositories.vehicles import VehicleRepo
+    vehicle_repo = VehicleRepo(db)
+    vehicles = [v.__dict__ for v in vehicle_repo.list()]
     filtered_vehicles = filter_by_location(vehicles, current_user)
 
     active_vehicles = [v for v in filtered_vehicles if v.get("is_active", True)]
@@ -3805,7 +3792,8 @@ async def get_customer_heatmap_v1(
     period: str = "weekly",
     location_ids: str = "",
     response: Response = None,
-    current_user: UserInDB = Depends(get_current_user)
+    current_user: UserInDB = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     cache_key = f"customer_heatmap:{period}:{current_user.role}:{current_user.location_id or 'all'}"
     cached = _get_cached(cache_key)
@@ -3815,13 +3803,18 @@ async def get_customer_heatmap_v1(
     
     location_list = location_ids.split(",") if location_ids else []
     
-    all_customers = list(customers_db.values())
+    from .repositories.customers import CustomerRepo
+    customer_repo = CustomerRepo(db)
+    all_customers = [c.__dict__ for c in customer_repo.list()]
     if location_list:
         all_customers = [c for c in all_customers if c["location_id"] in location_list]
     
     heatmap_data = []
     for customer in all_customers:
-        customer_orders = [o for o in orders_db.values() if o.get("customer_id") == customer["id"]]
+        from .repositories.orders import OrderRepo
+        order_repo = OrderRepo(db)
+        all_orders = [order.__dict__ for order in order_repo.list()]
+        customer_orders = [o for o in all_orders if o.get("customer_id") == customer["id"]]
         
         heatmap_data.append({
             "customer_name": customer["name"],
@@ -3890,15 +3883,21 @@ async def get_financial_dashboard(current_user: UserInDB = Depends(get_current_u
     }
 
 @app.get("/api/v1/dashboard/financial")
-async def get_financial_dashboard_v1(response: Response, current_user: UserInDB = Depends(get_current_user)):
+async def get_financial_dashboard_v1(response: Response, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
     cache_key = f"financial:{current_user.role}:{current_user.location_id or 'all'}"
     cached = _get_cached(cache_key)
     if cached is not None:
         response.headers["Cache-Control"] = f"public, max-age={DASHBOARD_CACHE_TTL}"
         return cached
     
-    total_expenses = sum(e["amount"] for e in expenses_db.values())
-    total_revenue = sum(o.get("total_amount", 0) for o in orders_db.values())
+    from .repositories.expenses import ExpenseRepo
+    expense_repo = ExpenseRepo(db)
+    expenses = expense_repo.list()
+    total_expenses = sum(e.amount for e in expenses)
+    from .repositories.orders import OrderRepo
+    order_repo = OrderRepo(db)
+    orders = [order.__dict__ for order in order_repo.list()]
+    total_revenue = sum(o.get("total_amount", 0) for o in orders)
     
     daily_revenue = total_revenue * 0.1
     monthly_revenue = total_revenue * 0.8
@@ -4288,7 +4287,7 @@ async def import_order_sheet_data_v1(
     current_user: UserInDB = Depends(get_current_user)
 ):
     """Import order sheet data from Excel files (v1 in-memory version)"""
-    global customers_db, orders_db
+    global customers_db
     
     try:
         for file in files:
@@ -4313,7 +4312,7 @@ async def import_order_sheet_data(
     db: Session = Depends(get_db)
 ):
     """Import order sheet data from Excel files"""
-    global customers_db, orders_db
+    global customers_db
 
     if not files:
         raise HTTPException(status_code=400, detail="No files provided")
@@ -4547,7 +4546,8 @@ async def bulk_import_routes(
     db: Session = Depends(get_db)
 ):
     """Bulk import routes from Excel files"""
-    global routes_db
+    from .repositories.routes import RouteRepo
+    route_repo = RouteRepo(db)
 
     if not files:
         raise HTTPException(status_code=400, detail="No files provided")
@@ -4705,7 +4705,8 @@ async def get_work_orders_v1(
     limit: int = Query(50, ge=1, le=1000),
     offset: int = Query(0, ge=0),
     response: Response = None,
-    current_user: UserInDB = Depends(get_current_user)
+    current_user: UserInDB = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     cache_key = f"work_orders:{status or 'all'}:{current_user.role}:{current_user.location_id or 'all'}"
     cached = _get_cached(cache_key)
@@ -4713,13 +4714,17 @@ async def get_work_orders_v1(
         response.headers["Cache-Control"] = f"public, max-age={DASHBOARD_CACHE_TTL}"
         return cached
     
-    orders = list(work_orders_db.values())
+    from .repositories.work_orders import WorkOrderRepo
+    work_order_repo = WorkOrderRepo(db)
+    orders = [order.__dict__ for order in work_order_repo.list()]
     
     if status:
         orders = [o for o in orders if o["status"] == status]
 
     if current_user.role != UserRole.MANAGER:
-        user_vehicles = [v for v in vehicles_db.values() if v.get("location_id") == current_user.location_id]
+        from .repositories.vehicles import VehicleRepo
+        vehicle_repo = VehicleRepo(db)
+        user_vehicles = [v.__dict__ for v in vehicle_repo.list() if v.location_id == current_user.location_id]
         vehicle_ids = [v["id"] for v in user_vehicles]
         orders = [o for o in orders if o["vehicle_id"] in vehicle_ids]
 
@@ -5192,11 +5197,14 @@ async def get_notifications(current_user: UserInDB = Depends(get_current_user), 
     return notifications
 
 @app.get("/api/routes")
-async def get_routes(location_id: Optional[str] = None, current_user: UserInDB = Depends(get_current_user)):
-    routes = list(routes_db.values())
+async def get_routes(location_id: Optional[str] = None, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
+    from .repositories.routes import RouteRepo
+    route_repo = RouteRepo(db)
+    routes = route_repo.list()
+    route_dicts = [r.__dict__ for r in routes]
     if location_id:
-        routes = [r for r in routes if r["location_id"] == location_id]
-    return filter_by_location(routes, current_user)
+        route_dicts = [r for r in route_dicts if r["location_id"] == location_id]
+    return filter_by_location(route_dicts, current_user)
 
 def select_optimal_vehicle(available_vehicles: List[dict], orders: List[dict], location_id: str) -> List[dict]:
     """Select vehicles optimally based on capacity, load balancing, and efficiency"""
@@ -5233,7 +5241,9 @@ async def optimize_routes(location_id: str, current_user: UserInDB = Depends(get
     if current_user.role not in [UserRole.MANAGER, UserRole.DISPATCHER]:
         raise HTTPException(status_code=403, detail="Only managers and dispatchers can optimize routes")
 
-    orders = list(orders_db.values())
+    from .repositories.orders import OrderRepo
+    order_repo = OrderRepo(db)
+    orders = [order.__dict__ for order in order_repo.list()]
     pending_orders = [o for o in orders if o["status"] == "pending"]
     print(f"DEBUG: Total orders: {len(orders)}, Pending orders: {len(pending_orders)}")
 
@@ -5629,7 +5639,9 @@ async def get_vehicle_allocation_analytics(
     if location_id:
         filtered_vehicles = [v for v in filtered_vehicles if v["location_id"] == location_id]
 
-    routes = list(routes_db.values())
+    from .repositories.routes import RouteRepo
+    route_repo = RouteRepo(db)
+    routes = [r.__dict__ for r in route_repo.list()]
 
     allocation_metrics = {
         "total_vehicles": len(filtered_vehicles),
@@ -5754,7 +5766,7 @@ async def quickbooks_status(current_user: UserInDB = Depends(get_current_user)):
     }
 
 @app.post("/api/quickbooks/sync")
-async def quickbooks_sync(sync_request: QuickBooksSyncRequest, current_user: UserInDB = Depends(get_current_user)):
+async def quickbooks_sync(sync_request: QuickBooksSyncRequest, current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
     global quickbooks_connection
 
     if current_user.role not in [UserRole.MANAGER, UserRole.ACCOUNTANT]:
@@ -5779,7 +5791,9 @@ async def quickbooks_sync(sync_request: QuickBooksSyncRequest, current_user: Use
                 if imported_customers and len(imported_customers) > 0:
                     arctic_customers = imported_customers
                 else:
-                    arctic_customers = list(customers_db.values())
+                    from .repositories.customers import CustomerRepo
+                    customer_repo = CustomerRepo(db)
+                    arctic_customers = [c.__dict__ for c in customer_repo.list()]
                 qb_customers = quickbooks_client.get_customers(access_token, realm_id)
                 qb_customer_names = {c.get("Name", "").lower() for c in qb_customers}
 
@@ -5795,7 +5809,9 @@ async def quickbooks_sync(sync_request: QuickBooksSyncRequest, current_user: Use
 
         if sync_request.sync_invoices:
             try:
-                arctic_orders = list(orders_db.values())
+                from .repositories.orders import OrderRepo
+                order_repo = OrderRepo(db)
+                arctic_orders = [order.__dict__ for order in order_repo.list()]
                 qb_customers = quickbooks_client.get_customers(access_token, realm_id)
                 customer_map = {c.get("Name", "").lower(): c.get("Id") for c in qb_customers}
 

@@ -201,6 +201,9 @@ class WorkOrderPriority(str, Enum):
 
 @app.on_event("startup")
 async def start_import_worker():
+    # Initialize admin user in production if needed
+    initialize_production_admin()
+    
     async def worker_handler(job_id: str, files: List[str], ctx: Dict[str, Any]):
         location_id = ctx.get("location_id", "loc_3")
         location_name = ctx.get("location_name", "Lufkin")

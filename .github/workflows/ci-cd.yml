@@ -98,9 +98,8 @@ jobs:
             exit 1
           fi
           
-          # Deploy to Devin Apps Platform using correct method
-          echo "⚠️ Deployment to yourchoiceice.com requires manual configuration"
-          echo "Built frontend is ready for deployment to appId: arctic-ice-app-umm6bktp"
+          # Deploy to specific appId for yourchoiceice.com
+          npx devin-cli deploy --app-id arctic-ice-app-umm6bktp --dir frontend/dist
           
           echo "✅ Frontend deployed to yourchoiceice.com"
           

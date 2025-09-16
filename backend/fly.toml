@@ -8,6 +8,7 @@ primary_region = "iad"
 [env]
   ENVIRONMENT = "production"
   PORT = "8000"
+  ADMIN_PASSWORD = "from_secret"
 
 [http_service]
   internal_port = 8000

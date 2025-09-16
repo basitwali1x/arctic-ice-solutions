@@ -132,6 +132,7 @@ app.add_middleware(
         "https://api.yourchoiceice.com",  # API domain
         "https://ice-management-app-4r16aafs.devinapps.com",  # Legacy deployment URL
         "https://dashboard-flicker-app-nx31x17t.devinapps.com",  # New frontend URL
+        "https://deployment-app-uqzi6zx4.devinapps.com",  # Current frontend deployment
         "http://localhost:5173",  # Local frontend
         "http://localhost:3000",  # Alternative local frontend
     ],

@@ -70,6 +70,10 @@ class UserRepo:
         self.db.commit()
         return True
 
+    def count(self) -> int:
+        """Count total number of users"""
+        return self.db.query(User).count()
+
     def get_user_roles(self, user_id: str) -> List[str]:
         """Get list of role names for a user"""
         from ..auth_models import UserRole, Role

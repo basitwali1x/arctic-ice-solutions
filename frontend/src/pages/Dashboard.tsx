@@ -26,27 +26,27 @@ export function Dashboard() {
 
   const overviewQuery = useQuery({
     queryKey: ['dashboard', 'overview'],
-    queryFn: () => apiJson<DashboardOverview>('/api/v1/dashboard/overview')
+    queryFn: () => apiJson<DashboardOverview>('/api/dashboard/overview')
   });
 
   const productionQuery = useQuery({
     queryKey: ['dashboard', 'production'],
-    queryFn: () => apiJson<ProductionDashboard>('/api/v1/dashboard/production')
+    queryFn: () => apiJson<ProductionDashboard>('/api/dashboard/production')
   });
 
   const fleetQuery = useQuery({
     queryKey: ['dashboard', 'fleet'],
-    queryFn: () => apiJson<FleetDashboard>('/api/v1/dashboard/fleet')
+    queryFn: () => apiJson<FleetDashboard>('/api/dashboard/fleet')
   });
 
   const financialQuery = useQuery({
     queryKey: ['dashboard', 'financial'],
-    queryFn: () => apiJson<FinancialDashboard>('/api/v1/dashboard/financial')
+    queryFn: () => apiJson<FinancialDashboard>('/api/dashboard/financial')
   });
 
   const locationsQuery = useQuery({
     queryKey: ['locations'],
-    queryFn: () => apiJson<Location[]>('/api/v1/locations')
+    queryFn: () => apiJson<Location[]>('/api/locations')
   });
 
   const productionData = useMemo(() => [

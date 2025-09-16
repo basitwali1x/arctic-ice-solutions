@@ -1,3 +1,4 @@
+// Force deployment update - ensure demo video functionality is live
 import React, { useState } from 'react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';

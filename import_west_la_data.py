@@ -66,29 +66,42 @@ def parse_west_la_pdf_data():
             price_line = ""
             amount_line = ""
             
-            for j in range(1, 8):
+            for j in range(1, 15):
                 if i + j < len(lines):
                     next_line = lines[i + j].strip()
-                    if re.match(r'07/\d{2}/2025', next_line):
-                        date_line = next_line
-                    elif re.match(r'^\d{5}$', next_line):
-                        num_line = next_line
-                    elif 'Cube' in next_line or 'No Sale' in next_line or 'Void' in next_line or 'No Charg' in next_line:
-                        item_line = next_line
-                    elif re.match(r'^\d+\.\d+$', next_line) and not price_line:
-                        qty_line = next_line
-                    elif re.match(r'^\d+\.\d+$', next_line) and qty_line and not price_line:
-                        price_line = next_line
-                    elif re.match(r'^\d+\.\d+$', next_line) and price_line:
-                        amount_line = next_line
+                    
+                    if next_line.startswith(('Sales Receipt', 'Invoice', 'Total')):
                         break
+                    
+                    if re.match(r'07/\d{2}/2025', next_line) and not date_line:
+                        date_line = next_line
+                    elif re.match(r'^\d{5}$', next_line) and not num_line:
+                        num_line = next_line
+                    elif ('Cube' in next_line or 'No Sale' in next_line or 'Void' in next_line or 'No Charg' in next_line) and not item_line:
+                        item_line = next_line
+                    elif re.match(r'^\d+\.?\d*$', next_line):
+                        value = float(next_line)
+                        if not qty_line and value > 0:
+                            qty_line = next_line
+                        elif qty_line and not price_line and value > 0:
+                            price_line = next_line
+                        elif qty_line and price_line and not amount_line and value > 0:
+                            amount_line = next_line
+                            break  # We have all needed data
             
-            if date_line and current_customer_data and qty_line and price_line and amount_line:
+            if qty_line and price_line and not amount_line:
+                try:
+                    calculated_amount = float(qty_line) * float(price_line)
+                    amount_line = str(calculated_amount)
+                except (ValueError, TypeError):
+                    pass
+            
+            if date_line and current_customer_data and qty_line and price_line:
                 try:
                     order_date = datetime.strptime(date_line, '%m/%d/%Y').strftime('%Y-%m-%d')
                     quantity = float(qty_line)
                     unit_price = float(price_line)
-                    total_amount = float(amount_line)
+                    total_amount = float(amount_line) if amount_line else quantity * unit_price
                     
                     order = {
                         "id": f"west_la_order_{order_counter}",

@@ -18,7 +18,7 @@ This file triggers the automated deployment of Arctic Ice Solutions mobile appli
 - **Target Users**: Staff (managers, dispatchers, drivers, technicians)
 - **Features**: Work orders, route management, vehicle inspections, field operations
 
-## Deployment Process
+## Deployment Process - Main Branch Deployment
 
 The deployment is automated through GitHub Actions workflow (`.github/workflows/android.yml`):
 

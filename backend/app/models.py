@@ -173,3 +173,17 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     hashed_password: Mapped[str] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+class UploadedFile(Base):
+    __tablename__ = "uploaded_files"
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    file_name: Mapped[str] = mapped_column(String(255))
+    original_name: Mapped[str] = mapped_column(String(255))
+    file_path: Mapped[str] = mapped_column(String(500))
+    file_size: Mapped[int] = mapped_column(Integer)
+    mime_type: Mapped[str] = mapped_column(String(100))
+    category: Mapped[str | None] = mapped_column(String(100))
+    description: Mapped[str | None] = mapped_column(Text)
+    location_id: Mapped[str | None] = mapped_column(ForeignKey("locations.id"))
+    uploaded_by: Mapped[str | None] = mapped_column(String(160))
+    uploaded_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)

@@ -19,6 +19,7 @@ import { Settings } from './pages/Settings';
 import { Maintenance } from './pages/Maintenance';
 import { ProductionManager } from './pages/ProductionManager';
 import { LandingPage } from './pages/LandingPage';
+import { FileManager } from './pages/FileManager';
 import MobileApp from './mobile/MobileApp';
 import EmployeeApp from './employee/EmployeeApp';
 import { useIsMobile } from './hooks/use-mobile';
@@ -107,6 +108,7 @@ function App() {
                                 <Route path="/financial" element={<Financial />} />
                                 <Route path="/maintenance" element={<Maintenance />} />
                                 <Route path="/production" element={<ProductionManager />} />
+                                <Route path="/files" element={<FileManager />} />
                                 <Route path="/settings" element={<Settings />} />
                               </Routes>
                             </ErrorBoundary>
@@ -162,6 +164,7 @@ function App() {
                                 <Route path="/financial" element={<Financial />} />
                                 <Route path="/maintenance" element={<Maintenance />} />
                                 <Route path="/production" element={<ProductionManager />} />
+                                <Route path="/files" element={<FileManager />} />
                                 <Route path="/settings" element={<Settings />} />
                               </Routes>
                             </ErrorBoundary>

@@ -8,7 +8,8 @@ import {
   Settings,
   Snowflake,
   Wrench,
-  Factory
+  Factory,
+  FileText
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { usePR } from '../contexts/PRContext';
@@ -26,6 +27,7 @@ export function Sidebar() {
     { path: '/maintenance', icon: Wrench, label: 'Maintenance' },
     { path: '/production', icon: Factory, label: 'Production Manager' },
     { path: '/financial', icon: DollarSign, label: 'Financial' },
+    { path: '/files', icon: FileText, label: 'File Manager' },
     { path: '/settings', icon: Settings, label: 'Settings' },
   ];
 

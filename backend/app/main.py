@@ -5135,6 +5135,203 @@ async def save_receipt_document(
 
     return document
 
+@app.post("/api/files/upload")
+async def upload_file(
+    file: UploadFile = File(...),
+    category: Optional[str] = Form(None),
+    description: Optional[str] = Form(None),
+    location_id: Optional[str] = Form(None),
+    current_user: UserInDB = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    MAX_FILE_SIZE = 10 * 1024 * 1024
+    SUPPORTED_FILE_TYPES = [
+        "application/pdf",
+        "image/jpeg",
+        "image/png",
+        "image/gif",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.ms-excel",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "text/plain",
+        "text/csv"
+    ]
+    
+    if file.size and file.size > MAX_FILE_SIZE:
+        raise HTTPException(status_code=413, detail=f"File too large. Maximum size is {MAX_FILE_SIZE / (1024 * 1024)}MB")
+    
+    if file.content_type and file.content_type not in SUPPORTED_FILE_TYPES:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Unsupported file type: {file.content_type}. Supported types: PDF, Images (JPEG, PNG, GIF), Word, Excel, Text, CSV"
+        )
+    
+    file_location_id = location_id or current_user.location_id
+    
+    if current_user.role != UserRole.MANAGER and file_location_id != current_user.location_id:
+        raise HTTPException(status_code=403, detail="Cannot upload file for different location")
+    
+    upload_dir = DATA_DIR / "uploads"
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    
+    file_id = str(uuid.uuid4())
+    file_extension = file.filename.split('.')[-1] if file.filename and '.' in file.filename else 'bin'
+    file_name = f"{file_id}.{file_extension}"
+    file_path = upload_dir / file_name
+    
+    content = await file.read()
+    with open(file_path, "wb") as buffer:
+        buffer.write(content)
+    
+    from .repositories.uploaded_files import UploadedFileRepo
+    uploaded_file_repo = UploadedFileRepo(db)
+    
+    uploaded_file = uploaded_file_repo.create(
+        id=file_id,
+        file_name=file_name,
+        original_name=file.filename or "unknown",
+        file_path=str(file_path),
+        file_size=len(content),
+        mime_type=file.content_type or "application/octet-stream",
+        category=category,
+        description=description,
+        location_id=file_location_id,
+        uploaded_by=current_user.full_name,
+        uploaded_at=datetime.now()
+    )
+    
+    return {
+        "id": uploaded_file.id,
+        "file_name": uploaded_file.file_name,
+        "original_name": uploaded_file.original_name,
+        "file_size": uploaded_file.file_size,
+        "mime_type": uploaded_file.mime_type,
+        "category": uploaded_file.category,
+        "description": uploaded_file.description,
+        "location_id": uploaded_file.location_id,
+        "uploaded_by": uploaded_file.uploaded_by,
+        "uploaded_at": uploaded_file.uploaded_at
+    }
+
+@app.get("/api/files")
+async def list_files(
+    location_id: Optional[str] = None,
+    category: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+    current_user: UserInDB = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    from .repositories.uploaded_files import UploadedFileRepo
+    uploaded_file_repo = UploadedFileRepo(db)
+    
+    query_location_id = location_id
+    if current_user.role != UserRole.MANAGER and not location_id:
+        query_location_id = current_user.location_id
+    
+    files = uploaded_file_repo.list(
+        limit=limit,
+        offset=offset,
+        location_id=query_location_id,
+        category=category
+    )
+    
+    return [
+        {
+            "id": f.id,
+            "file_name": f.file_name,
+            "original_name": f.original_name,
+            "file_size": f.file_size,
+            "mime_type": f.mime_type,
+            "category": f.category,
+            "description": f.description,
+            "location_id": f.location_id,
+            "uploaded_by": f.uploaded_by,
+            "uploaded_at": f.uploaded_at
+        }
+        for f in files
+    ]
+
+@app.get("/api/files/{file_id}")
+async def get_file(
+    file_id: str,
+    current_user: UserInDB = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    from .repositories.uploaded_files import UploadedFileRepo
+    uploaded_file_repo = UploadedFileRepo(db)
+    
+    file_obj = uploaded_file_repo.get(file_id)
+    if not file_obj:
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    if current_user.role != UserRole.MANAGER and file_obj.location_id != current_user.location_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    return {
+        "id": file_obj.id,
+        "file_name": file_obj.file_name,
+        "original_name": file_obj.original_name,
+        "file_size": file_obj.file_size,
+        "mime_type": file_obj.mime_type,
+        "category": file_obj.category,
+        "description": file_obj.description,
+        "location_id": file_obj.location_id,
+        "uploaded_by": file_obj.uploaded_by,
+        "uploaded_at": file_obj.uploaded_at
+    }
+
+@app.get("/api/files/{file_id}/download")
+async def download_file(
+    file_id: str,
+    current_user: UserInDB = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    from .repositories.uploaded_files import UploadedFileRepo
+    uploaded_file_repo = UploadedFileRepo(db)
+    
+    file_obj = uploaded_file_repo.get(file_id)
+    if not file_obj:
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    if current_user.role != UserRole.MANAGER and file_obj.location_id != current_user.location_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    file_path = Path(file_obj.file_path)
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found on disk")
+    
+    return FileResponse(
+        path=file_path,
+        filename=file_obj.original_name,
+        media_type=file_obj.mime_type
+    )
+
+@app.delete("/api/files/{file_id}")
+async def delete_file(
+    file_id: str,
+    current_user: UserInDB = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    from .repositories.uploaded_files import UploadedFileRepo
+    uploaded_file_repo = UploadedFileRepo(db)
+    
+    file_obj = uploaded_file_repo.get(file_id)
+    if not file_obj:
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    if current_user.role != UserRole.MANAGER and file_obj.location_id != current_user.location_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    file_path = Path(file_obj.file_path)
+    if file_path.exists():
+        file_path.unlink()
+    
+    uploaded_file_repo.delete(file_id)
+    
+    return {"message": "File deleted successfully"}
+
 @app.get("/api/financial/profit-analysis")
 async def get_profit_analysis(current_user: UserInDB = Depends(get_current_user), db: Session = Depends(get_db)):
     from .repositories.expenses import ExpenseRepo

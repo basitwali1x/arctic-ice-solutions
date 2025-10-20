@@ -129,7 +129,7 @@ jobs:
         ls -la ${{ matrix.app }}/android/app/build/outputs/bundle/release/ || echo "No release AABs found"
         
     - name: Deploy to Google Play Store
-      if: github.ref == 'refs/heads/main'
+      if: github.ref == 'refs/heads/main' || (github.event_name == 'pull_request' && github.base_ref == 'main')
       uses: r0adkll/upload-google-play@v1
       env:
         NODE_OPTIONS: "--openssl-legacy-provider"

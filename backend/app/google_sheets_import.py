@@ -1,14 +1,18 @@
 import gspread
 from google.auth.exceptions import GoogleAuthError
-from typing import List, Dict, Any
+from typing import List, Dict, Any, TYPE_CHECKING
 import logging
 import json
 import os
 
-if os.getenv("ENVIRONMENT", "development") == "development":
+if TYPE_CHECKING:
     import pandas as pd
 else:
-    pd = None
+    try:
+        import pandas as pd
+    except ImportError:
+        pd = None
+
 from .excel_import import extract_customers_from_excel, extract_orders_from_excel, calculate_financial_metrics
 
 logger = logging.getLogger(__name__)
@@ -41,7 +45,7 @@ def authenticate_google_sheets():
         logger.error(f"Failed to authenticate with Google Sheets: {e}")
         raise ValueError(f"Google Sheets authentication failed: {str(e)}")
 
-def get_google_sheets_data(sheets_url: str, worksheet_name: str = None) -> pd.DataFrame:
+def get_google_sheets_data(sheets_url: str, worksheet_name: str = None) -> "pd.DataFrame":
     """Read data from Google Sheets and convert to pandas DataFrame"""
     if pd is None:
         import pandas as pd
@@ -154,7 +158,7 @@ def process_google_sheets_data(sheets_url: str, location_id: str = "loc_3", loca
         logger.error(f"Error processing Google Sheets data: {e}")
         raise
 
-def detect_data_format(df: pd.DataFrame) -> str:
+def detect_data_format(df: "pd.DataFrame") -> str:
     """Detect if data is customer-only format or sales transaction format"""
     if pd is None:
         import pandas as pd
@@ -171,7 +175,7 @@ def detect_data_format(df: pd.DataFrame) -> str:
     else:
         return "unknown"
 
-def extract_customers_from_customer_data(df: pd.DataFrame, location_id: str = "loc_3", location_name: str = "Lufkin") -> List[Dict[str, Any]]:
+def extract_customers_from_customer_data(df: "pd.DataFrame", location_id: str = "loc_3", location_name: str = "Lufkin") -> List[Dict[str, Any]]:
     """Extract customers from customer-only data format (Customer/Address/Phone)"""
     if pd is None:
         import pandas as pd

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, TYPE_CHECKING
 import logging
 import re
 import os
@@ -7,10 +7,13 @@ from fastapi import UploadFile
 from .import_validation import SalesRow, RowError, ImportSummary, CustomerRow
 from .import_idempotency import hash_file_bytes, stable_row_hash, make_idempotency_key
 
-if os.getenv("ENVIRONMENT", "development") == "development":
+if TYPE_CHECKING:
     import pandas as pd
 else:
-    pd = None
+    try:
+        import pandas as pd
+    except ImportError:
+        pd = None
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +75,7 @@ def detect_customer_location(customer_name: str, address: str, phone: str = '') 
         return 'loc_3'
     
     return 'loc_1'
-def clean_excel_data(df: pd.DataFrame) -> pd.DataFrame:
+def clean_excel_data(df: "pd.DataFrame") -> "pd.DataFrame":
     """Clean and standardize Excel data"""
     if pd is None:
         import pandas as pd
@@ -101,7 +104,7 @@ def clean_excel_data(df: pd.DataFrame) -> pd.DataFrame:
 
     return df_clean
 
-def extract_timesheet_sales_data(df: pd.DataFrame, date_from_filename: str = None) -> pd.DataFrame:
+def extract_timesheet_sales_data(df: "pd.DataFrame", date_from_filename: str = None) -> "pd.DataFrame":
     """Extract sales data from timesheet format and convert to standard format"""
     if pd is None:
         import pandas as pd
@@ -148,7 +151,7 @@ def extract_timesheet_sales_data(df: pd.DataFrame, date_from_filename: str = Non
     else:
         return pd.DataFrame()
 
-def extract_customers_from_excel(df: pd.DataFrame, location_id: str = "loc_3", location_name: str = "Lufkin") -> List[Dict[str, Any]]:
+def extract_customers_from_excel(df: "pd.DataFrame", location_id: str = "loc_3", location_name: str = "Lufkin") -> List[Dict[str, Any]]:
     """Extract unique customers from Excel data with proper location mapping"""
     if pd is None:
         import pandas as pd
@@ -226,7 +229,7 @@ def extract_customers_from_excel(df: pd.DataFrame, location_id: str = "loc_3", l
 
     return customers
 
-def extract_orders_from_excel(df: pd.DataFrame, location_id: str = "loc_3", location_name: str = "Lufkin") -> List[Dict[str, Any]]:
+def extract_orders_from_excel(df: "pd.DataFrame", location_id: str = "loc_3", location_name: str = "Lufkin") -> List[Dict[str, Any]]:
     """Extract orders from Excel data"""
     if pd is None:
         import pandas as pd
@@ -283,7 +286,7 @@ def extract_orders_from_excel(df: pd.DataFrame, location_id: str = "loc_3", loca
 
     return orders
 
-def calculate_financial_metrics(df: pd.DataFrame) -> Dict[str, Any]:
+def calculate_financial_metrics(df: "pd.DataFrame") -> Dict[str, Any]:
     """Calculate financial metrics from Excel data"""
     if pd is None:
         import pandas as pd
@@ -312,7 +315,7 @@ def calculate_financial_metrics(df: pd.DataFrame) -> Dict[str, Any]:
         }
     }
 
-def extract_customers_from_customer_list(df: pd.DataFrame, location_id: str = "auto", location_name: str = "Auto-Detect") -> List[Dict[str, Any]]:
+def extract_customers_from_customer_list(df: "pd.DataFrame", location_id: str = "auto", location_name: str = "Auto-Detect") -> List[Dict[str, Any]]:
     """Extract customers from customer list format (Customer, Address, Main Phone)"""
     if pd is None:
         import pandas as pd
@@ -544,7 +547,7 @@ def process_customer_excel_files(file_paths: List[str], location_id: str = "loc_
         ).model_dump()
     }
 
-def extract_customers_from_order_sheet(df: pd.DataFrame, location_id: str, location_name: str) -> List[Dict[str, Any]]:
+def extract_customers_from_order_sheet(df: "pd.DataFrame", location_id: str, location_name: str) -> List[Dict[str, Any]]:
     """Extract customers from order sheet format"""
     customers = []
     unique_customers = {}
@@ -591,7 +594,7 @@ def extract_customers_from_order_sheet(df: pd.DataFrame, location_id: str, locat
         
     return customers
 
-def extract_orders_from_order_sheet(df: pd.DataFrame, location_id: str, location_name: str) -> List[Dict[str, Any]]:
+def extract_orders_from_order_sheet(df: "pd.DataFrame", location_id: str, location_name: str) -> List[Dict[str, Any]]:
     """Extract orders from order sheet format"""
     orders = []
     
@@ -764,7 +767,7 @@ def process_route_excel_files(files: List[UploadFile], location_id: str) -> dict
         'routes_created': len(all_routes)
     }
 
-def _validate_sales_df(df: pd.DataFrame, sheet: str, file_hash: str, errors: list, idempotent_keys: set):
+def _validate_sales_df(df: "pd.DataFrame", sheet: str, file_hash: str, errors: list, idempotent_keys: set):
     """Validate sales data with row-level error reporting and deduplication"""
     logger.info(f"Validating DataFrame with columns: {list(df.columns)}")
     required_cols = ['Type', 'Date', 'Name', 'Amount', 'Item', 'Qty', 'Sales Price', 'Num']
@@ -823,7 +826,7 @@ def _validate_sales_df(df: pd.DataFrame, sheet: str, file_hash: str, errors: lis
             errors.append(RowError(sheet=sheet, row_index=int(idx), error_code="VALIDATION_ERROR", message=str(e)).model_dump())
     return valid_rows, success_rows, duplicates_skipped
 
-def _validate_customer_df(df: pd.DataFrame, sheet: str, file_hash: str, errors: list, idempotent_keys: set):
+def _validate_customer_df(df: "pd.DataFrame", sheet: str, file_hash: str, errors: list, idempotent_keys: set):
     """Validate customer data with row-level error reporting and deduplication"""
     required_cols = ['Customer']
     for col in required_cols:

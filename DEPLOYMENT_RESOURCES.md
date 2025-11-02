@@ -348,3 +348,21 @@ All demo credentials are working, DNS configuration is resolved, and the Arctic 
 **Deployment Platform**: Devin Apps Platform  
 **Domain**: https://yourchoiceice.com  
 **Status**: Active and Operational
+
+## Data Resources
+
+### West LA Order History
+- **File**: `west_la_order_history.json`
+- **Source**: West Louisiana Ice Service Inc. order history PDF (July 2025)
+- **Location**: Lake Charles (loc_2)
+- **Processing Script**: `import_west_la_data.py`
+- **Data Structure**: Follows same format as `imported_sales_data.json` with customers, orders, and summary sections
+- **Content**: Customer transactions, sales receipts, invoices, product quantities, and revenue data
+
+### West LA Customer List
+- **File**: `west_la_customers_from_excel.json`
+- **Source**: West LA Ice Customer List Excel file
+- **Location**: Lake Charles (loc_2)
+- **Processing Script**: `import_west_la_customers.py`
+- **Data Structure**: Customer records with contact information, addresses, and location assignment
+- **Content**: 46 customer records with names, addresses, phone numbers, and proper Lake Charles location assignment

@@ -115,6 +115,12 @@ try:
 except ImportError as e:
     print(f"Weather and monitoring services not available: {e}")
 
+try:
+    from .play_store_endpoints import router as play_store_router
+    app.include_router(play_store_router, tags=["Play Store Deployments"])
+except ImportError as e:
+    print(f"Play Store deployment endpoints not available: {e}")
+
 @app.exception_handler(RateLimitExceeded)
 async def rate_limit_handler(request, exc: RateLimitExceeded):
     return JSONResponse(
@@ -132,6 +138,7 @@ app.add_middleware(
         "https://api.yourchoiceice.com",  # API domain
         "https://ice-management-app-4r16aafs.devinapps.com",  # Legacy deployment URL
         "https://dashboard-flicker-app-nx31x17t.devinapps.com",  # New frontend URL
+        "https://deployment-app-uqzi6zx4.devinapps.com",  # Current frontend deployment
         "http://localhost:5173",  # Local frontend
         "http://localhost:3000",  # Alternative local frontend
     ],
@@ -200,6 +207,9 @@ class WorkOrderPriority(str, Enum):
 
 @app.on_event("startup")
 async def start_import_worker():
+    # Initialize admin user in production if needed
+    initialize_production_admin()
+    
     async def worker_handler(job_id: str, files: List[str], ctx: Dict[str, Any]):
         location_id = ctx.get("location_id", "loc_3")
         location_name = ctx.get("location_name", "Lufkin")

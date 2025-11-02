@@ -173,3 +173,19 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     hashed_password: Mapped[str] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+class PlayStoreDeployment(Base):
+    __tablename__ = "play_store_deployments"
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    app_name: Mapped[str] = mapped_column(String(100), index=True)
+    app_bundle_path: Mapped[str | None] = mapped_column(String(500))
+    release_track: Mapped[str] = mapped_column(String(40))
+    version_code: Mapped[int] = mapped_column(Integer)
+    version_name: Mapped[str] = mapped_column(String(40))
+    status: Mapped[str] = mapped_column(String(40), default="pending", index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text)
+    deployment_logs: Mapped[str | None] = mapped_column(Text)
+    created_by: Mapped[str | None] = mapped_column(ForeignKey("users.id"))

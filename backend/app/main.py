@@ -115,6 +115,12 @@ try:
 except ImportError as e:
     print(f"Weather and monitoring services not available: {e}")
 
+try:
+    from .play_store_endpoints import router as play_store_router
+    app.include_router(play_store_router, tags=["Play Store Deployments"])
+except ImportError as e:
+    print(f"Play Store deployment endpoints not available: {e}")
+
 @app.exception_handler(RateLimitExceeded)
 async def rate_limit_handler(request, exc: RateLimitExceeded):
     return JSONResponse(

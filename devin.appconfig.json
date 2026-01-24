@@ -1,35 +1,38 @@
 {
-  "appId": "ice-management-app-4r16aafs",
-  "project": "arctic-ice-solutions",
-  "environments": {
-    "production": {
-      "autoScale": true,
-      "minInstances": 2,
-      "maxInstances": 5,
-      "envVars": {
-        "VITE_API_URL": "https://api.yourchoiceice.com",
-        "VITE_GOOGLE_MAPS_API_KEY": "$GOOGLE_MAPS_API_KEY"
-      }
+    "appId": "ice-management-app-4r16aafs",
+    "project": "arctic-ice-solutions",
+    "environments": {
+        "production": {
+            "autoScale": true,
+            "minInstances": 2,
+            "maxInstances": 5,
+            "envVars": {
+                "VITE_API_URL": "https://api.yourchoiceice.com",
+                "VITE_GOOGLE_MAPS_API_KEY": "$GOOGLE_MAPS_API_KEY"
+            }
+        },
+        "preview": {
+            "autoScale": false,
+            "minInstances": 1,
+            "maxInstances": 2,
+            "envVars": {
+                "VITE_API_URL": "https://api.yourchoiceice.com",
+                "VITE_GOOGLE_MAPS_API_KEY": "$GOOGLE_MAPS_API_KEY"
+            }
+        }
     },
-    "preview": {
-      "autoScale": false,
-      "minInstances": 1,
-      "maxInstances": 2,
-      "envVars": {
-        "VITE_API_URL": "https://api.yourchoiceice.com",
-        "VITE_GOOGLE_MAPS_API_KEY": "$GOOGLE_MAPS_API_KEY"
-      }
+    "deployHooks": {
+        "postDeploy": [
+            "echo 'Running post-deploy checks'",
+            "curl -s https://arcticicesolutions.com/api/health || echo 'Health check failed'"
+        ]
+    },
+    "domains": [
+        "yourchoiceice.com",
+        "arcticicesolutions.com"
+    ],
+    "ssl": {
+        "force_https": true,
+        "http2": true
     }
-  },
-  "deployHooks": {
-    "postDeploy": [
-      "echo 'Running post-deploy checks'",
-      "curl -s https://arcticicesolutions.com/api/health || echo 'Health check failed'"
-    ]
-  },
-  "domains": ["arcticicesolutions.com"],
-  "ssl": {
-    "force_https": true,
-    "http2": true
-  }
 }

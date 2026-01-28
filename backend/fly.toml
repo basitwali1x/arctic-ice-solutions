@@ -1,6 +1,6 @@
 # fly.toml app configuration file generated for arctic-ice-api on 2024-08-22T18:10:00Z
 
-app = "app-hjvipiga"
+app = "yourchoice-api"
 primary_region = "iad"
 
 [build]

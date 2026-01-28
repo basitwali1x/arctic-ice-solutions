@@ -16,9 +16,9 @@ export default defineConfig({
       },
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
-        name: 'Arctic Ice Customer',
-        short_name: 'AIC Customer',
-        description: 'Customer app for Arctic Ice Solutions - order management and tracking',
+        name: 'Your Choice Ice',
+        short_name: 'YCI',
+        description: 'Customer app for Your Choice Ice - order management and tracking',
         theme_color: '#ffffff',
         icons: [
           {

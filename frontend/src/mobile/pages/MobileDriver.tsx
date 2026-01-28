@@ -5,13 +5,18 @@ import { Badge } from '../../components/ui/badge';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { MapPin, Navigation, Package, DollarSign, Fuel, Clock, Bluetooth } from 'lucide-react';
+import { MapPin, Navigation, Package, DollarSign, Fuel, Clock, Bluetooth, Camera as CameraIcon, PenTool, X } from 'lucide-react';
 import { getCurrentPosition, watchPosition, clearWatch } from '../../utils/capacitor';
 import GoogleMapsNavigation from '../../components/GoogleMapsNavigation';
 import { RouteService } from '../../services/RouteService';
+import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
+import { SignaturePad } from '../../components/SignaturePad';
+import { useAuth } from '../../contexts/AuthContext';
+import { API_BASE_URL } from '../../lib/constants';
 
 interface RouteStop {
   id: string;
+  order_id: string;
   address: string;
   customer: string;
   bags: number;
@@ -43,11 +48,16 @@ export function MobileDriver() {
   const [currentRoute, setCurrentRoute] = useState<DriverRoute | null>(null);
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [selectedStop, setSelectedStop] = useState<RouteStop | null>(null);
+  const { token } = useAuth();
+  const [showSignaturePad, setShowSignaturePad] = useState(false);
   const [deliveryForm, setDeliveryForm] = useState({
     bags_delivered: 0,
     payment_method: '',
     payment_amount: 0,
-    notes: ''
+    notes: '',
+    photo: null as Blob | null,
+    photoPreview: '',
+    signature: ''
   });
   const [fuelData, setFuelData] = useState({
     current_level: 75,
@@ -73,6 +83,7 @@ export function MobileDriver() {
       stops: [
         {
           id: 'stop-1',
+          order_id: 'order-1',
           address: '123 Main St, Lake Charles, LA',
           customer: 'Corner Store #1',
           bags: 20,
@@ -83,6 +94,7 @@ export function MobileDriver() {
         },
         {
           id: 'stop-2',
+          order_id: 'order-2',
           address: '456 Oak Ave, Lake Charles, LA',
           customer: 'Gas Station Plus',
           bags: 25,
@@ -93,6 +105,7 @@ export function MobileDriver() {
         },
         {
           id: 'stop-3',
+          order_id: 'order-3',
           address: '789 Pine St, Lake Charles, LA',
           customer: 'Quick Mart',
           bags: 15,
@@ -103,6 +116,7 @@ export function MobileDriver() {
         },
         {
           id: 'stop-4',
+          order_id: 'order-4',
           address: '321 Elm Dr, Lake Charles, LA',
           customer: 'Food Express',
           bags: 30,
@@ -135,7 +149,7 @@ export function MobileDriver() {
           lng: position.coords.longitude
         };
         setCurrentLocation(newLocation);
-        
+
         if (currentRoute) {
           const locationData = {
             lat: newLocation.lat,
@@ -170,34 +184,138 @@ export function MobileDriver() {
     }
   };
 
-  const handleDeliveryComplete = (stop: RouteStop) => {
+  const handleTakePhoto = async () => {
+    try {
+      const image = await Camera.getPhoto({
+        quality: 90,
+        allowEditing: true,
+        resultType: CameraResultType.Uri,
+        source: CameraSource.Camera
+      });
+
+      if (image.webPath) {
+        const response = await fetch(image.webPath);
+        const blob = await response.blob();
+        setDeliveryForm({
+          ...deliveryForm,
+          photo: blob,
+          photoPreview: image.webPath
+        });
+      }
+    } catch (error) {
+      console.error('Camera error:', error);
+    }
+  };
+
+  const uploadFile = async (file: Blob, fileName: string): Promise<string> => {
+    const formData = new FormData();
+    formData.append('file', file, fileName);
+
+    const response = await fetch(`${API_BASE_URL}/api/logistics/upload`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      body: formData
+    });
+
+    if (!response.ok) throw new Error('Upload failed');
+    const data = await response.json();
+    return data.url;
+  };
+
+  const dataURLtoBlob = (dataurl: string) => {
+    const arr = dataurl.split(',');
+    const mime = arr[0].match(/:(.*?);/)?.[1];
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new Blob([u8arr], { type: mime });
+  };
+
+  const handleDeliveryComplete = async (stop: RouteStop) => {
     if (!currentRoute) return;
-    
-    const updatedStops = currentRoute.stops.map(s => 
-      s.id === stop.id 
-        ? { 
-            ...s, 
+
+    try {
+      let photo_url = '';
+      if (deliveryForm.photo) {
+        photo_url = await uploadFile(deliveryForm.photo, `delivery_${stop.id}.jpg`);
+      }
+
+      let signature_url = '';
+      if (deliveryForm.signature) {
+        const signatureBlob = dataURLtoBlob(deliveryForm.signature);
+        signature_url = await uploadFile(signatureBlob, `signature_${stop.id}.png`);
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/orders/${stop.order_id || stop.id}/complete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          photo_url,
+          signature_url,
+          notes: deliveryForm.notes,
+          payment_method: deliveryForm.payment_method,
+          payment_amount: deliveryForm.payment_amount
+        })
+      });
+
+      if (!response.ok) throw new Error('Failed to complete delivery');
+
+      const updatedStops = currentRoute.stops.map(s =>
+        s.id === stop.id
+          ? {
+            ...s,
             status: 'delivered' as const,
             payment_method: deliveryForm.payment_method as 'cash' | 'check' | 'credit',
             payment_amount: deliveryForm.payment_amount,
             delivery_time: new Date().toLocaleTimeString()
           }
-        : s
-    );
+          : s
+      );
 
-    setCurrentRoute({
-      ...currentRoute,
-      stops: updatedStops,
-      completed_stops: currentRoute.completed_stops + 1,
-      delivered_bags: currentRoute.delivered_bags + deliveryForm.bags_delivered
-    });
+      setCurrentRoute({
+        ...currentRoute,
+        stops: updatedStops,
+        completed_stops: currentRoute.completed_stops + 1,
+        delivered_bags: currentRoute.delivered_bags + deliveryForm.bags_delivered
+      });
 
-    setSelectedStop(null);
-    setDeliveryForm({ bags_delivered: 0, payment_method: '', payment_amount: 0, notes: '' });
+      setSelectedStop(null);
+      setDeliveryForm({
+        bags_delivered: 0,
+        payment_method: '',
+        payment_amount: 0,
+        notes: '',
+        photo: null,
+        photoPreview: '',
+        signature: ''
+      });
+      alert('Delivery completed successfully!');
+    } catch (error) {
+      console.error('Delivery completion error:', error);
+      alert('Failed to complete delivery. Please check connection.');
+    }
   };
 
   const printReceipt = async (stop: RouteStop) => {
+<<<<<<< HEAD
     const receiptData = `
+=======
+    if ('bluetooth' in navigator) {
+      try {
+        await (navigator as Navigator & { bluetooth: { requestDevice: (options: { filters: { services: string[] }[] }) => Promise<unknown> } }).bluetooth.requestDevice({
+          filters: [{ services: ['000018f0-0000-1000-8000-00805f9b34fb'] }]
+        });
+
+        const receiptData = `
+>>>>>>> e2dbfe7 (Rebranding to Your Choice Ice and fixing Android deployment configurations)
 ARCTIC ICE SOLUTIONS
 Delivery Receipt
 ------------------------
@@ -211,6 +329,7 @@ Driver: ${currentRoute?.driver_name}
 Route: ${currentRoute?.route_number}
 ------------------------
 Thank you for your business!
+<<<<<<< HEAD
     `;
 
     if ('bluetooth' in navigator) {
@@ -219,6 +338,10 @@ Thank you for your business!
           filters: [{ services: ['000018f0-0000-1000-8000-00805f9b34fb'] }]
         });
         
+=======
+        `;
+
+>>>>>>> e2dbfe7 (Rebranding to Your Choice Ice and fixing Android deployment configurations)
         console.log('Printing receipt:', receiptData);
         
         try {
@@ -327,9 +450,9 @@ Thank you for your business!
             </div>
           </div>
           <div className="mt-4 flex space-x-2">
-            <Button 
-              variant={isTracking ? "destructive" : "default"} 
-              size="sm" 
+            <Button
+              variant={isTracking ? "destructive" : "default"}
+              size="sm"
               onClick={isTracking ? stopGPSTracking : startGPSTracking}
               className="flex-1"
             >
@@ -343,7 +466,7 @@ Thank you for your business!
               </Button>
             )}
           </div>
-          
+
           {currentRoute.stops && currentRoute.stops.length > 0 && (
             <div className="mt-4">
               <GoogleMapsNavigation
@@ -441,7 +564,7 @@ Thank you for your business!
                 id="fuel-level"
                 type="number"
                 value={fuelData.current_level}
-                onChange={(e) => setFuelData({...fuelData, current_level: parseInt(e.target.value)})}
+                onChange={(e) => setFuelData({ ...fuelData, current_level: parseInt(e.target.value) })}
               />
             </div>
             <div>
@@ -450,7 +573,7 @@ Thank you for your business!
                 id="odometer"
                 type="number"
                 value={fuelData.odometer}
-                onChange={(e) => setFuelData({...fuelData, odometer: parseInt(e.target.value)})}
+                onChange={(e) => setFuelData({ ...fuelData, odometer: parseInt(e.target.value) })}
               />
             </div>
             <div>
@@ -460,7 +583,7 @@ Thank you for your business!
                 type="number"
                 step="0.1"
                 value={fuelData.fuel_added}
-                onChange={(e) => setFuelData({...fuelData, fuel_added: parseFloat(e.target.value)})}
+                onChange={(e) => setFuelData({ ...fuelData, fuel_added: parseFloat(e.target.value) })}
               />
             </div>
             <div>
@@ -470,7 +593,7 @@ Thank you for your business!
                 type="number"
                 step="0.01"
                 value={fuelData.fuel_cost}
-                onChange={(e) => setFuelData({...fuelData, fuel_cost: parseFloat(e.target.value)})}
+                onChange={(e) => setFuelData({ ...fuelData, fuel_cost: parseFloat(e.target.value) })}
               />
             </div>
           </div>
@@ -494,13 +617,13 @@ Thank you for your business!
                   id="bags-delivered"
                   type="number"
                   value={deliveryForm.bags_delivered}
-                  onChange={(e) => setDeliveryForm({...deliveryForm, bags_delivered: parseInt(e.target.value)})}
+                  onChange={(e) => setDeliveryForm({ ...deliveryForm, bags_delivered: parseInt(e.target.value) })}
                   placeholder={`Max: ${selectedStop.bags}`}
                 />
               </div>
               <div>
                 <Label htmlFor="payment-method">Payment Method</Label>
-                <Select value={deliveryForm.payment_method} onValueChange={(value) => setDeliveryForm({...deliveryForm, payment_method: value})}>
+                <Select value={deliveryForm.payment_method} onValueChange={(value) => setDeliveryForm({ ...deliveryForm, payment_method: value })}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select payment method" />
                   </SelectTrigger>
@@ -518,7 +641,7 @@ Thank you for your business!
                   type="number"
                   step="0.01"
                   value={deliveryForm.payment_amount}
-                  onChange={(e) => setDeliveryForm({...deliveryForm, payment_amount: parseFloat(e.target.value)})}
+                  onChange={(e) => setDeliveryForm({ ...deliveryForm, payment_amount: parseFloat(e.target.value) })}
                 />
               </div>
               <div>
@@ -526,10 +649,62 @@ Thank you for your business!
                 <Input
                   id="delivery-notes"
                   value={deliveryForm.notes}
-                  onChange={(e) => setDeliveryForm({...deliveryForm, notes: e.target.value})}
+                  onChange={(e) => setDeliveryForm({ ...deliveryForm, notes: e.target.value })}
                   placeholder="Optional notes"
                 />
               </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <Button variant="outline" onClick={handleTakePhoto} className="flex flex-col h-auto py-4 space-y-2">
+                  <CameraIcon className="h-6 w-6" />
+                  <span>Take Photo</span>
+                </Button>
+                <Button variant="outline" onClick={() => setShowSignaturePad(true)} className="flex flex-col h-auto py-4 space-y-2">
+                  <PenTool className="h-6 w-6" />
+                  <span>Collect Signature</span>
+                </Button>
+              </div>
+
+              {deliveryForm.photoPreview && (
+                <div className="relative w-full h-40 rounded-lg overflow-hidden border">
+                  <img src={deliveryForm.photoPreview} alt="Delivery photo" className="w-full h-full object-cover" />
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-1 right-1 h-6 w-6"
+                    onClick={() => setDeliveryForm({ ...deliveryForm, photo: null, photoPreview: '' })}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
+
+              {deliveryForm.signature && (
+                <div className="relative w-full h-20 rounded-lg overflow-hidden border bg-white p-2">
+                  <img src={deliveryForm.signature} alt="Customer signature" className="h-full mx-auto" />
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-1 right-1 h-6 w-6"
+                    onClick={() => setDeliveryForm({ ...deliveryForm, signature: '' })}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
+
+              {showSignaturePad && (
+                <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+                  <SignaturePad
+                    onSave={(sig) => {
+                      setDeliveryForm({ ...deliveryForm, signature: sig });
+                      setShowSignaturePad(false);
+                    }}
+                    onCancel={() => setShowSignaturePad(false)}
+                  />
+                </div>
+              )}
+
               <div className="flex space-x-2">
                 <Button onClick={() => handleDeliveryComplete(selectedStop)} className="flex-1">
                   Complete Delivery

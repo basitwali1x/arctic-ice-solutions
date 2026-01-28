@@ -230,8 +230,13 @@ export interface CustomerOrder {
       lat: number;
       lng: number;
       timestamp: string;
+      photo_url?: string;
+      signature_url?: string;
     };
   };
+  photo_url?: string;
+  signature_url?: string;
+  notes?: string;
 }
 
 export interface CustomerFeedback {

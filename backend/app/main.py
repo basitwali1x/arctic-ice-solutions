@@ -81,7 +81,7 @@ logger = logging.getLogger(__name__)
 
 quickbooks_client = QuickBooksClient()
 
-app = FastAPI(title="Arctic Ice Solutions API", version="1.0.0")
+app = FastAPI(title="Your Choice Ice API", version="1.0.0")
 
 limiter = Limiter(key_func=get_remote_address, default_limits=["60/second", "1000/minute"])
 app.state.limiter = limiter

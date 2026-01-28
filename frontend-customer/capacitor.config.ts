@@ -1,8 +1,8 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.arcticeicesolutions.customer',
-  appName: 'Arctic Ice Customer',
+  appId: 'com.yourchoiceice.customer',
+  appName: 'Your Choice Ice',
   webDir: 'dist',
   server: {
     androidScheme: 'https'

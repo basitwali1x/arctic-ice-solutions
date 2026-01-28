@@ -16,9 +16,9 @@ export default defineConfig({
       },
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
-        name: 'Arctic Ice Staff',
-        short_name: 'AIC Staff',
-        description: 'Staff app for Arctic Ice Solutions - field operations and management',
+        name: 'Your Choice Ice Staff',
+        short_name: 'YCI Staff',
+        description: 'Staff app for Your Choice Ice - field operations and management',
         theme_color: '#ffffff',
         icons: [
           {

@@ -1,478 +1,299 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { MapPin, Navigation, Package, DollarSign, Fuel, Clock, Bluetooth } from 'lucide-react';
-import { getCurrentPosition, watchPosition, clearWatch } from '../../utils/capacitor';
-import GoogleMapsNavigation from '../../components/GoogleMapsNavigation';
-import { RouteService } from '../../services/RouteService';
-
-interface RouteStop {
-  id: string;
-  address: string;
-  customer: string;
-  bags: number;
-  status: 'pending' | 'delivered' | 'failed';
-  payment_method?: 'cash' | 'check' | 'credit';
-  payment_amount?: number;
-  delivery_time?: string;
-  coordinates?: {
-    lat: number;
-    lng: number;
-  };
-}
-
-interface DriverRoute {
-  id: string;
-  route_number: string;
-  driver_name: string;
-  vehicle_id: string;
-  start_time: string;
-  estimated_completion: string;
-  total_stops: number;
-  completed_stops: number;
-  total_bags: number;
-  delivered_bags: number;
-  stops: RouteStop[];
-}
+import {
+  MapPin,
+  Navigation,
+  Package,
+  Camera as CameraIcon,
+  PenTool,
+  ChevronRight,
+  CheckCircle2,
+  Phone
+} from 'lucide-react';
+import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
+import { SignaturePad } from '../../components/SignaturePad';
+import { useAuth } from '../../contexts/AuthContext';
+import { apiRequest } from '../../utils/api';
+import { useNavigate } from 'react-router-dom';
 
 export function MobileDriver() {
-  const [currentRoute, setCurrentRoute] = useState<DriverRoute | null>(null);
-  const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [selectedStop, setSelectedStop] = useState<RouteStop | null>(null);
+  const navigate = useNavigate();
+  const [activeRoute, setActiveRoute] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [showVerification, setShowVerification] = useState(false);
+  const [showSignaturePad, setShowSignaturePad] = useState(false);
+  const [deliveryStatus, setDeliveryStatus] = useState<'pending' | 'success' | 'refused' | 'shorted'>('pending');
+
   const [deliveryForm, setDeliveryForm] = useState({
     bags_delivered: 0,
-    payment_method: '',
+    payment_method: 'account',
     payment_amount: 0,
-    notes: ''
+    notes: '',
+    photo: null as Blob | null,
+    photoPreview: '',
+    signature: ''
   });
-  const [fuelData, setFuelData] = useState({
-    current_level: 75,
-    fuel_added: 0,
-    fuel_cost: 0,
-    odometer: 125430
-  });
-  const [isTracking, setIsTracking] = useState(false);
-  const [watchId, setWatchId] = useState<string | number | null>(null);
 
   useEffect(() => {
-    setCurrentRoute({
-      id: 'route-001',
-      route_number: 'LA-001',
-      driver_name: 'Field Technician',
-      vehicle_id: 'LA-ICE-01',
-      start_time: '08:00 AM',
-      estimated_completion: '04:30 PM',
-      total_stops: 12,
-      completed_stops: 3,
-      total_bags: 240,
-      delivered_bags: 60,
-      stops: [
-        {
-          id: 'stop-1',
-          address: '123 Main St, Lake Charles, LA',
-          customer: 'Corner Store #1',
-          bags: 20,
-          status: 'delivered',
-          payment_method: 'cash',
-          payment_amount: 45.00,
-          delivery_time: '09:15 AM'
-        },
-        {
-          id: 'stop-2',
-          address: '456 Oak Ave, Lake Charles, LA',
-          customer: 'Gas Station Plus',
-          bags: 25,
-          status: 'delivered',
-          payment_method: 'credit',
-          payment_amount: 56.25,
-          delivery_time: '10:30 AM'
-        },
-        {
-          id: 'stop-3',
-          address: '789 Pine St, Lake Charles, LA',
-          customer: 'Quick Mart',
-          bags: 15,
-          status: 'delivered',
-          payment_method: 'check',
-          payment_amount: 33.75,
-          delivery_time: '11:45 AM'
-        },
-        {
-          id: 'stop-4',
-          address: '321 Elm Dr, Lake Charles, LA',
-          customer: 'Food Express',
-          bags: 30,
-          status: 'pending'
-        }
-      ]
-    });
-
-    const initializeLocation = async () => {
+    const fetchData = async () => {
       try {
-        const position = await getCurrentPosition();
-        setCurrentLocation({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude
-        });
-      } catch (error) {
-        console.error('GPS Error:', error);
+        const res = await apiRequest('/api/routes');
+        if (res && res.ok) {
+          const routes = await res.json();
+          const route = routes.find((r: any) => r.status === 'active' || r.status === 'planned');
+          setActiveRoute(route);
+
+          const nextStop = route?.stops?.find((s: any) => s.status === 'pending');
+          if (nextStop) {
+            setDeliveryForm(prev => ({
+              ...prev,
+              bags_delivered: nextStop.bags || 0,
+              payment_amount: (nextStop.bags || 0) * 2.25 // Default pricing mock
+            }));
+          }
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
       }
     };
-
-    initializeLocation();
+    fetchData();
   }, []);
 
-  const startGPSTracking = async () => {
-    try {
-      setIsTracking(true);
-      const id = await watchPosition((position) => {
-        const newLocation = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude
-        };
-        setCurrentLocation(newLocation);
-        
-        if (currentRoute) {
-          const locationData = {
-            lat: newLocation.lat,
-            lng: newLocation.lng,
-            timestamp: new Date().toISOString(),
-            route_id: currentRoute.id,
-            speed: (position as any).coords?.speed || 0,
-            heading: (position as any).coords?.heading || 0,
-            accuracy: (position as any).coords?.accuracy || 0
-          };
+  const nextStop = activeRoute?.stops?.find((s: any) => s.status === 'pending');
 
-          RouteService.updateDriverLocation('driver-001', locationData)
-            .catch((error: any) => console.error('Failed to update location:', error));
-        }
+  const handleTakePhoto = async () => {
+    try {
+      const image = await Camera.getPhoto({
+        quality: 90,
+        allowEditing: false,
+        resultType: CameraResultType.Uri,
+        source: CameraSource.Camera
       });
-      setWatchId(id);
+
+      if (image.webPath) {
+        const response = await fetch(image.webPath);
+        const blob = await response.blob();
+        setDeliveryForm(prev => ({
+          ...prev,
+          photo: blob,
+          photoPreview: image.webPath || ''
+        }));
+      }
     } catch (error) {
-      console.error('GPS Tracking Error:', error);
-      setIsTracking(false);
+      console.error('Camera error:', error);
     }
   };
 
-  const stopGPSTracking = async () => {
+  const handleComplete = async () => {
+    if (!nextStop) return;
+    setLoading(true);
     try {
-      setIsTracking(false);
-      if (watchId !== null) {
-        await clearWatch(watchId);
-        setWatchId(null);
+      const res = await apiRequest(`/api/orders/${nextStop.order_id || nextStop.id}/complete`, {
+        method: 'POST',
+        body: JSON.stringify({
+          status: deliveryStatus === 'success' ? 'delivered' : deliveryStatus,
+          bags_delivered: deliveryForm.bags_delivered,
+          payment_method: deliveryForm.payment_method,
+          payment_amount: deliveryForm.payment_amount,
+          notes: deliveryForm.notes,
+        })
+      });
+
+      if (res && res.ok) {
+        navigate('/mobile/dashboard');
       }
-    } catch (error) {
-      console.error('Error stopping GPS tracking:', error);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDeliveryComplete = (stop: RouteStop) => {
-    if (!currentRoute) return;
-    
-    const updatedStops = currentRoute.stops.map(s => 
-      s.id === stop.id 
-        ? { 
-            ...s, 
-            status: 'delivered' as const,
-            payment_method: deliveryForm.payment_method as 'cash' | 'check' | 'credit',
-            payment_amount: deliveryForm.payment_amount,
-            delivery_time: new Date().toLocaleTimeString()
-          }
-        : s
+  if (loading && !activeRoute) return <div className="p-4 text-center text-white bg-[#020617] h-screen pt-20 font-black uppercase text-xs animate-pulse">Locating Cargo...</div>;
+
+  if (!nextStop) {
+    return (
+      <div className="p-8 text-center bg-[#020617] h-screen flex flex-col items-center justify-center space-y-6">
+        <CheckCircle2 className="h-20 w-20 text-emerald-500 animate-bounce" />
+        <h1 className="text-2xl font-black text-white uppercase italic">Route Complete</h1>
+        <p className="text-slate-400">All stops delivered. Return to base or wait for new orders.</p>
+        <Button onClick={() => navigate('/mobile/dashboard')} className="w-full bg-blue-600 h-14 rounded-2xl font-black italic uppercase">BACK TO COMMAND CENTER</Button>
+      </div>
     );
-
-    setCurrentRoute({
-      ...currentRoute,
-      stops: updatedStops,
-      completed_stops: currentRoute.completed_stops + 1,
-      delivered_bags: currentRoute.delivered_bags + deliveryForm.bags_delivered
-    });
-
-    setSelectedStop(null);
-    setDeliveryForm({ bags_delivered: 0, payment_method: '', payment_amount: 0, notes: '' });
-  };
-
-  const printReceipt = async (stop: RouteStop) => {
-    if ('bluetooth' in navigator) {
-      try {
-        await (navigator as Navigator & { bluetooth: { requestDevice: (options: { filters: { services: string[] }[] }) => Promise<unknown> } }).bluetooth.requestDevice({
-          filters: [{ services: ['000018f0-0000-1000-8000-00805f9b34fb'] }]
-        });
-        
-        const receiptData = `
-ARCTIC ICE SOLUTIONS
-Delivery Receipt
-------------------------
-Customer: ${stop.customer}
-Address: ${stop.address}
-Bags Delivered: ${stop.bags}
-Amount: $${stop.payment_amount?.toFixed(2)}
-Payment: ${stop.payment_method?.toUpperCase()}
-Time: ${stop.delivery_time}
-Driver: ${currentRoute?.driver_name}
-Route: ${currentRoute?.route_number}
-------------------------
-Thank you for your business!
-        `;
-        
-        console.log('Printing receipt:', receiptData);
-        alert('Receipt sent to printer!');
-      } catch (error) {
-        console.error('Bluetooth printing error:', error);
-        alert('Printer not available. Receipt saved locally.');
-      }
-    } else {
-      alert('Bluetooth not supported. Receipt saved locally.');
-    }
-  };
-
-  if (!currentRoute) {
-    return <div className="flex items-center justify-center h-64">Loading route...</div>;
   }
 
   return (
-    <div className="p-4 space-y-4">
-      <div>
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Driver Dashboard</h2>
+    <div className="bg-[#020617] min-h-screen flex flex-col">
+      <div className="h-48 bg-blue-600 relative overflow-hidden flex items-end p-6">
+        <div className="absolute top-0 right-0 p-4 opacity-10">
+          <Package className="h-40 w-40 text-black" />
+        </div>
+        <div className="relative z-10 space-y-2 text-white">
+          <Badge className="bg-black/20 text-white border-white/20 mb-2 uppercase text-[10px] font-black tracking-widest">Target Destination</Badge>
+          <h1 className="text-3xl font-black leading-none uppercase italic">{nextStop.customer_name}</h1>
+          <div className="flex items-center text-white/80 text-sm font-bold">
+            <MapPin className="h-4 w-4 mr-2" />
+            {nextStop.address}
+          </div>
+        </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span>Route {currentRoute.route_number}</span>
-            <Badge variant="outline">{currentRoute.vehicle_id}</Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">{currentRoute.completed_stops}/{currentRoute.total_stops}</div>
-              <div className="text-xs text-gray-500">Stops Completed</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">{currentRoute.delivered_bags}/{currentRoute.total_bags}</div>
-              <div className="text-xs text-gray-500">Bags Delivered</div>
-            </div>
-          </div>
-          <div className="mt-4 flex space-x-2">
-            <Button 
-              variant={isTracking ? "destructive" : "default"} 
-              size="sm" 
-              onClick={isTracking ? stopGPSTracking : startGPSTracking}
-              className="flex-1"
-            >
-              <Navigation className="h-4 w-4 mr-2" />
-              {isTracking ? 'Stop Tracking' : 'Start GPS Tracking'}
-            </Button>
-            {currentLocation && (
-              <Button variant="outline" size="sm">
-                <MapPin className="h-4 w-4 mr-2" />
-                GPS: {currentLocation.lat.toFixed(4)}, {currentLocation.lng.toFixed(4)}
+      <div className="flex-1 p-6 space-y-6">
+        {!showVerification ? (
+          <div className="space-y-6 animate-in slide-in-from-bottom-5 duration-500">
+            <div className="flex gap-3">
+              <Button variant="outline" className="flex-1 h-14 bg-[#0f172a] border-slate-800 text-blue-400 rounded-2xl font-bold">
+                <Phone className="h-4 w-4 mr-2" /> Call Customer
               </Button>
-            )}
-          </div>
-          
-          {currentRoute.stops && currentRoute.stops.length > 0 && (
-            <div className="mt-4">
-              <GoogleMapsNavigation
-                stops={currentRoute.stops.map((stop: any) => ({
-                  id: stop.id,
-                  order_id: stop.id,
-                  customer_id: stop.id,
-                  stop_number: 1,
-                  estimated_arrival: '',
-                  status: stop.status === 'delivered' ? 'completed' : 'pending',
-                  customer_name: stop.customer,
-                  address: stop.address,
-                  coordinates: stop.coordinates ? { lat: stop.coordinates.lat, lng: stop.coordinates.lng } : undefined,
-                  delivery_instructions: '',
-                  priority: 1,
-                  time_window_start: '',
-                  time_window_end: '',
-                  completed_at: stop.status === 'delivered' ? new Date().toISOString() : undefined
-                } as any))}
-                currentLocation={currentLocation || undefined}
-                onDirectionsChange={(directions) => {
-                  console.log('Directions updated:', directions);
-                }}
-              />
+              <Button variant="outline" className="flex-1 h-14 bg-[#0f172a] border-slate-800 text-blue-400 rounded-2xl font-bold">
+                <Navigation className="h-4 w-4 mr-2" /> Open Maps
+              </Button>
             </div>
-          )}
-        </CardContent>
-      </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Route Stops</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {currentRoute.stops.map((stop, index) => (
-              <div key={stop.id} className="border rounded-lg p-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2">
-                      <Badge variant={stop.status === 'delivered' ? 'default' : 'secondary'}>
-                        Stop {index + 1}
-                      </Badge>
-                      <span className="font-medium">{stop.customer}</span>
-                    </div>
-                    <p className="text-sm text-gray-600 mt-1">{stop.address}</p>
-                    <div className="flex items-center space-x-4 mt-2">
-                      <span className="text-sm">
-                        <Package className="h-3 w-3 inline mr-1" />
-                        {stop.bags} bags
-                      </span>
-                      {stop.payment_amount && (
-                        <span className="text-sm">
-                          <DollarSign className="h-3 w-3 inline mr-1" />
-                          ${stop.payment_amount.toFixed(2)} ({stop.payment_method})
-                        </span>
-                      )}
-                      {stop.delivery_time && (
-                        <span className="text-sm">
-                          <Clock className="h-3 w-3 inline mr-1" />
-                          {stop.delivery_time}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex flex-col space-y-1">
-                    {stop.status === 'pending' && (
-                      <Button size="sm" onClick={() => setSelectedStop(stop)}>
-                        Deliver
-                      </Button>
-                    )}
-                    {stop.status === 'delivered' && (
-                      <Button size="sm" variant="outline" onClick={() => printReceipt(stop)}>
-                        <Bluetooth className="h-3 w-3 mr-1" />
-                        Print
-                      </Button>
-                    )}
+            <Card className="bg-[#0f172a] border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
+              <CardContent className="p-6 space-y-4">
+                <div className="flex justify-between items-center pb-4 border-b border-slate-800">
+                  <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Expected Payload</span>
+                  <div className="text-right">
+                    <p className="text-2xl font-black text-white italic">{nextStop.bags} BAGS</p>
+                    <p className="text-[10px] font-bold text-slate-500 uppercase">8lb Bags • Standard</p>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+                <div className="space-y-2">
+                  <Label className="text-[10px] uppercase font-black text-slate-500">Delivery Instructions</Label>
+                  <p className="text-sm font-bold text-slate-300 italic">"Leave by the back freezer. Codes: 1234. Watch for the cat."</p>
+                </div>
+              </CardContent>
+            </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Fuel & Load Tracking</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="fuel-level">Current Fuel Level (%)</Label>
-              <Input
-                id="fuel-level"
-                type="number"
-                value={fuelData.current_level}
-                onChange={(e) => setFuelData({...fuelData, current_level: parseInt(e.target.value)})}
-              />
-            </div>
-            <div>
-              <Label htmlFor="odometer">Odometer Reading</Label>
-              <Input
-                id="odometer"
-                type="number"
-                value={fuelData.odometer}
-                onChange={(e) => setFuelData({...fuelData, odometer: parseInt(e.target.value)})}
-              />
-            </div>
-            <div>
-              <Label htmlFor="fuel-added">Fuel Added (gallons)</Label>
-              <Input
-                id="fuel-added"
-                type="number"
-                step="0.1"
-                value={fuelData.fuel_added}
-                onChange={(e) => setFuelData({...fuelData, fuel_added: parseFloat(e.target.value)})}
-              />
-            </div>
-            <div>
-              <Label htmlFor="fuel-cost">Fuel Cost ($)</Label>
-              <Input
-                id="fuel-cost"
-                type="number"
-                step="0.01"
-                value={fuelData.fuel_cost}
-                onChange={(e) => setFuelData({...fuelData, fuel_cost: parseFloat(e.target.value)})}
-              />
-            </div>
-          </div>
-          <Button className="w-full mt-4">
-            <Fuel className="h-4 w-4 mr-2" />
-            Update Fuel Log
-          </Button>
-        </CardContent>
-      </Card>
+            <div className="grid grid-cols-1 gap-4">
+              <Button
+                onClick={() => { setDeliveryStatus('success'); setShowVerification(true); }}
+                className="h-24 bg-emerald-600 hover:bg-emerald-500 text-white rounded-3xl flex flex-col items-center justify-center space-y-1 shadow-lg ice-glow"
+              >
+                <p className="text-xl font-black italic uppercase tracking-tighter">CONFIRM FULL DELIVERY</p>
+                <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest text-white">Mark as Delivered</p>
+              </Button>
 
-      {selectedStop && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Complete Delivery - {selectedStop.customer}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="bags-delivered">Bags Delivered</Label>
-                <Input
-                  id="bags-delivered"
-                  type="number"
-                  value={deliveryForm.bags_delivered}
-                  onChange={(e) => setDeliveryForm({...deliveryForm, bags_delivered: parseInt(e.target.value)})}
-                  placeholder={`Max: ${selectedStop.bags}`}
-                />
-              </div>
-              <div>
-                <Label htmlFor="payment-method">Payment Method</Label>
-                <Select value={deliveryForm.payment_method} onValueChange={(value) => setDeliveryForm({...deliveryForm, payment_method: value})}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select payment method" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="cash">Cash</SelectItem>
-                    <SelectItem value="check">Check</SelectItem>
-                    <SelectItem value="credit">Credit Card</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="payment-amount">Payment Amount ($)</Label>
-                <Input
-                  id="payment-amount"
-                  type="number"
-                  step="0.01"
-                  value={deliveryForm.payment_amount}
-                  onChange={(e) => setDeliveryForm({...deliveryForm, payment_amount: parseFloat(e.target.value)})}
-                />
-              </div>
-              <div>
-                <Label htmlFor="delivery-notes">Delivery Notes</Label>
-                <Input
-                  id="delivery-notes"
-                  value={deliveryForm.notes}
-                  onChange={(e) => setDeliveryForm({...deliveryForm, notes: e.target.value})}
-                  placeholder="Optional notes"
-                />
-              </div>
-              <div className="flex space-x-2">
-                <Button onClick={() => handleDeliveryComplete(selectedStop)} className="flex-1">
-                  Complete Delivery
+              <div className="grid grid-cols-2 gap-4">
+                <Button
+                  onClick={() => { setDeliveryStatus('shorted'); setShowVerification(true); }}
+                  className="h-20 bg-[#0f172a] border-2 border-amber-500 text-amber-500 rounded-2xl flex flex-col items-center justify-center"
+                >
+                  <p className="font-black italic uppercase text-amber-500">SHORTED</p>
+                  <p className="text-[10px] font-bold opacity-80 uppercase text-amber-500">Partial Load</p>
                 </Button>
-                <Button variant="outline" onClick={() => setSelectedStop(null)}>
-                  Cancel
+                <Button
+                  onClick={() => { setDeliveryStatus('refused'); setShowVerification(true); }}
+                  className="h-20 bg-[#0f172a] border-2 border-red-500 text-red-500 rounded-2xl flex flex-col items-center justify-center"
+                >
+                  <p className="font-black italic uppercase text-red-500">REFUSED</p>
+                  <p className="text-[10px] font-bold opacity-80 uppercase text-red-500">No Delivery</p>
                 </Button>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        ) : (
+          <div className="space-y-6 animate-in slide-in-from-right-5 duration-500">
+            <div className="flex items-center justify-between">
+              <Button variant="ghost" onClick={() => setShowVerification(false)} className="text-slate-400 hover:text-white">
+                <ChevronRight className="h-5 w-5 rotate-180 mr-2" /> Back
+              </Button>
+              <Badge className={`${deliveryStatus === 'success' ? 'bg-emerald-500' : deliveryStatus === 'shorted' ? 'bg-amber-500' : 'bg-red-500'} uppercase text-[10px] font-black tracking-widest border-none text-white`}>
+                Status: {deliveryStatus}
+              </Badge>
+            </div>
+
+            <Card className="bg-[#0f172a] border-slate-800 rounded-3xl">
+              <CardContent className="p-6 space-y-6">
+                <div className="space-y-4">
+                  <Label className="text-[10px] font-black text-slate-500 uppercase">Input Payload</Label>
+                  <div className="flex items-center space-x-4">
+                    <Button
+                      onClick={() => setDeliveryForm(prev => ({ ...prev, bags_delivered: Math.max(0, prev.bags_delivered - 1) }))}
+                      className="h-14 w-14 rounded-2xl bg-slate-800 text-2xl font-black text-white hover:bg-slate-700"
+                    >-</Button>
+                    <Input
+                      type="number"
+                      value={deliveryForm.bags_delivered}
+                      onChange={(e) => setDeliveryForm({ ...deliveryForm, bags_delivered: parseInt(e.target.value) })}
+                      className="h-14 text-center text-2xl font-black bg-transparent border-slate-800 text-white"
+                    />
+                    <Button
+                      onClick={() => setDeliveryForm(prev => ({ ...prev, bags_delivered: prev.bags_delivered + 1 }))}
+                      className="h-14 w-14 rounded-2xl bg-blue-600 text-2xl font-black text-white hover:bg-blue-500"
+                    >+</Button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <Button
+                    onClick={handleTakePhoto}
+                    className={`h-28 flex flex-col items-center justify-center space-y-2 rounded-2xl border-2 border-dashed ${deliveryForm.photoPreview ? 'border-blue-500 bg-blue-500/10' : 'border-slate-800 bg-slate-900'} transition-all`}
+                  >
+                    {deliveryForm.photoPreview ? (
+                      <img src={deliveryForm.photoPreview} className="h-full w-full object-cover rounded-2xl" alt="Proof" />
+                    ) : (
+                      <>
+                        <CameraIcon className="h-8 w-8 text-blue-500" />
+                        <span className="text-[10px] font-black text-slate-500 uppercase">Proof Photo</span>
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    onClick={() => setShowSignaturePad(true)}
+                    className={`h-28 flex flex-col items-center justify-center space-y-2 rounded-2xl border-2 border-dashed ${deliveryForm.signature ? 'border-blue-500 bg-blue-500/10' : 'border-slate-800 bg-slate-900'} transition-all`}
+                  >
+                    {deliveryForm.signature ? (
+                      <img src={deliveryForm.signature} className="h-full object-contain p-2" alt="Signature" />
+                    ) : (
+                      <>
+                        <PenTool className="h-8 w-8 text-blue-500" />
+                        <span className="text-[10px] font-black text-slate-500 uppercase">Signature</span>
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black text-slate-500 uppercase">Field Notes</Label>
+                  <Input
+                    placeholder="Condition of freezer, stock levels, etc..."
+                    value={deliveryForm.notes}
+                    onChange={(e) => setDeliveryForm({ ...deliveryForm, notes: e.target.value })}
+                    className="bg-slate-900 border-slate-800 text-white italic"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Button
+              onClick={handleComplete}
+              className="w-full h-16 bg-blue-600 hover:bg-blue-500 text-white rounded-3xl text-lg font-black italic uppercase tracking-widest shadow-2xl ice-glow"
+            >
+              TRANSMIT DELIVERY DATA
+            </Button>
+            <p className="text-center text-[10px] text-slate-500 font-bold uppercase tracking-widest">Digital Satellite Uplink Active</p>
+          </div>
+        )}
+      </div>
+
+      {showSignaturePad && (
+        <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
+          <SignaturePad
+            onSave={(sig) => {
+              setDeliveryForm({ ...deliveryForm, signature: sig });
+              setShowSignaturePad(false);
+            }}
+            onCancel={() => setShowSignaturePad(false)}
+          />
+        </div>
       )}
     </div>
   );

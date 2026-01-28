@@ -1,14 +1,14 @@
-# Privacy Policy - Arctic Ice Solutions Mobile Apps
+# Privacy Policy - Your Choice Ice Mobile Apps
 
-**Effective Date**: August 12, 2025  
-**Last Updated**: August 12, 2025
+**Effective Date**: January 27, 2026  
+**Last Updated**: January 27, 2026
 
 ## Introduction
 
-Arctic Ice Solutions ("we," "our," or "us") operates mobile applications for ice delivery and field operations management. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our mobile applications:
+Your Choice Ice ("we," "our," or "us") operates mobile applications for ice delivery and field operations management. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our mobile applications:
 
-- **Arctic Ice Customer App** (`com.arcticeicesolutions.customer`)
-- **Arctic Ice Staff App** (`com.arcticeicesolutions.staff`)
+- **Your Choice Ice** (`com.yourchoiceice.customer`)
+- **Your Choice Ice Staff** (`com.yourchoiceice.staff`)
 
 ## Information We Collect
 
@@ -113,7 +113,7 @@ We implement comprehensive security measures to protect your information:
 - Location tracking data retained for route optimization (30 days)
 - Performance data retained for business analysis (3 years)
 
-### Data Deletion
+## Data Deletion
 - Account closure: Personal data deleted within 30 days
 - Employment termination: Staff data archived per company policy
 - User request: Data deletion processed within 30 days
@@ -158,12 +158,12 @@ We may update this Privacy Policy from time to time to reflect changes in our pr
 
 If you have questions, concerns, or requests regarding this Privacy Policy or our data practices, please contact us:
 
-**Arctic Ice Solutions**  
+**Your Choice Ice**  
 **Privacy Officer**  
-Email: privacy@arcticicesolutions.com  
+Email: privacy@yourchoiceice.com  
 Phone: [Company Phone Number]  
 Address: [Company Address]  
-Website: https://arcticicesolutions.com
+Website: https://yourchoiceice.com
 
 **Response Time**: We will respond to privacy inquiries within 30 days of receipt.
 
@@ -178,9 +178,9 @@ This Privacy Policy is designed to comply with applicable privacy laws and regul
 
 ## Effective Date
 
-This Privacy Policy is effective as of August 12, 2025, and applies to all information collected by Arctic Ice Solutions mobile applications from this date forward.
+This Privacy Policy is effective as of January 27, 2026, and applies to all information collected by Your Choice Ice mobile applications from this date forward.
 
 ---
 
-**Arctic Ice Solutions - Comprehensive Ice Delivery and Field Operations Management**  
+**Your Choice Ice - Comprehensive Ice Delivery and Field Operations Management**  
 *Serving Louisiana and Texas with reliable ice delivery services*

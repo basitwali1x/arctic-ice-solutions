@@ -85,10 +85,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (response.ok) {
         const data = await response.json();
         const authToken = data.access_token;
-        
+
         localStorage.setItem('token', authToken);
         setToken(authToken);
-        
+
         await fetchCurrentUser(authToken);
         return true;
       } else {
@@ -114,5 +114,5 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isLoading,
   }), [user, token, isLoading]);
 
-  return <AuthContext.Provider value={value}>{!isLoading && children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

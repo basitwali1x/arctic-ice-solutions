@@ -236,6 +236,7 @@ export interface CustomerOrder {
   paymentMethod?: 'cash' | 'check' | 'credit' | 'account';
   paymentStatus: 'pending' | 'paid' | 'overdue';
   invoiceNumber?: string;
+  notes?: string;
   trackingInfo?: {
     driverName: string;
     vehicleId: string;
@@ -245,7 +246,11 @@ export interface CustomerOrder {
       lng: number;
       timestamp: string;
     };
+    photo_url?: string;
+    signature_url?: string;
   };
+  photo_url?: string;
+  signature_url?: string;
 }
 
 export interface CustomerFeedback {

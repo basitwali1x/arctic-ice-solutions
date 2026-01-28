@@ -1,6 +1,10 @@
 import { buildAPIUrl } from '../utils/urlUtils';
 
+<<<<<<< HEAD
 export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+=======
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://api.yourchoiceice.com';
+>>>>>>> e2dbfe7 (Rebranding to Your Choice Ice and fixing Android deployment configurations)
 
 export const RouteService = {
   async optimizeRoute(locationId: string): Promise<any> {
@@ -12,11 +16,11 @@ export const RouteService = {
       },
       credentials: 'include'
     });
-    
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    
+
     return await response.json();
   },
 
@@ -27,11 +31,11 @@ export const RouteService = {
       },
       credentials: 'include'
     });
-    
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    
+
     return await response.json();
   },
 
@@ -45,11 +49,11 @@ export const RouteService = {
       body: JSON.stringify(locationData),
       credentials: 'include'
     });
-    
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    
+
     return await response.json();
   },
 

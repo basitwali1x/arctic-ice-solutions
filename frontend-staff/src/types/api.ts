@@ -62,7 +62,15 @@ export interface DashboardOverview {
   total_customers: number;
   total_vehicles: number;
   total_orders_today: number;
-  locations: number;
+  total_revenue: number;
+  revenue_today: number;
+  revenue_target: number;
+  active_drivers: number;
+  total_drivers: number;
+  alerts_count: number;
+  missed_stops: number;
+  red_flag: boolean;
+  health_score: number;
   active_routes: number;
 }
 
@@ -230,8 +238,13 @@ export interface CustomerOrder {
       lat: number;
       lng: number;
       timestamp: string;
+      photo_url?: string;
+      signature_url?: string;
     };
   };
+  photo_url?: string;
+  signature_url?: string;
+  notes?: string;
 }
 
 export interface CustomerFeedback {

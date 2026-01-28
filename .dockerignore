@@ -1,0 +1,8 @@
+**/node_modules
+**/__pycache__
+*.pyc
+.git
+.env
+frontend/node_modules
+# Do NOT ignore frontend/dist, we need it for the build
+!frontend/dist

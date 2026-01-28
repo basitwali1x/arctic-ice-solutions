@@ -23,7 +23,7 @@ function MobileApp() {
       try {
         await initializeCapacitor();
         await initializePushNotifications();
-        
+
         const position = await getCurrentPosition();
         setCurrentLocation({
           lat: position.coords.latitude,
@@ -55,7 +55,7 @@ function MobileApp() {
 
   const getRoleBasedRoutes = () => {
     const userRole = user?.role?.toLowerCase();
-    
+
     if (!['manager', 'dispatcher', 'driver', 'technician'].includes(userRole)) {
       return (
         <Routes>
@@ -63,28 +63,28 @@ function MobileApp() {
         </Routes>
       );
     }
-    
+
     return (
       <Routes>
         <Route path="/" element={<Navigate to="/mobile/dashboard" replace />} />
         <Route path="/dashboard" element={<MobileDashboard />} />
-        
+
         {(userRole === 'technician' || userRole === 'manager') && (
           <Route path="/work-orders" element={<MobileWorkOrders />} />
         )}
-        
+
         {(userRole === 'driver' || userRole === 'dispatcher' || userRole === 'manager') && (
           <Route path="/routes" element={<MobileRoutes />} />
         )}
-        
+
         {(userRole === 'driver' || userRole === 'manager') && (
           <Route path="/driver" element={<MobileDriver />} />
         )}
-        
+
         {(userRole === 'driver' || userRole === 'technician' || userRole === 'manager') && (
           <Route path="/inspection" element={<MobileInspection />} />
         )}
-        
+
         <Route path="/settings" element={<MobileSettings />} />
         <Route path="/profile" element={<MobileProfile />} />
       </Routes>
@@ -92,7 +92,7 @@ function MobileApp() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col h-screen bg-[#020617]">
       <MobileHeader currentUser={currentUser} />
       <main className="flex-1 overflow-y-auto pb-16">
         {getRoleBasedRoutes()}

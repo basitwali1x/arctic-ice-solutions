@@ -7,16 +7,17 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Users, Search, Plus, RefreshCw, MapPin, Phone, Mail, AlertCircle, Star, MessageSquare, DollarSign, FileText, Edit, Save, X, Upload } from 'lucide-react';
-import { Customer, Location, CustomerPricingDisplay } from '../types/api';
+import { Customer, Location, CustomerPricingDisplay, CustomerOrder } from '../types/api';
 import { apiRequest } from '../utils/api';
 import { useErrorToast } from '../hooks/useErrorToast';
 import { useAuth } from '../contexts/AuthContext';
+import { API_BASE_URL } from '../lib/constants';
 
 
 export function CustomerManagement() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
-  const [customersByLocationData, setCustomersByLocationData] = useState<Array<{location_id: string, location_name: string, customer_count: number}>>([]);
+  const [customersByLocationData, setCustomersByLocationData] = useState<Array<{ location_id: string, location_name: string, customer_count: number }>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -29,7 +30,7 @@ export function CustomerManagement() {
   const [sheetsUrl, setSheetsUrl] = useState('');
   const [selectedLocationId, setSelectedLocationId] = useState('');
   const [importing, setImporting] = useState(false);
-  const [importResult, setImportResult] = useState<{message: string; customers_imported?: number; total_records?: number} | null>(null);
+  const [importResult, setImportResult] = useState<{ message: string; customers_imported?: number; total_records?: number } | null>(null);
   const [newCustomer, setNewCustomer] = useState({
     name: '',
     contact_person: '',
@@ -43,9 +44,11 @@ export function CustomerManagement() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [customerPricing, setCustomerPricing] = useState<CustomerPricingDisplay[]>([]);
+  const [customerOrders, setCustomerOrders] = useState<CustomerOrder[]>([]);
   const [editingPricing, setEditingPricing] = useState(false);
   const [pricingChanges, setPricingChanges] = useState<Record<string, number>>({});
   const [savingPricing, setSavingPricing] = useState(false);
+  const [loadingOrders, setLoadingOrders] = useState(false);
   const { showError } = useErrorToast();
   const { user } = useAuth();
 
@@ -53,7 +56,7 @@ export function CustomerManagement() {
     try {
       setLoading(true);
       setError(null);
-      
+
       const [customersRes, locationsRes, customersByLocationRes] = await Promise.all([
         apiRequest('/api/customers'),
         apiRequest('/api/locations'),
@@ -81,17 +84,17 @@ export function CustomerManagement() {
 
   const handleAddCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!newCustomer.name || !newCustomer.contact_person || !newCustomer.phone || 
-        !newCustomer.address || !newCustomer.city || !newCustomer.state || 
-        !newCustomer.zip_code || !newCustomer.location_id) {
+
+    if (!newCustomer.name || !newCustomer.contact_person || !newCustomer.phone ||
+      !newCustomer.address || !newCustomer.city || !newCustomer.state ||
+      !newCustomer.zip_code || !newCustomer.location_id) {
       showError(new Error('Please fill in all required fields'), 'Missing required fields');
       return;
     }
 
     try {
       setSubmitting(true);
-      
+
       const customerData = {
         id: crypto.randomUUID(),
         ...newCustomer,
@@ -166,6 +169,21 @@ export function CustomerManagement() {
     }
   };
 
+  const fetchCustomerOrders = async (customerId: string) => {
+    try {
+      setLoadingOrders(true);
+      const response = await apiRequest(`/api/customers/${customerId}/orders`);
+      if (response?.ok) {
+        const ordersData = await response.json();
+        setCustomerOrders(ordersData);
+      }
+    } catch (error) {
+      console.error('Failed to fetch customer orders:', error);
+    } finally {
+      setLoadingOrders(false);
+    }
+  };
+
   const handleEditPricing = () => {
     setEditingPricing(true);
     const changes: Record<string, number> = {};
@@ -195,10 +213,10 @@ export function CustomerManagement() {
 
   const handleSavePricing = async () => {
     if (!selectedCustomer) return;
-    
+
     try {
       setSavingPricing(true);
-      
+
       for (const [productId, price] of Object.entries(pricingChanges)) {
         await apiRequest(`/api/customers/${selectedCustomer.id}/pricing`, {
           method: 'POST',
@@ -212,7 +230,7 @@ export function CustomerManagement() {
         });
       }
 
-      const pricingToDelete = customerPricing.filter(pricing => 
+      const pricingToDelete = customerPricing.filter(pricing =>
         pricing.custom_price !== null && !pricingChanges[pricing.product_id]
       );
 
@@ -240,7 +258,7 @@ export function CustomerManagement() {
 
   const handleBulkImport = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!selectedLocationId) {
       showError(new Error('Please select a location'), 'Location required');
       return;
@@ -287,7 +305,7 @@ export function CustomerManagement() {
         const result = await response.json();
         setImportResult(result);
         await fetchData();
-        
+
         const summary = result.summary || {};
         let message = `Import successful!\n• ${summary.customers_imported || 0} customers imported\n• Location: ${summary.location_name || 'Unknown'}`;
         if (summary.duplicates_removed && summary.duplicates_removed > 0) {
@@ -499,12 +517,14 @@ export function CustomerManagement() {
                     <Badge variant={(customer.status === 'active' || customer.is_active) ? "default" : "secondary"}>
                       {(customer.status === 'active' || customer.is_active) ? "Active" : "Inactive"}
                     </Badge>
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       size="sm"
                       onClick={async () => {
                         setSelectedCustomer(customer);
                         setShowCustomerDetails(true);
+                        setCustomerOrders([]);
+                        await fetchCustomerOrders(customer.id);
                         if (isManager) {
                           await fetchCustomerPricing(customer.id);
                         }
@@ -521,507 +541,559 @@ export function CustomerManagement() {
       </Card>
 
       {/* Add Customer Modal */}
-      {showAddCustomerModal && (
-        <Dialog open={showAddCustomerModal} onOpenChange={setShowAddCustomerModal}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Add New Customer</DialogTitle>
-            </DialogHeader>
-            
-            <form onSubmit={handleAddCustomer} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="name">Company Name *</Label>
-                  <Input
-                    id="name"
-                    value={newCustomer.name}
-                    onChange={(e) => setNewCustomer({...newCustomer, name: e.target.value})}
-                    placeholder="Enter company name"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="contact_person">Contact Person *</Label>
-                  <Input
-                    id="contact_person"
-                    value={newCustomer.contact_person}
-                    onChange={(e) => setNewCustomer({...newCustomer, contact_person: e.target.value})}
-                    placeholder="Enter contact person name"
-                    required
-                  />
-                </div>
-              </div>
+      {
+        showAddCustomerModal && (
+          <Dialog open={showAddCustomerModal} onOpenChange={setShowAddCustomerModal}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Add New Customer</DialogTitle>
+              </DialogHeader>
 
-              <div className="grid grid-cols-2 gap-4">
+              <form onSubmit={handleAddCustomer} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="name">Company Name *</Label>
+                    <Input
+                      id="name"
+                      value={newCustomer.name}
+                      onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
+                      placeholder="Enter company name"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="contact_person">Contact Person *</Label>
+                    <Input
+                      id="contact_person"
+                      value={newCustomer.contact_person}
+                      onChange={(e) => setNewCustomer({ ...newCustomer, contact_person: e.target.value })}
+                      placeholder="Enter contact person name"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="phone">Phone *</Label>
+                    <Input
+                      id="phone"
+                      value={newCustomer.phone}
+                      onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })}
+                      placeholder="Enter phone number"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={newCustomer.email}
+                      onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })}
+                      placeholder="Enter email address"
+                    />
+                  </div>
+                </div>
+
                 <div>
-                  <Label htmlFor="phone">Phone *</Label>
+                  <Label htmlFor="address">Address *</Label>
                   <Input
-                    id="phone"
-                    value={newCustomer.phone}
-                    onChange={(e) => setNewCustomer({...newCustomer, phone: e.target.value})}
-                    placeholder="Enter phone number"
+                    id="address"
+                    value={newCustomer.address}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, address: e.target.value })}
+                    placeholder="Enter street address"
                     required
                   />
                 </div>
-                <div>
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={newCustomer.email}
-                    onChange={(e) => setNewCustomer({...newCustomer, email: e.target.value})}
-                    placeholder="Enter email address"
-                  />
-                </div>
-              </div>
 
-              <div>
-                <Label htmlFor="address">Address *</Label>
-                <Input
-                  id="address"
-                  value={newCustomer.address}
-                  onChange={(e) => setNewCustomer({...newCustomer, address: e.target.value})}
-                  placeholder="Enter street address"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <Label htmlFor="city">City *</Label>
-                  <Input
-                    id="city"
-                    value={newCustomer.city}
-                    onChange={(e) => setNewCustomer({...newCustomer, city: e.target.value})}
-                    placeholder="Enter city"
-                    required
-                  />
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="city">City *</Label>
+                    <Input
+                      id="city"
+                      value={newCustomer.city}
+                      onChange={(e) => setNewCustomer({ ...newCustomer, city: e.target.value })}
+                      placeholder="Enter city"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="state">State *</Label>
+                    <Input
+                      id="state"
+                      value={newCustomer.state}
+                      onChange={(e) => setNewCustomer({ ...newCustomer, state: e.target.value })}
+                      placeholder="Enter state"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="zip_code">ZIP Code *</Label>
+                    <Input
+                      id="zip_code"
+                      value={newCustomer.zip_code}
+                      onChange={(e) => setNewCustomer({ ...newCustomer, zip_code: e.target.value })}
+                      placeholder="Enter ZIP code"
+                      required
+                    />
+                  </div>
                 </div>
-                <div>
-                  <Label htmlFor="state">State *</Label>
-                  <Input
-                    id="state"
-                    value={newCustomer.state}
-                    onChange={(e) => setNewCustomer({...newCustomer, state: e.target.value})}
-                    placeholder="Enter state"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="zip_code">ZIP Code *</Label>
-                  <Input
-                    id="zip_code"
-                    value={newCustomer.zip_code}
-                    onChange={(e) => setNewCustomer({...newCustomer, zip_code: e.target.value})}
-                    placeholder="Enter ZIP code"
-                    required
-                  />
-                </div>
-              </div>
 
-              <div>
-                <Label htmlFor="location_id">Service Location *</Label>
-                <Select value={newCustomer.location_id} onValueChange={(value) => setNewCustomer({...newCustomer, location_id: value})}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a service location" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {locations.map((location) => (
-                      <SelectItem key={location.id} value={location.id}>
-                        {location.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                <div>
+                  <Label htmlFor="location_id">Service Location *</Label>
+                  <Select value={newCustomer.location_id} onValueChange={(value) => setNewCustomer({ ...newCustomer, location_id: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a service location" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {locations.map((location) => (
+                        <SelectItem key={location.id} value={location.id}>
+                          {location.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              <DialogFooter>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => setShowAddCustomerModal(false)}
-                  disabled={submitting}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={submitting}>
-                  {submitting ? 'Creating...' : 'Create Customer'}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-      )}
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowAddCustomerModal(false)}
+                    disabled={submitting}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={submitting}>
+                    {submitting ? 'Creating...' : 'Create Customer'}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        )
+      }
 
       {/* Bulk Import Modal */}
-      {showBulkImportModal && (
-        <Dialog open={showBulkImportModal} onOpenChange={setShowBulkImportModal}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Bulk Import Customers</DialogTitle>
-              <DialogDescription>
-                Import multiple customers from Excel files or Google Sheets
-              </DialogDescription>
-            </DialogHeader>
-            
-            <form onSubmit={handleBulkImport} className="space-y-4">
-              <div>
-                <Label htmlFor="location_id">Target Location *</Label>
-                <Select value={selectedLocationId} onValueChange={setSelectedLocationId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select location for imported customers" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {locations.map((location) => (
-                      <SelectItem key={location.id} value={location.id}>
-                        {location.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+      {
+        showBulkImportModal && (
+          <Dialog open={showBulkImportModal} onOpenChange={setShowBulkImportModal}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Bulk Import Customers</DialogTitle>
+                <DialogDescription>
+                  Import multiple customers from Excel files or Google Sheets
+                </DialogDescription>
+              </DialogHeader>
 
-              <div>
-                <Label>Import Type</Label>
-                <div className="flex space-x-4 mt-2">
-                  <label className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      value="excel"
-                      checked={importType === 'excel'}
-                      onChange={(e) => setImportType(e.target.value as 'excel')}
-                    />
-                    <span>Excel Files</span>
-                  </label>
-                  <label className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      value="google-sheets"
-                      checked={importType === 'google-sheets'}
-                      onChange={(e) => setImportType(e.target.value as 'google-sheets')}
-                    />
-                    <span>Google Sheets</span>
-                  </label>
-                </div>
-              </div>
-
-              {importType === 'excel' ? (
+              <form onSubmit={handleBulkImport} className="space-y-4">
                 <div>
-                  <Label htmlFor="files">Excel Files *</Label>
-                  <Input
-                    id="files"
-                    type="file"
-                    multiple
-                    accept=".xlsx,.xls,.xlsm"
-                    onChange={(e) => setImportFiles(e.target.files)}
-                    required
-                  />
-                  <p className="text-sm text-gray-600 mt-1">
-                    Select one or more Excel files containing customer data
-                  </p>
+                  <Label htmlFor="location_id">Target Location *</Label>
+                  <Select value={selectedLocationId} onValueChange={setSelectedLocationId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select location for imported customers" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {locations.map((location) => (
+                        <SelectItem key={location.id} value={location.id}>
+                          {location.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              ) : (
+
                 <div>
-                  <Label htmlFor="sheets_url">Google Sheets URL *</Label>
-                  <Input
-                    id="sheets_url"
-                    type="url"
-                    value={sheetsUrl}
-                    onChange={(e) => setSheetsUrl(e.target.value)}
-                    placeholder="https://docs.google.com/spreadsheets/d/..."
-                    required
-                  />
-                  <p className="text-sm text-gray-600 mt-1">
-                    Enter the URL of a Google Sheets document with customer data
-                  </p>
+                  <Label>Import Type</Label>
+                  <div className="flex space-x-4 mt-2">
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        value="excel"
+                        checked={importType === 'excel'}
+                        onChange={(e) => setImportType(e.target.value as 'excel')}
+                      />
+                      <span>Excel Files</span>
+                    </label>
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        value="google-sheets"
+                        checked={importType === 'google-sheets'}
+                        onChange={(e) => setImportType(e.target.value as 'google-sheets')}
+                      />
+                      <span>Google Sheets</span>
+                    </label>
+                  </div>
                 </div>
-              )}
 
-              {importResult && (
-                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <h4 className="font-medium text-green-800">Import Successful!</h4>
-                  <p className="text-sm text-green-700">
-                    Imported {importResult.customers_imported || 0} customers
-                  </p>
-                </div>
-              )}
+                {importType === 'excel' ? (
+                  <div>
+                    <Label htmlFor="files">Excel Files *</Label>
+                    <Input
+                      id="files"
+                      type="file"
+                      multiple
+                      accept=".xlsx,.xls,.xlsm"
+                      onChange={(e) => setImportFiles(e.target.files)}
+                      required
+                    />
+                    <p className="text-sm text-gray-600 mt-1">
+                      Select one or more Excel files containing customer data
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <Label htmlFor="sheets_url">Google Sheets URL *</Label>
+                    <Input
+                      id="sheets_url"
+                      type="url"
+                      value={sheetsUrl}
+                      onChange={(e) => setSheetsUrl(e.target.value)}
+                      placeholder="https://docs.google.com/spreadsheets/d/..."
+                      required
+                    />
+                    <p className="text-sm text-gray-600 mt-1">
+                      Enter the URL of a Google Sheets document with customer data
+                    </p>
+                  </div>
+                )}
 
-              <DialogFooter>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={resetBulkImportModal}
-                  disabled={importing}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={importing}>
-                  {importing ? 'Importing...' : 'Import Customers'}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-      )}
+                {importResult && (
+                  <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <h4 className="font-medium text-green-800">Import Successful!</h4>
+                    <p className="text-sm text-green-700">
+                      Imported {importResult.customers_imported || 0} customers
+                    </p>
+                  </div>
+                )}
+
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={resetBulkImportModal}
+                    disabled={importing}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={importing}>
+                    {importing ? 'Importing...' : 'Import Customers'}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        )
+      }
 
       {/* Customer Details Modal */}
-      {showCustomerDetails && selectedCustomer && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="text-xl font-semibold">{selectedCustomer.name}</h3>
-                  <p className="text-gray-600">{selectedCustomer.contact_person}</p>
+      {
+        showCustomerDetails && selectedCustomer && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6 border-b">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="text-xl font-semibold">{selectedCustomer.name}</h3>
+                    <p className="text-gray-600">{selectedCustomer.contact_person}</p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowCustomerDetails(false);
+                      setSelectedCustomer(null);
+                      setCustomerPricing([]);
+                      setCustomerOrders([]);
+                      setEditingPricing(false);
+                      setPricingChanges({});
+                    }}
+                  >
+                    Close
+                  </Button>
                 </div>
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    setShowCustomerDetails(false);
-                    setSelectedCustomer(null);
-                    setCustomerPricing([]);
-                    setEditingPricing(false);
-                    setPricingChanges({});
-                  }}
-                >
-                  Close
-                </Button>
               </div>
-            </div>
-            
-            <div className="p-6 space-y-6">
-              {/* Customer Info */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Users className="w-5 h-5 mr-2" />
-                    Customer Information
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-600">Phone</label>
-                      <p className="flex items-center">
-                        <Phone className="w-4 h-4 mr-2 text-gray-400" />
-                        {selectedCustomer.phone}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-600">Email</label>
-                      <p className="flex items-center">
-                        <Mail className="w-4 h-4 mr-2 text-gray-400" />
-                        {selectedCustomer.email || 'Not provided'}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-600">Address</label>
-                      <p className="flex items-center">
-                        <MapPin className="w-4 h-4 mr-2 text-gray-400" />
-                        {selectedCustomer.address}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-600">Location</label>
-                      <p>{getLocationName(selectedCustomer.location_id)}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-3 gap-4 pt-4 border-t">
-                    <div className="text-center">
-                      <p className="text-2xl font-bold text-blue-600">${(selectedCustomer.credit_limit || 5000).toLocaleString()}</p>
-                      <p className="text-sm text-gray-600">Credit Limit</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-2xl font-bold text-green-600">{selectedCustomer.payment_terms || 30} days</p>
-                      <p className="text-sm text-gray-600">Payment Terms</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-2xl font-bold text-purple-600">${(selectedCustomer.total_spent || 0).toLocaleString()}</p>
-                      <p className="text-sm text-gray-600">Total Spent</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
 
-              {/* Custom Pricing - Only for Managers */}
-              {isManager && (
+              <div className="p-6 space-y-6">
+                {/* Customer Info */}
                 <Card>
                   <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="flex items-center">
-                        <DollarSign className="w-5 h-5 mr-2" />
-                        Custom Pricing
-                      </CardTitle>
-                      {!editingPricing ? (
-                        <Button variant="outline" size="sm" onClick={handleEditPricing}>
-                          <Edit className="w-4 h-4 mr-2" />
-                          Edit Prices
-                        </Button>
-                      ) : (
-                        <div className="flex space-x-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={handleCancelPricing}
-                            disabled={savingPricing}
-                          >
-                            <X className="w-4 h-4 mr-2" />
-                            Cancel
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            onClick={handleSavePricing}
-                            disabled={savingPricing}
-                          >
-                            <Save className="w-4 h-4 mr-2" />
-                            {savingPricing ? 'Saving...' : 'Save'}
-                          </Button>
-                        </div>
-                      )}
+                    <CardTitle className="flex items-center">
+                      <Users className="w-5 h-5 mr-2" />
+                      Customer Information
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium text-gray-600">Phone</label>
+                        <p className="flex items-center">
+                          <Phone className="w-4 h-4 mr-2 text-gray-400" />
+                          {selectedCustomer.phone}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-600">Email</label>
+                        <p className="flex items-center">
+                          <Mail className="w-4 h-4 mr-2 text-gray-400" />
+                          {selectedCustomer.email || 'Not provided'}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-600">Address</label>
+                        <p className="flex items-center">
+                          <MapPin className="w-4 h-4 mr-2 text-gray-400" />
+                          {selectedCustomer.address}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-600">Location</label>
+                        <p>{getLocationName(selectedCustomer.location_id)}</p>
+                      </div>
                     </div>
+
+                    <div className="grid grid-cols-3 gap-4 pt-4 border-t">
+                      <div className="text-center">
+                        <p className="text-2xl font-bold text-blue-600">${(selectedCustomer.credit_limit || 5000).toLocaleString()}</p>
+                        <p className="text-sm text-gray-600">Credit Limit</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-2xl font-bold text-green-600">{selectedCustomer.payment_terms || 30} days</p>
+                        <p className="text-sm text-gray-600">Payment Terms</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-2xl font-bold text-purple-600">${(selectedCustomer.total_spent || 0).toLocaleString()}</p>
+                        <p className="text-sm text-gray-600">Total Spent</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Custom Pricing - Only for Managers */}
+                {isManager && (
+                  <Card>
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="flex items-center">
+                          <DollarSign className="w-5 h-5 mr-2" />
+                          Custom Pricing
+                        </CardTitle>
+                        {!editingPricing ? (
+                          <Button variant="outline" size="sm" onClick={handleEditPricing}>
+                            <Edit className="w-4 h-4 mr-2" />
+                            Edit Prices
+                          </Button>
+                        ) : (
+                          <div className="flex space-x-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={handleCancelPricing}
+                              disabled={savingPricing}
+                            >
+                              <X className="w-4 h-4 mr-2" />
+                              Cancel
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={handleSavePricing}
+                              disabled={savingPricing}
+                            >
+                              <Save className="w-4 h-4 mr-2" />
+                              {savingPricing ? 'Saving...' : 'Save'}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {customerPricing.map((pricing) => (
+                          <div key={pricing.product_id} className="flex items-center justify-between p-3 border rounded-lg">
+                            <div>
+                              <p className="font-medium">{pricing.product_name}</p>
+                              <p className="text-sm text-gray-600">
+                                Default: ${pricing.default_price.toFixed(2)}
+                              </p>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              {editingPricing ? (
+                                <div className="flex items-center space-x-2">
+                                  <span className="text-sm text-gray-600">$</span>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    className="w-20"
+                                    value={pricingChanges[pricing.product_id] ?? ''}
+                                    onChange={(e) => handlePricingChange(pricing.product_id, e.target.value)}
+                                    placeholder={pricing.default_price.toFixed(2)}
+                                  />
+                                </div>
+                              ) : (
+                                <div className="text-right">
+                                  <p className="font-medium">
+                                    ${(pricing.custom_price ?? pricing.default_price).toFixed(2)}
+                                  </p>
+                                  {pricing.custom_price !== null && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      Custom
+                                    </Badge>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                        {customerPricing.length === 0 && (
+                          <div className="text-center py-4 text-gray-500">
+                            Loading pricing information...
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Recent Orders */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <FileText className="w-5 h-5 mr-2" />
+                      Recent Orders
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">
-                      {customerPricing.map((pricing) => (
-                        <div key={pricing.product_id} className="flex items-center justify-between p-3 border rounded-lg">
-                          <div>
-                            <p className="font-medium">{pricing.product_name}</p>
-                            <p className="text-sm text-gray-600">
-                              Default: ${pricing.default_price.toFixed(2)}
-                            </p>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            {editingPricing ? (
-                              <div className="flex items-center space-x-2">
-                                <span className="text-sm text-gray-600">$</span>
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  className="w-20"
-                                  value={pricingChanges[pricing.product_id] ?? ''}
-                                  onChange={(e) => handlePricingChange(pricing.product_id, e.target.value)}
-                                  placeholder={pricing.default_price.toFixed(2)}
-                                />
-                              </div>
-                            ) : (
-                              <div className="text-right">
-                                <p className="font-medium">
-                                  ${(pricing.custom_price ?? pricing.default_price).toFixed(2)}
+                    <div className="space-y-3">
+                      {loadingOrders ? (
+                        <div className="text-center py-4 text-gray-500">Loading orders...</div>
+                      ) : customerOrders.length === 0 ? (
+                        <div className="text-center py-4 text-gray-500">No orders found.</div>
+                      ) : (
+                        customerOrders.map((order) => (
+                          <div key={order.id} className="p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                            <div className="flex justify-between items-start mb-2">
+                              <div>
+                                <p className="font-medium">Order #{order.id.slice(0, 8).toUpperCase()}</p>
+                                <p className="text-sm text-gray-600">
+                                  {new Date(order.orderDate).toLocaleDateString()}
                                 </p>
-                                {pricing.custom_price !== null && (
-                                  <Badge variant="secondary" className="text-xs">
-                                    Custom
-                                  </Badge>
+                              </div>
+                              <div className="text-right">
+                                <p className="font-bold text-lg">${order.totalAmount?.toLocaleString()}</p>
+                                <Badge variant={order.status === 'delivered' ? 'default' : 'secondary'}>
+                                  {order.status}
+                                </Badge>
+                              </div>
+                            </div>
+
+                            {(order.photo_url || order.signature_url) && (
+                              <div className="mt-3 pt-3 border-t flex space-x-3">
+                                {order.photo_url && (
+                                  <a
+                                    href={`${API_BASE_URL}${order.photo_url}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center text-xs text-blue-600 hover:text-blue-800"
+                                  >
+                                    <Star className="w-3 h-3 mr-1" />
+                                    View Delivery Photo
+                                  </a>
+                                )}
+                                {order.signature_url && (
+                                  <a
+                                    href={`${API_BASE_URL}${order.signature_url}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center text-xs text-blue-600 hover:text-blue-800"
+                                  >
+                                    <FileText className="w-3 h-3 mr-1" />
+                                    View Signature
+                                  </a>
                                 )}
                               </div>
                             )}
+
+                            {order.notes && (
+                              <p className="mt-2 text-xs text-gray-500 italic">
+                                Note: {order.notes}
+                              </p>
+                            )}
                           </div>
-                        </div>
-                      ))}
-                      {customerPricing.length === 0 && (
-                        <div className="text-center py-4 text-gray-500">
-                          Loading pricing information...
-                        </div>
+                        ))
                       )}
                     </div>
                   </CardContent>
                 </Card>
-              )}
 
-              {/* Recent Orders */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <FileText className="w-5 h-5 mr-2" />
-                    Recent Orders
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {[1, 2, 3].map((order) => (
-                      <div key={order} className="flex justify-between items-center p-3 border rounded-lg">
-                        <div>
-                          <p className="font-medium">Order #ORD-2025-00{order}</p>
-                          <p className="text-sm text-gray-600">January {20 + order}, 2025</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-medium">${(1200 + order * 100).toFixed(2)}</p>
-                          <Badge variant="default">Delivered</Badge>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Customer Feedback */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <MessageSquare className="w-5 h-5 mr-2" />
-                    Customer Feedback
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {[
-                      { rating: 5, subject: 'Excellent Service', message: 'Always on time and professional drivers.' },
-                      { rating: 4, subject: 'Good Quality', message: 'Ice quality is consistently good.' }
-                    ].map((feedback, index) => (
-                      <div key={index} className="p-3 border rounded-lg">
-                        <div className="flex justify-between items-start mb-2">
-                          <div className="flex items-center space-x-1">
-                            {[1, 2, 3, 4, 5].map((star) => (
-                              <Star
-                                key={star}
-                                className={`w-4 h-4 ${star <= feedback.rating ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
-                              />
-                            ))}
+                {/* Customer Feedback */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <MessageSquare className="w-5 h-5 mr-2" />
+                      Customer Feedback
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {[
+                        { rating: 5, subject: 'Excellent Service', message: 'Always on time and professional drivers.' },
+                        { rating: 4, subject: 'Good Quality', message: 'Ice quality is consistently good.' }
+                      ].map((feedback, index) => (
+                        <div key={index} className="p-3 border rounded-lg">
+                          <div className="flex justify-between items-start mb-2">
+                            <div className="flex items-center space-x-1">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <Star
+                                  key={star}
+                                  className={`w-4 h-4 ${star <= feedback.rating ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
+                                />
+                              ))}
+                            </div>
+                            <span className="text-xs text-gray-500">2 days ago</span>
                           </div>
-                          <span className="text-xs text-gray-500">2 days ago</span>
+                          <h4 className="font-medium">{feedback.subject}</h4>
+                          <p className="text-sm text-gray-600">{feedback.message}</p>
                         </div>
-                        <h4 className="font-medium">{feedback.subject}</h4>
-                        <p className="text-sm text-gray-600">{feedback.message}</p>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
 
-              {/* Payment History */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <DollarSign className="w-5 h-5 mr-2" />
-                    Payment History
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {[
-                      { date: 'Jan 20, 2025', amount: 1200, method: 'Credit Card', status: 'Completed' },
-                      { date: 'Jan 15, 2025', amount: 850, method: 'Check', status: 'Completed' },
-                      { date: 'Jan 10, 2025', amount: 1500, method: 'Account', status: 'Pending' }
-                    ].map((payment, index) => (
-                      <div key={index} className="flex justify-between items-center p-3 border rounded-lg">
-                        <div>
-                          <p className="font-medium">${payment.amount.toFixed(2)}</p>
-                          <p className="text-sm text-gray-600">{payment.date} • {payment.method}</p>
+                {/* Payment History */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <DollarSign className="w-5 h-5 mr-2" />
+                      Payment History
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {[
+                        { date: 'Jan 20, 2025', amount: 1200, method: 'Credit Card', status: 'Completed' },
+                        { date: 'Jan 15, 2025', amount: 850, method: 'Check', status: 'Completed' },
+                        { date: 'Jan 10, 2025', amount: 1500, method: 'Account', status: 'Pending' }
+                      ].map((payment, index) => (
+                        <div key={index} className="flex justify-between items-center p-3 border rounded-lg">
+                          <div>
+                            <p className="font-medium">${payment.amount.toFixed(2)}</p>
+                            <p className="text-sm text-gray-600">{payment.date} • {payment.method}</p>
+                          </div>
+                          <Badge variant={payment.status === 'Completed' ? 'default' : 'secondary'}>
+                            {payment.status}
+                          </Badge>
                         </div>
-                        <Badge variant={payment.status === 'Completed' ? 'default' : 'secondary'}>
-                          {payment.status}
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
     </div>
   );
 }

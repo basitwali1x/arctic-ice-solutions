@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Your Choice Ice</string>
-    <string name="title_activity_main">Your Choice Ice</string>
+    <string name="app_name">Your Choice Ice Customer</string>
+    <string name="title_activity_main">Your Choice Ice Customer</string>
     <string name="package_name">com.yourchoiceice.customer</string>
     <string name="custom_url_scheme">com.yourchoiceice.customer</string>
 </resources>

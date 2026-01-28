@@ -43,7 +43,7 @@ const config: CapacitorConfig = {
     }
   },
   ios: {
-    scheme: 'Arctic Ice Customer'
+    scheme: 'Your Choice Ice Customer'
   },
   android: {
     allowMixedContent: true

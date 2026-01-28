@@ -43,7 +43,7 @@ const config: CapacitorConfig = {
     }
   },
   ios: {
-    scheme: 'Arctic Ice Staff'
+    scheme: 'Your Choice Ice Staff'
   },
   android: {
     allowMixedContent: true

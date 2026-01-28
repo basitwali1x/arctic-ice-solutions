@@ -188,8 +188,8 @@ export function MobileSettings() {
           </div>
           <div>
             <Label htmlFor="default-printer">Default Printer</Label>
-            <Select 
-              value={settings.printer.default_printer} 
+            <Select
+              value={settings.printer.default_printer}
               onValueChange={(value) => updateSetting('printer', 'default_printer', value)}
             >
               <SelectTrigger>
@@ -226,8 +226,8 @@ export function MobileSettings() {
         <CardContent className="space-y-4">
           <div>
             <Label htmlFor="theme">Theme</Label>
-            <Select 
-              value={settings.app.theme} 
+            <Select
+              value={settings.app.theme}
               onValueChange={(value) => updateSetting('app', 'theme', value)}
             >
               <SelectTrigger>
@@ -242,8 +242,8 @@ export function MobileSettings() {
           </div>
           <div>
             <Label htmlFor="language">Language</Label>
-            <Select 
-              value={settings.app.language} 
+            <Select
+              value={settings.app.language}
               onValueChange={(value) => updateSetting('app', 'language', value)}
             >
               <SelectTrigger>
@@ -347,7 +347,7 @@ export function MobileSettings() {
       </Card>
 
       <div className="text-center text-xs text-gray-500 pt-4">
-        Arctic Ice Solutions Mobile App v1.0
+        Your Choice Ice Mobile App v1.0.3
       </div>
     </div>
   );

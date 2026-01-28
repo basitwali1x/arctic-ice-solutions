@@ -18,12 +18,7 @@ export function MobileNavigation() {
     { path: '/mobile/profile', icon: User, label: 'USER', roles: ['manager', 'dispatcher', 'driver', 'technician'] },
   ];
 
-  const getVisibleNavItems = () => {
-    const userRole = user?.role?.toLowerCase();
-    if (!userRole) return allNavItems;
 
-    return allNavItems.filter(item => item.roles.includes(item.roles.includes('all') ? 'all' : userRole));
-  };
 
   // Simplified filter for safety
   const navItems = allNavItems.filter(item =>

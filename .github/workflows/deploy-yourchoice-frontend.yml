@@ -1,0 +1,56 @@
+name: Deploy YourChoice Frontend (Customer)
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'frontend-customer/**'
+  workflow_dispatch:
+
+jobs:
+  deploy-yourchoice-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Project Identity Guard
+        working-directory: frontend-customer
+        run: |
+          if ! grep -q '"name": "yourchoice-customer"' package.json; then
+            echo "Error: Wrong project identity! Expected yourchoice-customer"
+            exit 1
+          fi
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+          
+      - name: Build YourChoice Frontend
+        working-directory: frontend-customer
+        env:
+          VITE_API_URL: https://api.yourchoiceice.com
+          VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.YOURCHOICE_GOOGLE_MAPS_API_KEY }}
+        run: |
+          pnpm install
+          pnpm build
+          
+      - name: Verify Build
+        working-directory: frontend-customer
+        run: |
+          if [ ! -d "dist" ]; then
+            echo "Error: dist directory not found"
+            exit 1
+          fi
+          
+      - name: Deploy to Devin Apps Platform
+        run: |
+          echo "Deploying YourChoice/Customer frontend..."
+          echo "Target Domain: yourchoiceice.com"
+          echo "App ID: ice-management-app-4r16aafs"
+          echo "Build Artifacts: frontend-customer/dist"

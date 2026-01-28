@@ -99,16 +99,16 @@ export function MobileProfile() {
       </Card>
 
       <div className="space-y-2">
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           className="w-full justify-start"
           onClick={() => navigate('/mobile/settings')}
         >
           <Settings className="h-4 w-4 mr-2" />
           Settings
         </Button>
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           className="w-full justify-start text-red-600 border-red-200 hover:bg-red-50"
           onClick={logout}
         >
@@ -118,7 +118,7 @@ export function MobileProfile() {
       </div>
 
       <div className="text-center text-xs text-gray-500 pt-4">
-        Arctic Ice Solutions Mobile App v1.0
+        Your Choice Ice Mobile App v1.0.3
       </div>
     </div>
   );

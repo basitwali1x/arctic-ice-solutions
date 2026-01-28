@@ -228,8 +228,8 @@ export function Settings() {
             <Save className="h-4 w-4 mr-2" />
             Save Changes
           </Button>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={logout}
             className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
           >
@@ -249,7 +249,7 @@ export function Settings() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="company-name">Company Name</Label>
-              <Input id="company-name" defaultValue="Arctic Ice Solutions" autoComplete="organization" />
+              <Input id="company-name" defaultValue="Your Choice Ice" autoComplete="organization" />
             </div>
             <div>
               <Label htmlFor="company-phone">Phone Number</Label>
@@ -278,11 +278,10 @@ export function Settings() {
             {locations.map((location) => (
               <div key={location.id} className="flex items-center justify-between p-4 border rounded-lg">
                 <div className="flex items-center space-x-3">
-                  <MapPin className={`h-5 w-5 ${
-                    location.location_type === 'headquarters' ? 'text-blue-600' :
-                    location.location_type === 'distribution' ? 'text-green-600' :
-                    location.location_type === 'warehouse' ? 'text-gray-600' : 'text-yellow-600'
-                  }`} />
+                  <MapPin className={`h-5 w-5 ${location.location_type === 'headquarters' ? 'text-blue-600' :
+                      location.location_type === 'distribution' ? 'text-green-600' :
+                        location.location_type === 'warehouse' ? 'text-gray-600' : 'text-yellow-600'
+                    }`} />
                   <div>
                     <p className="font-medium">{location.name}</p>
                     <p className="text-sm text-gray-600">{location.address}, {location.city}, {location.state} {location.zip_code}</p>
@@ -291,7 +290,7 @@ export function Settings() {
                 <div className="flex items-center space-x-2">
                   <Badge variant={
                     location.location_type === 'headquarters' ? 'default' :
-                    location.location_type === 'distribution' ? 'secondary' : 'outline'
+                      location.location_type === 'distribution' ? 'secondary' : 'outline'
                   }>
                     {location.location_type.charAt(0).toUpperCase() + location.location_type.slice(1)}
                   </Badge>
@@ -408,8 +407,8 @@ export function Settings() {
                 <p className="font-medium">Sign Out</p>
                 <p className="text-sm text-gray-600">End your current session and return to login</p>
               </div>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={logout}
                 className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
               >
@@ -429,14 +428,14 @@ export function Settings() {
               Manage {selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1)}s
             </DialogTitle>
           </DialogHeader>
-          
+
           <div className="space-y-6">
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
                 {error}
               </div>
             )}
-            
+
             {/* User List */}
             <div className="space-y-4">
               <div className="flex justify-between items-center">
@@ -450,7 +449,7 @@ export function Settings() {
                   Add New User
                 </Button>
               </div>
-              
+
               <div className="space-y-2">
                 {filteredUsers.map(user => (
                   <div key={user.id} className="flex items-center justify-between p-3 border rounded-lg">
@@ -476,14 +475,14 @@ export function Settings() {
                 ))}
               </div>
             </div>
-            
+
             {/* User Form */}
             {(editingUser || !editingUser) && (
               <div className="border-t pt-6">
                 <h3 className="text-lg font-semibold mb-4">
                   {editingUser ? 'Edit User' : 'Add New User'}
                 </h3>
-                
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="username">Username</Label>
@@ -494,7 +493,7 @@ export function Settings() {
                       placeholder="Enter username"
                     />
                   </div>
-                  
+
                   <div>
                     <Label htmlFor="email">Email</Label>
                     <Input
@@ -505,7 +504,7 @@ export function Settings() {
                       placeholder="Enter email"
                     />
                   </div>
-                  
+
                   <div>
                     <Label htmlFor="full_name">Full Name</Label>
                     <Input
@@ -515,7 +514,7 @@ export function Settings() {
                       placeholder="Enter full name"
                     />
                   </div>
-                  
+
                   <div>
                     <Label htmlFor="location">Location</Label>
                     <Select value={formData.location_id} onValueChange={(value) => setFormData(prev => ({ ...prev, location_id: value }))}>
@@ -531,7 +530,7 @@ export function Settings() {
                       </SelectContent>
                     </Select>
                   </div>
-                  
+
                   <div>
                     <Label htmlFor="password">Password {editingUser && '(leave blank to keep current)'}</Label>
                     <Input
@@ -542,7 +541,7 @@ export function Settings() {
                       placeholder={editingUser ? "Leave blank to keep current" : "Enter password"}
                     />
                   </div>
-                  
+
                   <div className="flex items-center space-x-2">
                     <input
                       type="checkbox"
@@ -556,13 +555,13 @@ export function Settings() {
               </div>
             )}
           </div>
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowUserModal(false)}>
               Cancel
             </Button>
             {(editingUser || !editingUser) && (
-              <Button 
+              <Button
                 onClick={editingUser ? handleUpdateUser : handleCreateUser}
                 disabled={loading}
               >
@@ -579,14 +578,14 @@ export function Settings() {
           <DialogHeader>
             <DialogTitle>Edit Location</DialogTitle>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
                 {error}
               </div>
             )}
-            
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="location-name">Location Name</Label>
@@ -597,7 +596,7 @@ export function Settings() {
                   placeholder="Enter location name"
                 />
               </div>
-              
+
               <div>
                 <Label htmlFor="location-type">Location Type</Label>
                 <Select value={locationFormData.location_type} onValueChange={(value) => setLocationFormData(prev => ({ ...prev, location_type: value as LocationType }))}>
@@ -612,7 +611,7 @@ export function Settings() {
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div className="col-span-2">
                 <Label htmlFor="location-address">Address</Label>
                 <Input
@@ -622,7 +621,7 @@ export function Settings() {
                   placeholder="Enter street address"
                 />
               </div>
-              
+
               <div>
                 <Label htmlFor="location-city">City</Label>
                 <Input
@@ -632,7 +631,7 @@ export function Settings() {
                   placeholder="Enter city"
                 />
               </div>
-              
+
               <div>
                 <Label htmlFor="location-state">State</Label>
                 <Input
@@ -642,7 +641,7 @@ export function Settings() {
                   placeholder="Enter state"
                 />
               </div>
-              
+
               <div>
                 <Label htmlFor="location-zip">ZIP Code</Label>
                 <Input
@@ -654,7 +653,7 @@ export function Settings() {
               </div>
             </div>
           </div>
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowLocationModal(false)}>
               Cancel

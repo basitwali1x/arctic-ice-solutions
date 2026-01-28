@@ -1,0 +1,57 @@
+name: Deploy Arctic Frontend (Staff)
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'frontend-staff/**'
+  workflow_dispatch:
+
+jobs:
+  deploy-arctic-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Project Identity Guard
+        working-directory: frontend-staff
+        run: |
+          if ! grep -q '"name": "arctic-ice-staff"' package.json; then
+            echo "Error: Wrong project identity! Expected arctic-ice-staff"
+            exit 1
+          fi
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+          
+      - name: Build Arctic Frontend
+        working-directory: frontend-staff
+        env:
+          VITE_API_URL: https://api.arcticicesolutions.com
+          VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.ARCTIC_GOOGLE_MAPS_API_KEY }}
+        run: |
+          pnpm install
+          pnpm build
+          
+      - name: Verify Build
+        working-directory: frontend-staff
+        run: |
+          if [ ! -d "dist" ]; then
+            echo "Error: dist directory not found"
+            exit 1
+          fi
+          
+      - name: Deploy to Devin Apps Platform
+        run: |
+          echo "Deploying Arctic/Staff frontend..."
+          echo "Target Domain: arcticicesolutions.com"
+          # TODO: User must provide the correct App ID for the separate Arctic project
+          echo "App ID: REPLACE_WITH_ARCTIC_APP_ID" 
+          echo "Build Artifacts: frontend-staff/dist"

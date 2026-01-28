@@ -7,23 +7,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import {
   TrendingUp,
-  Users,
-  Truck,
   Package,
   DollarSign,
   MapPin,
-  Clock,
-  AlertCircle,
   RefreshCw,
-  Phone,
-  Mail,
   Navigation,
-  FileText,
   BarChart3,
   Snowflake,
-  AlertTriangle
+  AlertCircle
 } from 'lucide-react';
-import { DashboardOverview, ProductionDashboard, FleetDashboard, FinancialDashboard, Location, Route } from '../types/api';
+import { DashboardOverview, ProductionDashboard, FleetDashboard, FinancialDashboard, Location } from '../types/api';
 import { apiRequest } from '../utils/api';
 import { useErrorToast } from '../hooks/useErrorToast';
 
@@ -49,10 +42,9 @@ export function Dashboard() {
     loading: true,
     error: null
   });
-  const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
+  const [selectedLocation] = useState<Location | null>(null);
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [selectedOptimizeLocation, setSelectedOptimizeLocation] = useState<string>('');
-  const [optimizedRoutes, setOptimizedRoutes] = useState<Route[]>([]);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const { showError } = useErrorToast();
 
@@ -97,13 +89,7 @@ export function Dashboard() {
     return () => clearInterval(interval);
   }, [fetchDashboardData]);
 
-  const handleLocationClick = (locationName: string) => {
-    const location = dashboardState.locations.find(l => l.name === locationName);
-    if (location) {
-      setSelectedLocation(location);
-      setShowLocationModal(true);
-    }
-  };
+
 
   const handleOptimizeRoutes = async () => {
     if (!selectedOptimizeLocation) return;
@@ -112,9 +98,10 @@ export function Dashboard() {
       const res = await apiRequest(`/api/optimize-routes/${selectedOptimizeLocation}`, {
         method: 'POST'
       });
-      if (res.ok) {
-        const data = await res.json();
-        setOptimizedRoutes(data);
+      if (res && res.ok) {
+        // We aren't using the data yet, but this fixes the TS error
+        await res.json();
+        // setOptimizedRoutes(data);
       }
     } catch (err) {
       showError(err, 'Failed to optimize routes');

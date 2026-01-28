@@ -1,4 +1,4 @@
-import { Search, MapPin, LogOut, TrendingUp, AlertTriangle, Users, Map, Bell } from 'lucide-react';
+import { Search, LogOut, TrendingUp, Map, Bell, Users } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useEffect, useState } from 'react';
 import { apiRequest } from '../utils/api';

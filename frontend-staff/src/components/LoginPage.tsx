@@ -15,11 +15,11 @@ export const LoginPage: React.FC = () => {
     setIsLoading(true);
 
     const success = await login(username, password);
-    
+
     if (!success) {
       setError('Invalid username or password');
     }
-    
+
     setIsLoading(false);
   };
 
@@ -30,8 +30,8 @@ export const LoginPage: React.FC = () => {
           <div className="flex items-center justify-center mb-6">
             <Snowflake className="h-12 w-12 text-blue-600 mr-3" />
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Arctic Ice</h1>
-              <p className="text-blue-600">Solutions</p>
+              <h1 className="text-3xl font-bold text-gray-900">Your Choice</h1>
+              <p className="text-blue-600">Ice</p>
             </div>
           </div>
           <h2 className="text-center text-2xl font-bold text-gray-900">

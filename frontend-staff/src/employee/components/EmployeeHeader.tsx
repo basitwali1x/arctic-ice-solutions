@@ -11,7 +11,7 @@ export function EmployeeHeader() {
       <div className="container flex h-14 items-center">
         <div className="flex items-center space-x-2">
           <Snowflake className="h-6 w-6 text-blue-600" />
-          <span className="font-bold text-xl">Arctic Ice Solutions</span>
+          <span className="font-bold text-xl">Your Choice Ice</span>
         </div>
         <div className="ml-auto flex items-center space-x-4">
           <span className="text-sm text-muted-foreground">

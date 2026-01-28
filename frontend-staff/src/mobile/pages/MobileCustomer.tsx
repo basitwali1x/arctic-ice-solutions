@@ -4,8 +4,8 @@ import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Input } from '../../components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
-import { 
-  ShoppingCart, 
+import {
+  ShoppingCart,
   Package,
   Star,
   DollarSign,
@@ -23,7 +23,7 @@ interface CustomerAppProps {
   customerId?: string;
 }
 
-export function MobileCustomer({ 
+export function MobileCustomer({
   customerId = 'cust-001'
 }: CustomerAppProps) {
   const [currentUser, setCurrentUser] = useState<CustomerUser | null>(null);
@@ -57,7 +57,7 @@ export function MobileCustomer({
     const user = customerUsers.find(u => u.id === customerId);
     if (user) {
       setCurrentUser(user);
-      
+
       const fetchOrders = async () => {
         try {
           const response = await fetch(`/api/customers/${customerId}/orders`, {
@@ -76,7 +76,7 @@ export function MobileCustomer({
           setOrders(sampleOrders.filter(o => o.customerId === customerId));
         }
       };
-      
+
       fetchOrders();
       setFeedback(sampleFeedback.filter(f => f.customerId === customerId));
       setInvoices(sampleInvoices.filter(i => i.customerId === customerId));
@@ -101,8 +101,8 @@ export function MobileCustomer({
   const updateOrderItem = (productId: string, quantity: number) => {
     setNewOrder(prev => ({
       ...prev,
-      items: prev.items.map((item: OrderItem) => 
-        item.productId === productId 
+      items: prev.items.map((item: OrderItem) =>
+        item.productId === productId
           ? { ...item, quantity, totalPrice: quantity * item.unitPrice }
           : item
       )
@@ -145,7 +145,7 @@ export function MobileCustomer({
       specialInstructions: '',
       requestedDeliveryDate: ''
     }));
-    
+
     alert('Order submitted successfully!');
     setCurrentView('orders');
   };
@@ -199,7 +199,7 @@ export function MobileCustomer({
       message: '',
       orderId: ''
     });
-    
+
     alert('Feedback submitted successfully!');
   };
 
@@ -251,7 +251,7 @@ export function MobileCustomer({
       <header className="bg-white border-b border-gray-200 px-4 py-3">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-semibold text-gray-900">Arctic Ice Solutions</h1>
+            <h1 className="text-lg font-semibold text-gray-900">Your Choice Ice</h1>
             <p className="text-sm text-gray-600">{currentUser.name}</p>
           </div>
           <div className="text-right">
@@ -356,7 +356,7 @@ export function MobileCustomer({
                     autoComplete="street-address"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium mb-1">Requested Delivery Date</label>
                   <Input
@@ -641,14 +641,14 @@ export function MobileCustomer({
           </div>
         )}
       </main>
-      
+
       {/* Order Detail Modal */}
       <Dialog open={showOrderDetail} onOpenChange={setShowOrderDetail}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Order Details</DialogTitle>
           </DialogHeader>
-          
+
           {selectedOrder && (
             <div className="space-y-4">
               {/* Order Header */}
@@ -661,7 +661,7 @@ export function MobileCustomer({
                   {selectedOrder.status}
                 </Badge>
               </div>
-              
+
               {/* Order Items */}
               <Card>
                 <CardHeader>
@@ -681,7 +681,7 @@ export function MobileCustomer({
                   </div>
                 </CardContent>
               </Card>
-              
+
               {/* Delivery Information */}
               <Card>
                 <CardHeader>
@@ -710,7 +710,7 @@ export function MobileCustomer({
                   )}
                 </CardContent>
               </Card>
-              
+
               {/* Tracking Information */}
               {selectedOrder.trackingInfo && (
                 <Card>
@@ -733,7 +733,7 @@ export function MobileCustomer({
                   </CardContent>
                 </Card>
               )}
-              
+
               {/* Payment & Billing */}
               <Card>
                 <CardHeader>

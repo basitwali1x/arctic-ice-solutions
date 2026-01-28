@@ -16,7 +16,6 @@ import {
 } from 'lucide-react';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { SignaturePad } from '../../components/SignaturePad';
-import { useAuth } from '../../contexts/AuthContext';
 import { apiRequest } from '../../utils/api';
 import { useNavigate } from 'react-router-dom';
 
